@@ -71,19 +71,7 @@ export function CardTile({ card, onClick }: CardTileProps) {
           <p className="text-xs text-slate-400 truncate">
             {card.type_line}
           </p>
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-xs text-slate-500">
-              MV: {card.cmc}
-            </span>
-            <div className="flex space-x-1">
-              {colors.map((color, index) => (
-                <div
-                  key={index}
-                  className={`w-3 h-3 rounded-full ${COLOR_MAPPING[color] || 'bg-gray-400'}`}
-                />
-              ))}
-            </div>
-          </div>
+
         </div>
       </div>
     </div>
