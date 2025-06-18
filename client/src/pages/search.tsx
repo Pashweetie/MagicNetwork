@@ -5,6 +5,7 @@ import { FilterSidebar } from "@/components/filter-sidebar";
 import { CardGrid } from "@/components/card-grid";
 import { CardDetailModal } from "@/components/card-detail-modal";
 import { DeckCardTile } from "@/components/deck-card-tile";
+import { ArchetypeAnalyzer } from "@/components/archetype-analyzer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -230,7 +231,7 @@ export default function Search() {
 
           {/* Deck Panel */}
           {showDeckPanel && (
-            <div className="px-6 py-4 bg-slate-850">
+            <div className="px-6 py-4 bg-slate-850 space-y-6">
               <UICard className="bg-slate-800 border-slate-700">
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
@@ -272,6 +273,14 @@ export default function Search() {
                   )}
                 </CardContent>
               </UICard>
+              
+              {/* AI Archetype Analysis */}
+              {deck.allCards.length > 0 && (
+                <ArchetypeAnalyzer 
+                  cards={deck.allCards} 
+                  onSuggestCard={(card: Card) => deck.addCard(card)}
+                />
+              )}
             </div>
           )}
 

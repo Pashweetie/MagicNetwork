@@ -316,7 +316,7 @@ export class MLArchetypePredictor {
       const cached = await db
         .select()
         .from(cardCache)
-        .where(sql`id = ${id}`)
+        .where(sql`card_id = ${id}`)
         .limit(1);
       
       if (cached.length > 0) {

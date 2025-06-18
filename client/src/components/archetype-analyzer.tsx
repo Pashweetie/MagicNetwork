@@ -86,23 +86,7 @@ export function ArchetypeAnalyzer({ cards, onSuggestCard }: ArchetypeAnalyzerPro
   };
 
   if (cards.length === 0) {
-    return (
-      <UICard className="bg-slate-800 border-slate-700">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2 text-white">
-            <Brain className="w-5 h-5 text-purple-400" />
-            <span>Archetype Analysis</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-slate-400">
-            <Brain className="w-12 h-12 mx-auto mb-4 text-slate-500" />
-            <p>Add cards to analyze deck archetype compatibility</p>
-            <p className="text-sm mt-2">AI will predict the optimal strategy for your deck</p>
-          </div>
-        </CardContent>
-      </UICard>
-    );
+    return null;
   }
 
   return (
