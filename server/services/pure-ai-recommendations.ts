@@ -88,14 +88,20 @@ export class PureAIRecommendationService {
       // Store in database for future use
       for (const theme of aiThemes) {
         try {
-          await db.insert(cardThemes).values({
-            card_id: card.id,
-            theme_name: theme.theme,
-            theme_category: 'AI-Generated',
-            description: theme.description,
-            confidence: 0.8,
-            keywords: [theme.theme.toLowerCase()]
-          });
+          // Ensure we're storing the actual theme name, not "Theme1"
+          if (theme.theme && !theme.theme.match(/^Theme\d+$/i)) {
+            await db.insert(cardThemes).values({
+              card_id: card.id,
+              theme_name: theme.theme,
+              theme_category: 'AI-Generated',
+              description: theme.description,
+              confidence: 0.8,
+              keywords: [theme.theme.toLowerCase()]
+            });
+            console.log(`Stored new theme: "${theme.theme}" for ${card.name}`);
+          } else {
+            console.log(`Skipping generic theme name: ${theme.theme}`);
+          }
         } catch (error) {
           // Theme might already exist, continue
           console.log(`Theme already exists: ${theme.theme}`);

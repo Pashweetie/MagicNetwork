@@ -38,7 +38,7 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          themeName,
+          themeName: themeName, // Ensure we're sending the actual theme name
           feedback,
           reason: feedback === 'not_helpful' ? 'Theme does not match card strategy' : null
         })

@@ -213,9 +213,9 @@ export const cardThemes = pgTable('card_themes', {
 export const recommendationFeedback = pgTable('recommendation_feedback', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
   userId: integer('user_id').references(() => users.id),
-  sourceCardId: text('source_card_id').references(() => cardCache.id).notNull(),
-  recommendedCardId: text('recommended_card_id').references(() => cardCache.id).notNull(),
-  recommendationType: text('recommendation_type').notNull(), // 'synergy' or 'functional_similarity'
+  sourceCardId: text('source_card_id').notNull(), // Remove foreign key constraint for flexibility
+  recommendedCardId: text('recommended_card_id').notNull(), // Can be card ID or theme name
+  recommendationType: text('recommendation_type').notNull(), // 'synergy', 'functional_similarity', 'theme'
   feedback: text('feedback').notNull(), // 'helpful', 'not_helpful', 'irrelevant'
   userComment: text('user_comment'), // Optional explanation
   createdAt: timestamp('created_at').defaultNow().notNull(),
