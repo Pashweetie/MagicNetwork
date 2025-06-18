@@ -160,10 +160,9 @@ export const cardThemes = pgTable('card_themes', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
   card_id: text('card_id').references(() => cardCache.id).notNull(),
   theme_name: text('theme_name').notNull(),
-  theme_category: text('theme_category').notNull(), // 'strategy', 'archetype', 'mechanic', 'synergy'
+  theme_category: text('theme_category').notNull(), // 'strategy', 'archetype', 'mechanic', 'synergy'  
   confidence: real('confidence').notNull(), // 0-1 confidence score
   keywords: text('keywords').array(), // Keywords that triggered this theme
-  search_terms: text('search_terms').array(), // Search terms for filtering
   description: text('description'),
   created_at: timestamp('created_at').defaultNow().notNull(),
   last_updated: timestamp('last_updated').defaultNow().notNull(),

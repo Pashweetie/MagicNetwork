@@ -76,8 +76,7 @@ export class PureAIRecommendationService {
             theme_category: 'AI-Generated',
             description: theme.description,
             confidence: 0.8,
-            keywords: [theme.theme.toLowerCase()],
-            search_terms: [theme.theme.toLowerCase()]
+            keywords: [theme.theme.toLowerCase()]
           });
         } catch (error) {
           // Theme might already exist, continue
@@ -262,23 +261,7 @@ Oracle Text: ${card.oracle_text || 'No text'}`;
     }
   }
 
-  private async scoreCardForThemeWithAI(card: Card, theme: {theme: string, description: string}): Promise<number> {
-    try {
-      const prompt = `Rate 0-100 how well this Magic card fits the "${theme.theme}" strategy: "${theme.description}". Card: "${card.name}" Type: "${card.type_line}" Text: "${card.oracle_text || 'No text'}" - Answer only a number 0-100:`;
 
-      const response = await this.textGenerator(prompt, {
-        max_new_tokens: 8,
-        temperature: 0.1
-      });
-
-      const text = response[0]?.generated_text || '0';
-      const scoreMatch = text.match(/\b([0-9]{1,3})\b/);
-      return scoreMatch ? Math.min(parseInt(scoreMatch[1]) / 100, 1) : 0;
-
-    } catch (error) {
-      return 0;
-    }
-  }
 
   // AI-powered synergy analysis
   async analyzeSynergy(sourceCard: Card, targetCard: Card): Promise<{score: number, reason: string}> {
