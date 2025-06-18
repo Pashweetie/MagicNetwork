@@ -3,6 +3,8 @@ import { Card } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CardRecommendations } from "./card-recommendations";
+import { ThemeSuggestions } from "./theme-suggestions";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface CardDetailModalProps {
   card: Card | null;
@@ -153,15 +155,36 @@ export function CardDetailModal({ card, isOpen, onClose }: CardDetailModalProps)
           </div>
         </div>
 
-        {/* Recommendations Section */}
+        {/* Recommendations and Theme Suggestions */}
         <div className="px-6 pb-6">
-          <CardRecommendations 
-            cardId={card.id} 
-            onCardClick={(newCard) => {
-              // For now just close the modal, could open new card instead
-              onClose();
-            }}
-          />
+          <Tabs defaultValue="similar" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 bg-slate-800 border-slate-700">
+              <TabsTrigger value="similar" className="data-[state=active]:bg-slate-700">
+                Similar Cards
+              </TabsTrigger>
+              <TabsTrigger value="themes" className="data-[state=active]:bg-slate-700">
+                Theme Suggestions
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="similar" className="mt-6">
+              <CardRecommendations 
+                cardId={card.id} 
+                onCardClick={(newCard) => {
+                  onClose();
+                }}
+              />
+            </TabsContent>
+            
+            <TabsContent value="themes" className="mt-6">
+              <ThemeSuggestions 
+                card={card} 
+                onCardClick={(newCard) => {
+                  onClose();
+                }}
+              />
+            </TabsContent>
+          </Tabs>
         </div>
       </DialogContent>
     </Dialog>

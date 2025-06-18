@@ -124,6 +124,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Theme suggestions endpoint (AI-powered)
+  app.get("/api/cards/:id/theme-suggestions", async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const themeGroups = await recommendationService.getThemeSuggestions(id);
+      res.json(themeGroups);
+    } catch (error) {
+      console.error('Theme suggestions error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Generate recommendations for popular cards (admin endpoint)
   app.post("/api/admin/generate-recommendations", async (req, res) => {
     try {

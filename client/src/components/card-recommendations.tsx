@@ -21,7 +21,16 @@ interface RecommendationWithCard {
 export function CardRecommendations({ cardId, onCardClick }: CardRecommendationsProps) {
   const { data: recommendations, isLoading, error } = useQuery({
     queryKey: ['/api/cards', cardId, 'recommendations'],
-    queryFn: () => apiRequest(`/api/cards/${cardId}/recommendations?limit=8`),
+    queryFn: async () => {
+      try {
+        const response = await fetch(`/api/cards/${cardId}/recommendations?limit=8`);
+        if (!response.ok) throw new Error('Failed to fetch recommendations');
+        return response.json();
+      } catch (err) {
+        console.error('Error fetching recommendations:', err);
+        return [];
+      }
+    },
     enabled: !!cardId,
   });
 
