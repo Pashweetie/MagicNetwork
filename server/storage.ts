@@ -61,13 +61,15 @@ export class DatabaseStorage implements IStorage {
     const cached = await this.getCachedSearchResults(filters, page);
     if (cached) {
       // Update access count
-      const queryHash = this.generateQueryHash(filters, page);
       await db.update(searchCache)
         .set({ 
           lastAccessed: new Date(),
           accessCount: sql`${searchCache.accessCount} + 1`
         })
-        .where(eq(searchCache.queryHash, queryHash));
+        .where(and(
+          eq(searchCache.filters, filters),
+          eq(searchCache.page, page)
+        ));
       
       return cached;
     }
@@ -93,7 +95,7 @@ export class DatabaseStorage implements IStorage {
       // Update search count
       await db.update(cardCache)
         .set({ searchCount: sql`${cardCache.searchCount} + 1` })
-        .where(eq(cardCache.cardId, id));
+        .where(eq(cardCache.id, id));
       
       return cached;
     }
@@ -178,11 +180,11 @@ export class DatabaseStorage implements IStorage {
   async cacheCard(card: Card): Promise<void> {
     try {
       await db.insert(cardCache).values({
-        cardId: card.id,
+        id: card.id,
         cardData: card,
         searchCount: 1
       }).onConflictDoUpdate({
-        target: cardCache.cardId,
+        target: cardCache.id,
         set: {
           cardData: card,
           lastUpdated: new Date()
@@ -198,7 +200,7 @@ export class DatabaseStorage implements IStorage {
       const [cached] = await db
         .select()
         .from(cardCache)
-        .where(eq(cardCache.cardId, id));
+        .where(eq(cardCache.id, id));
       
       if (!cached) return null;
       
@@ -220,12 +222,13 @@ export class DatabaseStorage implements IStorage {
       const queryHash = this.generateQueryHash(filters, page);
       
       await db.insert(searchCache).values({
-        queryHash,
-        query: JSON.stringify({ filters, page }),
+        id: crypto.randomUUID(),
+        filters,
+        page,
         results: results,
         accessCount: 1
       }).onConflictDoUpdate({
-        target: searchCache.queryHash,
+        target: [searchCache.filters, searchCache.page],
         set: {
           results: results,
           lastAccessed: new Date()
@@ -238,12 +241,13 @@ export class DatabaseStorage implements IStorage {
 
   async getCachedSearchResults(filters: SearchFilters, page: number): Promise<SearchResponse | null> {
     try {
-      const queryHash = this.generateQueryHash(filters, page);
-      
       const [cached] = await db
         .select()
         .from(searchCache)
-        .where(eq(searchCache.queryHash, queryHash));
+        .where(and(
+          eq(searchCache.filters, filters),
+          eq(searchCache.page, page)
+        ));
       
       if (!cached) return null;
       
@@ -253,7 +257,7 @@ export class DatabaseStorage implements IStorage {
         return null;
       }
       
-      return cached.results as SearchResponse;
+      return cached.results;
     } catch (error) {
       console.error('Error getting cached search results:', error);
       return null;
@@ -298,7 +302,7 @@ export class DatabaseStorage implements IStorage {
     return db.select()
       .from(cardRecommendations)
       .where(and(
-        eq(cardRecommendations.cardId, cardId),
+        eq(cardRecommendations.sourceCardId, cardId),
         eq(cardRecommendations.recommendationType, type)
       ))
       .orderBy(desc(cardRecommendations.score))
@@ -312,12 +316,12 @@ export class DatabaseStorage implements IStorage {
 
       // Clear existing recommendations
       await db.delete(cardRecommendations)
-        .where(eq(cardRecommendations.cardId, cardId));
+        .where(eq(cardRecommendations.sourceCardId, cardId));
 
       // Generate synergy recommendations
       const synergyCards = await this.findSynergyCards(sourceCard);
       const synergyRecommendations = synergyCards.map(rec => ({
-        cardId: sourceCard.id,
+        sourceCardId: sourceCard.id,
         recommendedCardId: rec.cardId,
         recommendationType: 'synergy' as const,
         score: rec.score,
@@ -327,7 +331,7 @@ export class DatabaseStorage implements IStorage {
       // Generate functional similarity recommendations
       const similarCards = await this.findFunctionallySimarCards(sourceCard);
       const similarRecommendations = similarCards.map(rec => ({
-        cardId: sourceCard.id,
+        sourceCardId: sourceCard.id,
         recommendedCardId: rec.cardId,
         recommendationType: 'functional_similarity' as const,
         score: rec.score,
@@ -388,7 +392,8 @@ export class DatabaseStorage implements IStorage {
 
       // Get the recommended cards
       const recommendedCards: Card[] = [];
-      for (const cardId of Array.from(recommendations).slice(0, limit)) {
+      const cardIdArray = Array.from(recommendations);
+      for (const cardId of cardIdArray.slice(0, limit)) {
         const card = await this.getCard(cardId);
         if (card) recommendedCards.push(card);
       }
