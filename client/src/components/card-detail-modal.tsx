@@ -205,13 +205,6 @@ function SimilarRecommendations({ cardId, onCardClick, onAddCard }: { cardId: st
                   </div>
                 </div>
               </div>
-                </button>
-              </div>
-              <div className="absolute bottom-2 right-2 text-white text-xs">
-                <span className="bg-blue-600/80 px-1 py-0.5 rounded text-xs">
-                  {rec.reason}
-                </span>
-              </div>
             </div>
           ))}
         </div>
