@@ -63,8 +63,8 @@ function SynergyRecommendations({ cardId, onCardClick }: { cardId: string; onCar
         </div>
       ) : availableCards.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {availableCards.map((rec: any) => (
-            <div key={rec.card.id} className="relative group">
+          {availableCards.map((rec: any, index: number) => (
+            <div key={`synergy-${rec.card.id}-${index}`} className="relative group">
               <CardTile card={rec.card} onClick={onCardClick} />
               <div className="absolute top-1 right-1">
                 <div className="text-xs bg-yellow-500/90 text-black px-1.5 py-0.5 rounded font-medium">{rec.score}%</div>
@@ -119,8 +119,8 @@ function SimilarRecommendations({ cardId, onCardClick }: { cardId: string; onCar
         </div>
       ) : availableCards.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {availableCards.map((rec: any) => (
-            <div key={rec.card.id} className="relative group">
+          {availableCards.map((rec: any, index: number) => (
+            <div key={`similar-${rec.card.id}-${index}`} className="relative group">
               <CardTile card={rec.card} onClick={onCardClick} />
               <div className="absolute top-1 right-1">
                 <div className="text-xs bg-blue-500/90 text-white px-1.5 py-0.5 rounded font-medium">{rec.score}%</div>
