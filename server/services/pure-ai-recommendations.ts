@@ -122,7 +122,7 @@ Oracle Text: ${card.oracle_text || 'No text'}`;
       if (this.textGenerator.getGenerativeModel) {
         // Using Google Gemini
         try {
-          const model = this.textGenerator.getGenerativeModel({ model: "gemini-pro" });
+          const model = this.textGenerator.getGenerativeModel({ model: "gemini-1.5-flash" });
           const prompt = `You are a Magic: The Gathering expert. Analyze this card and identify 2-3 strategic themes. Be concise.
 
 ${cardContext}
@@ -320,10 +320,23 @@ Theme2: Description`;
       const sourceContext = `"${sourceCard.name}" (${sourceCard.type_line}): ${sourceCard.oracle_text || 'No text'}`;
       const targetContext = `"${targetCard.name}" (${targetCard.type_line}): ${targetCard.oracle_text || 'No text'}`;
 
-      if (this.textGenerator.chat) {
-        // Using OpenAI GPT
+      if (this.textGenerator.getGenerativeModel) {
+        // Using Google Gemini
+        const model = this.textGenerator.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const prompt = `You are a Magic: The Gathering expert. Rate card synergy on a scale of 0-100 and explain why.
+
+Source: ${sourceContext}
+Target: ${targetContext}
+
+Provide: SCORE|REASON (e.g., "75|Strong artifact synergy with metalcraft triggers")`;
+
+        const result = await model.generateContent(prompt);
+        aiResponse = result.response.text() || '';
+      } else if (this.textGenerator.chat) {
+        // Using OpenAI-compatible API
+        const model = process.env.DEEPSEEK_API_KEY ? "deepseek-chat" : "gpt-4o-mini";
         const response = await this.textGenerator.chat.completions.create({
-          model: "gpt-4o",
+          model: model,
           messages: [
             {
               role: "system",
@@ -340,15 +353,8 @@ Theme2: Description`;
 
         aiResponse = response.choices[0]?.message?.content || '';
       } else {
-        // Using local transformer
-        const prompt = `Rate synergy 0-100 between Magic cards. Source: ${sourceContext} Target: ${targetContext} - Do they work well together? Format: NUMBER|reason`;
-        
-        const response = await this.textGenerator(prompt, {
-          max_new_tokens: 50,
-          temperature: 0.3
-        });
-
-        aiResponse = response[0]?.generated_text || '';
+        // No AI available
+        return this.getBasicSynergy(sourceCard, targetCard);
       }
 
       const match = aiResponse.match(/(\d{1,3})\s*\|\s*(.+)/);
@@ -359,11 +365,15 @@ Theme2: Description`;
         };
       }
 
-      // Return zero if AI analysis fails - no fallback patterns
-      return { score: 0, reason: 'AI analysis unavailable' };
-    } catch (error) {
+      // Use basic synergy if AI parsing fails
+      return this.getBasicSynergy(sourceCard, targetCard);
+    } catch (error: any) {
+      if (error.status === 429 || error.code === 'insufficient_quota' || error.code === 'RESOURCE_EXHAUSTED') {
+        console.log('AI quota exceeded, using pattern-based analysis');
+        return this.getBasicSynergy(sourceCard, targetCard);
+      }
       console.error('AI synergy analysis failed:', error);
-      return { score: 0, reason: 'analysis failed' };
+      return this.getBasicSynergy(sourceCard, targetCard);
     }
   }
 
@@ -422,11 +432,15 @@ Theme2: Description`;
         };
       }
 
-      // Return zero if AI analysis fails - no fallback patterns
-      return { score: 0, reason: 'AI analysis unavailable' };
-    } catch (error) {
+      // Use basic similarity if AI parsing fails
+      return this.getBasicSimilarity(sourceCard, targetCard);
+    } catch (error: any) {
+      if (error.status === 429 || error.code === 'insufficient_quota' || error.code === 'RESOURCE_EXHAUSTED') {
+        console.log('AI quota exceeded, using pattern-based analysis');
+        return this.getBasicSimilarity(sourceCard, targetCard);
+      }
       console.error('AI similarity analysis failed:', error);
-      return { score: 0, reason: 'analysis failed' };
+      return this.getBasicSimilarity(sourceCard, targetCard);
     }
   }
 

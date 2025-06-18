@@ -1,0 +1,171 @@
+
+> rest-express@1.0.0 dev
+> NODE_ENV=development tsx server/index.ts
+
+Google Gemini AI ready for theme generation
+Re-optimizing dependencies because lockfile has changed
+9:09:00 PM [express] serving on port 5000
+Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+9:09:06 PM [express] GET /api/cards/search 304 in 639ms :: {"data":[{"id":"e882c9f9-bf30-46b6-bedc-3…
+9:09:06 PM [express] GET /api/cards/search 304 in 600ms :: {"data":[{"id":"5aa90ab6-2686-4462-8725-5…
+Neural network handles recommendation generation automatically
+Getting pure neural network theme analysis for card: 2a83882c-3e03-4e85-aaac-97fa1d08a772
+Retrieved card: Aarakocra Sneak (Creature — Bird Rogue)
+Gemini API error: GoogleGenerativeAIFetchError: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent: [404 Not Found] models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+    at handleResponseNotOk (file:///home/runner/workspace/node_modules/@google/generative-ai/dist/index.mjs:432:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async makeRequest (file:///home/runner/workspace/node_modules/@google/generative-ai/dist/index.mjs:401:9)
+    at async generateContent (file:///home/runner/workspace/node_modules/@google/generative-ai/dist/index.mjs:865:22)
+    at async PureAIRecommendationService.generateThemesWithAI (/home/runner/workspace/server/services/pure-ai-recommendations.ts:134:26)
+    at async PureAIRecommendationService.analyzeCardThemes (/home/runner/workspace/server/services/pure-ai-recommendations.ts:86:24)
+    at async RecommendationService.getThemeSuggestions (/home/runner/workspace/server/services/recommendation.ts:58:24)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:264:27) {
+  status: 404,
+  statusText: 'Not Found',
+  errorDetails: undefined
+}
+Theme already exists: Creature Strategy
+AI generated 1 themes for Aarakocra Sneak
+AI identified 1 themes for Aarakocra Sneak
+Returning 1 theme groups (cards on-demand)
+9:10:50 PM [express] GET /api/cards/2a83882c-3e03-4e85-aaac-97fa1d08a772/theme-suggestions 200 in 33…
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)
+    at async DatabaseStorage.findSynergyCards (/home/runner/workspace/server/storage.ts:511:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:99:16)
+AI synergy analysis failed: TypeError: this.textGenerator is not a function
+    at PureAIRecommendationService.analyzeSynergy (/home/runner/workspace/server/services/pure-ai-recommendations.ts:346:37)
+    at DatabaseStorage.findAISynergyCards (/home/runner/workspace/server/storage.ts:535:51)

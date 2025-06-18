@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { recommendationService } from "./services/recommendation";
+import { pureAIService } from "./services/pure-ai-recommendations";
 import { searchFiltersSchema, cardCache } from "@shared/schema";
 import { db } from "./db";
 import { desc } from "drizzle-orm";
