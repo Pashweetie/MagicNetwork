@@ -1,0 +1,181 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(222, 84%, 5%);
+  --foreground: hsl(210, 40%, 98%);
+  --muted: hsl(217, 32%, 17%);
+  --muted-foreground: hsl(215, 20%, 65%);
+  --popover: hsl(224, 71%, 4%);
+  --popover-foreground: hsl(210, 40%, 98%);
+  --card: hsl(224, 71%, 4%);
+  --card-foreground: hsl(210, 40%, 98%);
+  --border: hsl(215, 27%, 32%);
+  --input: hsl(215, 27%, 32%);
+  --primary: hsl(207, 90%, 54%);
+  --primary-foreground: hsl(211, 100%, 99%);
+  --secondary: hsl(217, 32%, 17%);
+  --secondary-foreground: hsl(210, 40%, 98%);
+  --accent: hsl(217, 32%, 17%);
+  --accent-foreground: hsl(210, 40%, 98%);
+  --destructive: hsl(0, 84%, 60%);
+  --destructive-foreground: hsl(210, 40%, 98%);
+  --ring: hsl(212, 12%, 87%);
+  --radius: 0.5rem;
+  --chart-1: hsl(207, 90%, 54%);
+  --chart-2: hsl(142, 76%, 36%);
+  --chart-3: hsl(358, 75%, 59%);
+  --chart-4: hsl(43, 74%, 66%);
+  --chart-5: hsl(267, 57%, 78%);
+  --sidebar-background: hsl(220, 13%, 18%);
+  --sidebar-foreground: hsl(220, 9%, 46%);
+  --sidebar-primary: hsl(224, 71%, 4%);
+  --sidebar-primary-foreground: hsl(210, 40%, 98%);
+  --sidebar-accent: hsl(220, 13%, 28%);
+  --sidebar-accent-foreground: hsl(220, 9%, 46%);
+  --sidebar-border: hsl(220, 13%, 28%);
+  --sidebar-ring: hsl(217, 10%, 64%);
+}
+
+.dark {
+  --background: hsl(222, 84%, 5%);
+  --foreground: hsl(210, 40%, 98%);
+  --muted: hsl(217, 32%, 17%);
+  --muted-foreground: hsl(215, 20%, 65%);
+  --popover: hsl(224, 71%, 4%);
+  --popover-foreground: hsl(210, 40%, 98%);
+  --card: hsl(224, 71%, 4%);
+  --card-foreground: hsl(210, 40%, 98%);
+  --border: hsl(215, 27%, 32%);
+  --input: hsl(215, 27%, 32%);
+  --primary: hsl(207, 90%, 54%);
+  --primary-foreground: hsl(211, 100%, 99%);
+  --secondary: hsl(217, 32%, 17%);
+  --secondary-foreground: hsl(210, 40%, 98%);
+  --accent: hsl(217, 32%, 17%);
+  --accent-foreground: hsl(210, 40%, 98%);
+  --destructive: hsl(0, 62%, 30%);
+  --destructive-foreground: hsl(210, 40%, 98%);
+  --ring: hsl(212, 12%, 87%);
+  --chart-1: hsl(207, 90%, 54%);
+  --chart-2: hsl(142, 76%, 36%);
+  --chart-3: hsl(358, 75%, 59%);
+  --chart-4: hsl(43, 74%, 66%);
+  --chart-5: hsl(267, 57%, 78%);
+  --sidebar-background: hsl(220, 13%, 18%);
+  --sidebar-foreground: hsl(220, 9%, 46%);
+  --sidebar-primary: hsl(224, 71%, 4%);
+  --sidebar-primary-foreground: hsl(210, 40%, 98%);
+  --sidebar-accent: hsl(220, 13%, 28%);
+  --sidebar-accent-foreground: hsl(220, 9%, 46%);
+  --sidebar-border: hsl(220, 13%, 28%);
+  --sidebar-ring: hsl(217, 10%, 64%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Custom scrollbar styles */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-slate-800;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-600 rounded;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-500;
+  }
+
+  /* MTG mana symbol styling */
+  .mana-symbol {
+    display: inline-block;
+    width: 1.2em;
+    height: 1.2em;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 1.2em;
+    font-size: 0.8em;
+    font-weight: bold;
+    vertical-align: middle;
+  }
+
+  .mana-white {
+    background: linear-gradient(135deg, #fffbd5 0%, #f8f4d6 100%);
+    color: #000;
+  }
+
+  .mana-blue {
+    background: linear-gradient(135deg, #0e68ab 0%, #1a7bc4 100%);
+    color: #fff;
+  }
+
+  .mana-black {
+    background: linear-gradient(135deg, #150b00 0%, #2a1100 100%);
+    color: #fff;
+  }
+
+  .mana-red {
+    background: linear-gradient(135deg, #d3202a 0%, #e63946 100%);
+    color: #fff;
+  }
+
+  .mana-green {
+    background: linear-gradient(135deg, #00733e 0%, #198754 100%);
+    color: #fff;
+  }
+
+  .mana-colorless {
+    background: linear-gradient(135deg, #ccc2c0 0%, #a8a8a8 100%);
+    color: #000;
+  }
+
+  /* Card hover effects */
+  .card-hover {
+    transition: all 0.2s ease-in-out;
+  }
+
+  .card-hover:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Loading animation */
+  @keyframes pulse-subtle {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+
+  .pulse-subtle {
+    animation: pulse-subtle 1.5s ease-in-out infinite;
+  }
+
+  /* Focus styles for accessibility */
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
+}

@@ -1,0 +1,71 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { scryfallService } from "./services/scryfall";
+import { searchFiltersSchema } from "@shared/schema";
+import { z } from "zod";
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Search cards endpoint
+  app.get("/api/cards/search", async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      
+      // Parse query parameters into filters
+      const filters = {
+        query: req.query.q as string,
+        colors: req.query.colors ? (req.query.colors as string).split(',') : undefined,
+        types: req.query.types ? (req.query.types as string).split(',') : undefined,
+        rarities: req.query.rarities ? (req.query.rarities as string).split(',') : undefined,
+        format: req.query.format as string,
+        minMv: req.query.minMv ? parseInt(req.query.minMv as string) : undefined,
+        maxMv: req.query.maxMv ? parseInt(req.query.maxMv as string) : undefined,
+        includeMulticolored: req.query.includeMulticolored === 'true',
+      };
+
+      // Validate filters
+      const validatedFilters = searchFiltersSchema.parse(filters);
+      
+      const result = await scryfallService.searchCards(validatedFilters, page);
+      res.json(result);
+    } catch (error) {
+      console.error('Search error:', error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid search parameters", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  });
+
+  // Get single card endpoint
+  app.get("/api/cards/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const card = await scryfallService.getCard(id);
+      
+      if (!card) {
+        res.status(404).json({ message: "Card not found" });
+        return;
+      }
+      
+      res.json(card);
+    } catch (error) {
+      console.error('Get card error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get random card endpoint
+  app.get("/api/cards/random", async (req, res) => {
+    try {
+      const card = await scryfallService.getRandomCard();
+      res.json(card);
+    } catch (error) {
+      console.error('Random card error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
