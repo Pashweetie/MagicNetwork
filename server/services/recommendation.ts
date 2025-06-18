@@ -1,8 +1,8 @@
 import { storage } from "../storage";
-import { Card, cardThemes, InsertCardTheme } from "@shared/schema";
+import { Card, cardThemes, InsertCardTheme, userInteractions, userPreferences, contextualSuggestions, InsertUserPreference, InsertContextualSuggestion } from "@shared/schema";
 import { db } from "../db";
 import { cardCache } from "@shared/schema";
-import { desc, sql, eq } from "drizzle-orm";
+import { desc, sql, eq, and, inArray, gte } from "drizzle-orm";
 import { pipeline } from '@xenova/transformers';
 
 export class RecommendationService {
@@ -68,6 +68,259 @@ export class RecommendationService {
   }
 
   // Generate recommendations for popular cards in batches
+  // Context-aware suggestion engine
+  async getContextualSuggestions(userId: number, limit: number = 20): Promise<Card[]> {
+    try {
+      // Update user preferences based on recent interactions
+      await this.updateUserPreferences(userId);
+      
+      // Generate contextual suggestions
+      await this.generateContextualSuggestions(userId);
+      
+      // Get fresh suggestions
+      const suggestions = await db
+        .select()
+        .from(contextualSuggestions)
+        .where(and(
+          eq(contextualSuggestions.userId, userId),
+          gte(contextualSuggestions.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000)) // Last 24 hours
+        ))
+        .orderBy(desc(contextualSuggestions.score))
+        .limit(limit);
+
+      // Get card data for suggestions
+      const cardIds = suggestions.map(s => s.cardId);
+      if (cardIds.length === 0) return [];
+
+      const cards = await db
+        .select()
+        .from(cardCache)
+        .where(inArray(cardCache.id, cardIds));
+
+      return cards.map(c => c.cardData as Card);
+    } catch (error) {
+      console.error('Error getting contextual suggestions:', error);
+      return [];
+    }
+  }
+
+  private async updateUserPreferences(userId: number): Promise<void> {
+    try {
+      // Get recent user interactions
+      const recentInteractions = await db
+        .select()
+        .from(userInteractions)
+        .where(and(
+          eq(userInteractions.userId, userId),
+          gte(userInteractions.createdAt, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)) // Last 7 days
+        ))
+        .orderBy(desc(userInteractions.createdAt));
+
+      // Analyze preferences from interactions
+      const colorPreferences = new Map<string, number>();
+      const archetypePreferences = new Map<string, number>();
+      const typePreferences = new Map<string, number>();
+
+      for (const interaction of recentInteractions) {
+        const card = await storage.getCard(interaction.cardId);
+        if (!card) continue;
+
+        const weight = this.getInteractionWeight(interaction.interactionType);
+        
+        // Track color preferences
+        if (card.mana_cost) {
+          const colors = this.extractColors(card.mana_cost);
+          for (const color of colors) {
+            colorPreferences.set(color, (colorPreferences.get(color) || 0) + weight);
+          }
+        }
+
+        // Track type preferences
+        const mainType = card.type_line.split(' ')[0];
+        typePreferences.set(mainType, (typePreferences.get(mainType) || 0) + weight);
+
+        // Track archetype preferences based on card characteristics
+        const archetypes = this.inferArchetypesFromCard(card);
+        for (const archetype of archetypes) {
+          archetypePreferences.set(archetype, (archetypePreferences.get(archetype) || 0) + weight * 0.5);
+        }
+      }
+
+      // Update preferences in database
+      await this.saveUserPreferences(userId, 'color', colorPreferences);
+      await this.saveUserPreferences(userId, 'archetype', archetypePreferences);
+      await this.saveUserPreferences(userId, 'card_type', typePreferences);
+
+    } catch (error) {
+      console.error('Error updating user preferences:', error);
+    }
+  }
+
+  private async saveUserPreferences(userId: number, type: string, preferences: Map<string, number>): Promise<void> {
+    // Normalize preferences to 0-1 scale
+    const maxScore = Math.max(...Array.from(preferences.values()));
+    if (maxScore === 0) return;
+
+    for (const [value, score] of preferences.entries()) {
+      const normalizedScore = score / maxScore;
+      
+      // Only save significant preferences
+      if (normalizedScore < 0.1) continue;
+
+      try {
+        await db.insert(userPreferences).values({
+          userId,
+          preferenceType: type,
+          preferenceValue: value,
+          strength: normalizedScore
+        }).onConflictDoUpdate({
+          target: [userPreferences.userId, userPreferences.preferenceType, userPreferences.preferenceValue],
+          set: {
+            strength: sql`GREATEST(${userPreferences.strength}, ${normalizedScore})`,
+            lastUpdated: new Date()
+          }
+        });
+      } catch (error) {
+        console.error('Error saving preference:', error);
+      }
+    }
+  }
+
+  private async generateContextualSuggestions(userId: number): Promise<void> {
+    try {
+      // Clear old suggestions
+      await db.delete(contextualSuggestions)
+        .where(eq(contextualSuggestions.userId, userId));
+
+      // Get user preferences
+      const preferences = await db
+        .select()
+        .from(userPreferences)
+        .where(eq(userPreferences.userId, userId));
+
+      // Get cards user has already interacted with
+      const interactedCards = await db
+        .select({ cardId: userInteractions.cardId })
+        .from(userInteractions)
+        .where(eq(userInteractions.userId, userId));
+      
+      const knownCardIds = new Set(interactedCards.map(i => i.cardId));
+
+      // Generate suggestions based on preferences
+      const suggestions: InsertContextualSuggestion[] = [];
+
+      // Get sample of cards to score
+      const candidateCards = await db
+        .select()
+        .from(cardCache)
+        .orderBy(desc(cardCache.searchCount))
+        .limit(500);
+
+      for (const cached of candidateCards) {
+        const card = cached.cardData as Card;
+        
+        // Skip cards user already knows
+        if (knownCardIds.has(card.id)) continue;
+
+        let score = 0;
+        const reasons: string[] = [];
+
+        // Score based on color preferences
+        const colorPrefs = preferences.filter(p => p.preferenceType === 'color');
+        if (card.mana_cost) {
+          const cardColors = this.extractColors(card.mana_cost);
+          for (const color of cardColors) {
+            const pref = colorPrefs.find(p => p.preferenceValue === color);
+            if (pref) {
+              score += pref.strength * 0.3;
+              reasons.push(`matches ${color} preference`);
+            }
+          }
+        }
+
+        // Score based on type preferences
+        const typePrefs = preferences.filter(p => p.preferenceType === 'card_type');
+        const mainType = card.type_line.split(' ')[0];
+        const typePref = typePrefs.find(p => p.preferenceValue === mainType);
+        if (typePref) {
+          score += typePref.strength * 0.4;
+          reasons.push(`matches ${mainType} preference`);
+        }
+
+        // Score based on archetype preferences
+        const archetypePrefs = preferences.filter(p => p.preferenceType === 'archetype');
+        const cardArchetypes = this.inferArchetypesFromCard(card);
+        for (const archetype of cardArchetypes) {
+          const pref = archetypePrefs.find(p => p.preferenceValue === archetype);
+          if (pref) {
+            score += pref.strength * 0.3;
+            reasons.push(`fits ${archetype} archetype`);
+          }
+        }
+
+        if (score > 0.2) {
+          suggestions.push({
+            userId,
+            cardId: card.id,
+            suggestionType: 'preference_match',
+            score,
+            reasoning: reasons.join(', '),
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+          });
+        }
+      }
+
+      // Save top suggestions
+      if (suggestions.length > 0) {
+        const topSuggestions = suggestions
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 50);
+
+        await db.insert(contextualSuggestions).values(topSuggestions);
+      }
+
+    } catch (error) {
+      console.error('Error generating contextual suggestions:', error);
+    }
+  }
+
+  private inferArchetypesFromCard(card: Card): string[] {
+    const archetypes: string[] = [];
+    const text = (card.oracle_text || '').toLowerCase();
+    const type = card.type_line.toLowerCase();
+
+    if (text.includes('artifact') || type.includes('artifact')) archetypes.push('artifacts');
+    if (text.includes('graveyard') || text.includes('dies')) archetypes.push('graveyard');
+    if (text.includes('token')) archetypes.push('tokens');
+    if (text.includes('counter') || text.includes('+1/+1')) archetypes.push('counters');
+    if (text.includes('prowess') || text.includes('spell')) archetypes.push('spells');
+    if (type.includes('creature') && card.cmc <= 3) archetypes.push('aggro');
+    if (text.includes('draw') || text.includes('counter target')) archetypes.push('control');
+
+    return archetypes;
+  }
+
+  private extractColors(manaCost: string): string[] {
+    const colors: string[] = [];
+    if (manaCost.includes('W')) colors.push('white');
+    if (manaCost.includes('U')) colors.push('blue');
+    if (manaCost.includes('B')) colors.push('black');
+    if (manaCost.includes('R')) colors.push('red');
+    if (manaCost.includes('G')) colors.push('green');
+    return colors;
+  }
+
+  private getInteractionWeight(interactionType: string): number {
+    switch (interactionType) {
+      case 'deck_add': return 1.0;
+      case 'favorite': return 0.9;
+      case 'recommendation_click': return 0.7;
+      case 'view': return 0.3;
+      case 'search': return 0.2;
+      default: return 0.1;
+    }
+  }
+
   async generateRecommendationsForPopularCards(limit: number = 50): Promise<void> {
     console.log('Generating recommendations for popular cards...');
     
