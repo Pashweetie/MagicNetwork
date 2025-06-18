@@ -17,7 +17,7 @@ interface CardDetailModalProps {
 }
 
 // Theme Recommendations Component
-function ThemeRecommendations({ cardId, onCardClick }: { cardId: string; onCardClick: () => void }) {
+function ThemeRecommendations({ cardId, onCardClick }: { cardId: string; onCardClick: (card: Card) => void }) {
   return (
     <div>
       <h3 className="text-lg font-semibold text-white mb-4 flex items-center">

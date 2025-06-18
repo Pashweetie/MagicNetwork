@@ -18,24 +18,23 @@ export class RecommendationService {
     // Get the actual card data for each recommendation
     const cardData = await Promise.all(
       recommendations.map(async (rec) => {
-        const card = await storage.getCachedCard(rec.recommendedCardId);
+        const card = await storage.getCachedCard(rec.cardId);
         return {
-          card,
-          score: rec.score,
-          reason: rec.reason
+          ...rec,
+          card
         };
       })
     );
-    
-    return cardData.filter(item => item.card !== null);
+
+    return cardData.filter(rec => rec.card !== null);
   }
 
-  // Get personalized recommendations for a user
+  // Get personalized recommendations based on user interactions
   async getPersonalizedRecommendations(userId: number, limit: number = 20): Promise<Card[]> {
     return await storage.getPersonalizedRecommendations(userId, limit);
   }
 
-  // Track user interaction for recommendation learning
+  // Track user interaction for learning
   async trackUserInteraction(userId: number, cardId: string, interactionType: string, metadata?: any): Promise<void> {
     await storage.recordUserInteraction({
       userId,
@@ -43,89 +42,57 @@ export class RecommendationService {
       interactionType,
       metadata
     });
-
-    // Generate recommendations for this card if we haven't already
-    const existingRecs = await storage.getCardRecommendations(cardId, 'synergy', 1);
-    if (existingRecs.length === 0) {
-      console.log(`Generating recommendations for card: ${cardId}`);
-      await this.generateCardRecommendations(cardId);
-    }
   }
 
-  // Batch generate recommendations for popular cards
+  // Generate recommendations for popular cards in batches
   async generateRecommendationsForPopularCards(limit: number = 50): Promise<void> {
     console.log('Generating recommendations for popular cards...');
     
-    // Get most searched cards
-    const popularCards = await db
-      .select({ id: cardCache.id })
-      .from(cardCache)
-      .orderBy(desc(cardCache.searchCount))
-      .limit(limit);
+    // Get popular cards based on search frequency
+    const popularCards = await db.execute(sql`
+      SELECT id FROM card_cache 
+      ORDER BY search_count DESC 
+      LIMIT ${limit}
+    `);
 
-    for (const card of popularCards) {
-      const existingRecs = await storage.getCardRecommendations(card.id, 'synergy', 1);
-      if (existingRecs.length === 0) {
-        console.log(`Generating recommendations for popular card: ${card.id}`);
-        await this.generateCardRecommendations(card.id);
-        
-        // Add small delay to avoid overwhelming the system
-        await new Promise(resolve => setTimeout(resolve, 100));
+    for (const cardResult of (popularCards as any).rows || []) {
+      try {
+        console.log(`Generating recommendations for popular card: ${cardResult.id}`);
+        await this.generateCardRecommendations(cardResult.id);
+      } catch (error) {
+        console.error(`Error generating recommendations for card ${cardResult.id}:`, error);
       }
     }
     
     console.log('Finished generating recommendations for popular cards');
   }
 
-  // AI-powered theme suggestions
   async getThemeSuggestions(cardId: string): Promise<Array<{theme: string, description: string, cards: Card[]}>> {
     try {
-      const sourceCard = await storage.getCachedCard(cardId);
-      if (!sourceCard) {
-        // Try to get card from Scryfall if not cached
-        const freshCard = await storage.getCard(cardId);
-        if (!freshCard) {
-          console.log(`Card ${cardId} not found in cache or Scryfall`);
-          return [];
-        }
-      }
+      // Get the source card
+      const [sourceCard] = await db.execute(sql`SELECT * FROM card_cache WHERE id = ${cardId}`);
+      if (!sourceCard) return [];
 
-      // Check if we already have themes stored for this card
-      let storedThemes = await db
-        .select()
-        .from(cardThemes)
-        .where(eq(cardThemes.cardId, cardId));
+      const card = sourceCard as any as Card;
 
-      // If no themes stored, analyze and store them
-      if (storedThemes.length === 0) {
-        const cardToAnalyze = sourceCard || await storage.getCachedCard(cardId);
-        if (cardToAnalyze) {
-          const analyzedThemes = await this.analyzeAndStoreCardThemes(cardToAnalyze);
-          storedThemes = analyzedThemes;
-        }
-      }
-
-      // If still no themes, don't create shallow type-based themes
-      // Only meaningful strategic themes should be included
-
-      // For each stored theme, find matching cards
-      const themeGroups = [];
-      const cardForMatching = sourceCard || await storage.getCachedCard(cardId);
+      // Generate themes using local pattern analysis
+      const detectedThemes = this.analyzeCardThemesLocally(card);
       
-      if (cardForMatching) {
-        for (const storedTheme of storedThemes) {
-          const matchingCards = await this.findCardsForStoredTheme(storedTheme, cardForMatching);
-          if (matchingCards.length > 0) {
-            themeGroups.push({
-              theme: storedTheme.themeName,
-              description: storedTheme.description || 'Strategic theme based on card analysis',
-              cards: matchingCards.slice(0, 8) // Limit to 8 cards per theme
-            });
-          }
+      const results: Array<{theme: string, description: string, cards: Card[]}> = [];
+
+      // For each detected theme, find matching cards
+      for (const theme of detectedThemes) {
+        const relatedCards = await this.findCardsForDynamicTheme(theme, card);
+        if (relatedCards.length > 0) {
+          results.push({
+            theme: theme.name,
+            description: theme.description,
+            cards: relatedCards.slice(0, 12)
+          });
         }
       }
 
-      return themeGroups;
+      return results.slice(0, 6);
     } catch (error) {
       console.error('Error getting theme suggestions:', error);
       return [];
@@ -133,32 +100,178 @@ export class RecommendationService {
   }
 
   private analyzeCardThemesLocally(card: Card): Array<{name: string, description: string, keywords: string[], searchTerms: string[]}> {
-    const themes = await this.analyzeCardThemes(card);
-    const storedThemes = [];
+    const themes = [];
+    const cardName = card.name.toLowerCase();
+    const cardText = `${card.name} ${card.oracle_text || ''} ${card.type_line}`.toLowerCase();
+    const oracleText = (card.oracle_text || '').toLowerCase();
+    const typeLine = card.type_line.toLowerCase();
+    
+    // THEFT & CONTROL MAGIC
+    if (cardName.includes('abduction') || cardName.includes('steal') || cardName.includes('mind control') ||
+        oracleText.includes('gain control') || oracleText.includes('take control') || 
+        oracleText.includes('steal') || oracleText.includes('exchange control')) {
+      themes.push({
+        name: 'Theft & Control Magic',
+        description: 'Taking control of opponent permanents and resources',
+        keywords: ['steal', 'control', 'gain control', 'exchange'],
+        searchTerms: ['gain control', 'take control', 'steal', 'exchange control', 'control target']
+      });
+    }
 
-    for (const theme of themes) {
-      try {
-        const [inserted] = await db
-          .insert(cardThemes)
-          .values({
-            cardId: card.id,
-            themeName: theme.name,
-            themeCategory: theme.category,
-            confidence: theme.confidence,
-            keywords: theme.keywords,
-            description: theme.description,
-          })
-          .returning();
-        storedThemes.push(inserted);
-      } catch (error: any) {
-        // Ignore duplicate errors
-        if (error.code !== '23505') {
-          console.error('Error storing theme:', error);
-        }
+    // STAX & PRISON
+    if (oracleText.match(/can't\s+(attack|block|be\s+activated|untap)/) ||
+        oracleText.includes('tax') || oracleText.includes('additional cost') ||
+        oracleText.includes('pay') && oracleText.includes('more')) {
+      themes.push({
+        name: 'Stax & Prison',
+        description: 'Disrupting opponent resources and restricting actions',
+        keywords: ['tax', 'restriction', 'additional cost', 'can\'t'],
+        searchTerms: ['additional cost', 'can\'t attack', 'can\'t block', 'tax', 'pay more']
+      });
+    }
+
+    // TOKEN GENERATION
+    if (oracleText.includes('token') || 
+        (oracleText.includes('create') && oracleText.includes('creature'))) {
+      themes.push({
+        name: 'Token Generation',
+        description: 'Creating and utilizing creature tokens for board presence',
+        keywords: ['token', 'create', 'creature'],
+        searchTerms: ['create token', 'token creature', 'creature token']
+      });
+    }
+
+    // GRAVEYARD VALUE
+    if (oracleText.includes('graveyard') || 
+        (oracleText.includes('return') && oracleText.includes('battlefield')) ||
+        oracleText.includes('mill') || oracleText.includes('dredge')) {
+      themes.push({
+        name: 'Graveyard Value',
+        description: 'Using the graveyard as a resource for card advantage',
+        keywords: ['graveyard', 'return', 'mill', 'dredge'],
+        searchTerms: ['graveyard', 'return from graveyard', 'mill', 'put into graveyard']
+      });
+    }
+
+    // ARTIFACT SYNERGY
+    if (typeLine.includes('artifact') || oracleText.includes('artifact')) {
+      themes.push({
+        name: 'Artifact Synergy',
+        description: 'Strategies built around artifact interactions',
+        keywords: ['artifact', 'equipment', 'construct'],
+        searchTerms: ['artifact', 'equipment', 'artifact creature']
+      });
+    }
+
+    // SACRIFICE VALUE
+    if (oracleText.includes('sacrifice') || 
+        (oracleText.includes('destroy') && oracleText.includes('you control'))) {
+      themes.push({
+        name: 'Sacrifice Value',
+        description: 'Converting permanents into value through sacrifice',
+        keywords: ['sacrifice', 'destroy', 'death'],
+        searchTerms: ['sacrifice', 'when dies', 'death trigger']
+      });
+    }
+
+    // COUNTER MAGIC
+    if (oracleText.includes('counter') && oracleText.includes('spell')) {
+      themes.push({
+        name: 'Counter Magic',
+        description: 'Control strategy focused on countering opponent spells',
+        keywords: ['counter', 'spell', 'permission'],
+        searchTerms: ['counter target spell', 'counter spell']
+      });
+    }
+
+    // BURN & DIRECT DAMAGE
+    if (oracleText.includes('damage') && 
+        (oracleText.includes('player') || oracleText.includes('opponent') || oracleText.includes('any target'))) {
+      themes.push({
+        name: 'Burn & Direct Damage',
+        description: 'Dealing direct damage to opponents and planeswalkers',
+        keywords: ['damage', 'burn', 'direct'],
+        searchTerms: ['damage to any target', 'damage to opponent', 'deals damage']
+      });
+    }
+
+    // LIFEGAIN
+    if (oracleText.includes('gain') && oracleText.includes('life')) {
+      themes.push({
+        name: 'Lifegain Strategy',
+        description: 'Gaining life and leveraging lifegain triggers',
+        keywords: ['lifegain', 'gain life', 'life'],
+        searchTerms: ['gain life', 'whenever you gain life', 'lifegain']
+      });
+    }
+
+    // MILL STRATEGY
+    if (oracleText.includes('mill') || 
+        (oracleText.includes('library') && oracleText.includes('graveyard'))) {
+      themes.push({
+        name: 'Mill Strategy',
+        description: 'Depleting opponent library or self-mill for value',
+        keywords: ['mill', 'library', 'graveyard'],
+        searchTerms: ['mill', 'library into graveyard', 'put cards from library']
+      });
+    }
+
+    // +1/+1 COUNTERS
+    if (oracleText.includes('+1/+1 counter') || 
+        (oracleText.includes('counter') && oracleText.includes('creature'))) {
+      themes.push({
+        name: '+1/+1 Counters',
+        description: 'Growing creatures with +1/+1 counters',
+        keywords: ['counter', 'grow', '+1/+1'],
+        searchTerms: ['+1/+1 counter', 'counter on creature', 'put counter']
+      });
+    }
+
+    // RAMP & MANA ACCELERATION
+    if (oracleText.includes('mana') || 
+        (oracleText.includes('land') && oracleText.includes('search'))) {
+      themes.push({
+        name: 'Ramp & Acceleration',
+        description: 'Accelerating mana development for big plays',
+        keywords: ['ramp', 'mana', 'land'],
+        searchTerms: ['search for land', 'add mana', 'mana acceleration']
+      });
+    }
+
+    // TRIBAL THEMES
+    const tribalTypes = ['elf', 'goblin', 'zombie', 'human', 'dragon', 'angel', 'demon', 'spirit', 'vampire', 'wizard', 'warrior', 'knight', 'beast', 'cat', 'bird'];
+    for (const tribe of tribalTypes) {
+      if (typeLine.includes(tribe) || oracleText.includes(tribe)) {
+        themes.push({
+          name: `${tribe.charAt(0).toUpperCase() + tribe.slice(1)} Tribal`,
+          description: `Tribal strategy focused on ${tribe} creatures and synergies`,
+          keywords: [tribe, 'tribal', 'creature type'],
+          searchTerms: [`${tribe}`, `${tribe} creature`, `other ${tribe}s`]
+        });
       }
     }
 
-    return storedThemes;
+    // ENCHANTMENT SYNERGY
+    if (typeLine.includes('enchantment') || oracleText.includes('enchantment')) {
+      themes.push({
+        name: 'Enchantment Synergy',
+        description: 'Strategies built around enchantment interactions',
+        keywords: ['enchantment', 'aura', 'constellation'],
+        searchTerms: ['enchantment', 'constellation', 'enchant']
+      });
+    }
+
+    // CARD DRAW & ADVANTAGE
+    if (oracleText.includes('draw') && oracleText.includes('card')) {
+      themes.push({
+        name: 'Card Draw & Advantage',
+        description: 'Generating card advantage through draw effects',
+        keywords: ['draw', 'card', 'advantage'],
+        searchTerms: ['draw card', 'draw cards', 'card advantage']
+      });
+    }
+
+    return themes.slice(0, 8); // Return up to 8 most relevant themes
   }
 
   private async findCardsForDynamicTheme(theme: {name: string, description: string, keywords: string[], searchTerms: string[]}, sourceCard: Card): Promise<Card[]> {
@@ -187,18 +300,19 @@ export class RecommendationService {
       
       for (const query of searchQueries.slice(0, 8)) { // Limit queries to avoid too many DB calls
         try {
+          const searchTerm = query.replace('oracle:"', '').replace('"', '');
           const cards = await db.execute(sql`
             SELECT * FROM card_cache 
             WHERE id != ${sourceCard.id}
             AND (
-              LOWER(oracle_text) LIKE ${`%${query.replace('oracle:"', '').replace('"', '')}%`}
-              OR LOWER(name) LIKE ${`%${query.replace('oracle:"', '').replace('"', '')}%`}
-              OR LOWER(type_line) LIKE ${`%${query.replace('oracle:"', '').replace('"', '')}%`}
+              LOWER(oracle_text) LIKE ${`%${searchTerm}%`}
+              OR LOWER(name) LIKE ${`%${searchTerm}%`}
+              OR LOWER(type_line) LIKE ${`%${searchTerm}%`}
             )
             LIMIT 20
           `);
           
-          for (const card of cards as any[]) {
+          for (const card of (cards as any).rows || []) {
             const score = this.calculateThemeRelevance(card, theme);
             if (score > 0.3) {
               matchingCards.push({ card: card as Card, score });
@@ -257,305 +371,38 @@ export class RecommendationService {
   }
 
   async analyzeAndStoreCardThemes(card: Card): Promise<any[]> {
-    const themes: Array<{name: string, description: string, keywords: string[], category: string, confidence: number}> = [];
-    
-    const cardText = (card.oracle_text || '').toLowerCase();
-    const typeLine = card.type_line.toLowerCase();
-    const cardName = card.name.toLowerCase();
+    const themes = this.analyzeCardThemesLocally(card);
+    const storedThemes = [];
 
-    // Cascade/Cheating theme detection
-    if (
-      cardText.includes('cascade') ||
-      cardText.includes('without paying') && cardText.includes('mana cost') ||
-      cardText.includes('cast') && cardText.includes('without paying') ||
-      cardText.includes('exile') && cardText.includes('cast') ||
-      cardText.includes('suspend') || cardText.includes('rebound')
-    ) {
-      let confidence = 70;
-      if (cardText.includes('cascade')) confidence = 95;
-      if (cardText.includes('without paying') && cardText.includes('mana cost')) confidence = 90;
-      
-      themes.push({
-        name: 'Cascade/Cheating',
-        description: 'Strategy focused on casting spells without paying their mana cost or getting additional value.',
-        keywords: ['cascade', 'without paying', 'suspend', 'rebound', 'exile and cast'],
-        category: 'mechanic',
-        confidence
-      });
+    for (const theme of themes) {
+      try {
+        const [insertedTheme] = await db.insert(cardThemes).values({
+          cardId: card.id,
+          themeName: theme.name,
+          description: theme.description,
+          keywords: theme.keywords,
+          themeCategory: 'strategic',
+          confidence: 80
+        }).returning();
+        
+        storedThemes.push(insertedTheme);
+      } catch (error) {
+        console.error('Error storing theme:', error);
+      }
     }
 
-    // Card Advantage theme detection
-    if (
-      (cardText.includes('draw') && cardText.includes('card')) ||
-      cardText.includes('whenever') && cardText.includes('draw') ||
-      cardText.includes('scry') || cardText.includes('surveil') ||
-      cardText.includes('cascade') || // Cascade gives card advantage
-      cardText.includes('search') && cardText.includes('library') ||
-      cardText.includes('return') && cardText.includes('hand')
-    ) {
-      let confidence = 60;
-      if (cardText.includes('draw') && cardText.includes('card')) confidence = 85;
-      if (cardText.includes('cascade')) confidence += 20; // Cascade is strong card advantage
-      
-      themes.push({
-        name: 'Card Advantage',
-        description: 'Strategy focused on generating more cards than opponents through draw, search, and selection.',
-        keywords: ['draw', 'scry', 'surveil', 'search library', 'cascade', 'return to hand'],
-        category: 'strategy',
-        confidence: Math.min(confidence, 95)
-      });
-    }
-
-    // Drain Strategy theme detection
-    if (
-      cardText.includes('lose') && cardText.includes('life') ||
-      cardText.includes('drain') ||
-      cardText.includes('each opponent loses') ||
-      cardText.includes('damage to each opponent') ||
-      cardText.includes('sacrifice') && cardText.includes('each player') ||
-      cardText.includes('discard') && cardText.includes('each player')
-    ) {
-      let confidence = 75;
-      if (cardText.includes('each opponent loses')) confidence = 90;
-      if (cardText.includes('drain')) confidence = 85;
-      
-      themes.push({
-        name: 'Drain Strategy',
-        description: 'Strategy that slowly drains opponents resources and life while maintaining advantage.',
-        keywords: ['lose life', 'drain', 'each opponent', 'damage to each', 'each player sacrifice'],
-        category: 'strategy',
-        confidence
-      });
-    }
-
-    // Death & Taxes theme detection
-    if (
-      cardText.includes('tax') || 
-      cardText.includes('enters the battlefield') && (cardText.includes('opponent') || cardText.includes('each player')) ||
-      cardText.includes('artifact') && cardText.includes('cost') ||
-      cardName.includes('thalia') || cardName.includes('leonin arbiter') ||
-      cardText.includes('additional cost') || cardText.includes('pay') && cardText.includes('more')
-    ) {
-      let confidence = 80;
-      if (cardText.includes('tax') || cardName.includes('thalia')) confidence = 95;
-      
-      themes.push({
-        name: 'Death & Taxes',
-        description: 'White weenie strategy that disrupts opponents with tax effects and efficient creatures.',
-        keywords: ['tax', 'additional cost', 'enters the battlefield', 'artifact cost', 'creature cost', 'spell cost'],
-        category: 'archetype',
-        confidence
-      });
-    }
-
-    // Stax theme detection
-    if (
-      cardText.includes('sacrifice') && (cardText.includes('each') || cardText.includes('all')) ||
-      cardText.includes("can't") && (cardText.includes('cast') || cardText.includes('play') || cardText.includes('activate')) ||
-      cardText.includes('winter orb') || cardText.includes('tangle wire') || cardText.includes('smokestack') ||
-      cardText.includes('upkeep') && cardText.includes('sacrifice') ||
-      cardText.includes('lock') || (typeLine.includes('artifact') && cardText.includes('tap'))
-    ) {
-      let confidence = 85;
-      if (cardText.includes('winter orb') || cardText.includes('smokestack')) confidence = 95;
-      
-      themes.push({
-        name: 'Stax',
-        description: 'Prison strategy focused on resource denial and symmetrical effects that hurt opponents more.',
-        keywords: ['sacrifice', 'upkeep', 'can\'t cast', 'can\'t play', 'tap', 'don\'t untap', 'prison'],
-        category: 'archetype',
-        confidence
-      });
-    }
-
-    // Combo Engine theme detection
-    if (
-      cardText.includes('infinite') ||
-      cardText.includes('untap') && (cardText.includes('all') || cardText.includes('target')) ||
-      cardText.includes('storm') ||
-      (cardText.includes('draw') && cardText.includes('card')) && cardText.includes('whenever') ||
-      cardText.includes('enters the battlefield') && cardText.includes('search') ||
-      cardText.includes('tutor') || cardText.includes('demonic tutor')
-    ) {
-      let confidence = 70;
-      if (cardText.includes('infinite')) confidence = 95;
-      if (cardText.includes('storm')) confidence = 90;
-      
-      themes.push({
-        name: 'Combo Engine',
-        description: 'Cards that enable powerful synergies and game-winning combinations.',
-        keywords: ['untap', 'storm', 'infinite', 'tutor', 'search', 'combo', 'enters and search'],
-        category: 'strategy',
-        confidence
-      });
-    }
-
-    // Aristocrats theme detection
-    if (
-      cardText.includes('sacrifice') && cardText.includes('creature') ||
-      cardText.includes('whenever') && cardText.includes('dies') ||
-      cardText.includes('death trigger') || cardText.includes('leaves the battlefield') ||
-      cardName.includes('blood artist') || cardName.includes('zulaport cutthroat') ||
-      cardText.includes('token') && cardText.includes('sacrifice')
-    ) {
-      let confidence = 80;
-      if (cardName.includes('blood artist') || cardName.includes('zulaport')) confidence = 95;
-      
-      themes.push({
-        name: 'Aristocrats',
-        description: 'Sacrifice-based strategy that gains value from creatures dying and entering the battlefield.',
-        keywords: ['sacrifice', 'dies', 'death trigger', 'token', 'enters the battlefield', 'leaves the battlefield'],
-        category: 'synergy',
-        confidence
-      });
-    }
-
-    // Ramp theme detection
-    if (
-      cardText.includes('search') && cardText.includes('land') ||
-      cardText.includes('add') && (cardText.includes('mana') || cardText.match(/\{[WUBRG]\}/)) ||
-      typeLine.includes('artifact') && cardText.includes('tap') && cardText.includes('add') ||
-      cardText.includes('ramp') || cardText.includes('accelerate') ||
-      cardName.includes('cultivate') || cardName.includes('kodama')
-    ) {
-      let confidence = 75;
-      if (cardText.includes('search') && cardText.includes('land')) confidence = 90;
-      
-      themes.push({
-        name: 'Ramp',
-        description: 'Mana acceleration strategy to cast expensive spells ahead of curve.',
-        keywords: ['search', 'land', 'add mana', 'mana dork', 'accelerate', 'ramp'],
-        category: 'strategy',
-        confidence
-      });
-    }
-
-    // Control theme detection
-    if (
-      cardText.includes('counter') && cardText.includes('spell') ||
-      cardText.includes('destroy') && (cardText.includes('target') || cardText.includes('all')) ||
-      cardText.includes('return') && cardText.includes('hand') ||
-      typeLine.includes('instant') && (cardText.includes('counter') || cardText.includes('destroy'))
-    ) {
-      let confidence = 70;
-      if (cardText.includes('counter') && cardText.includes('spell')) confidence = 85;
-      
-      themes.push({
-        name: 'Control',
-        description: 'Reactive strategy using counterspells, removal, and card draw to control the game.',
-        keywords: ['counter', 'destroy', 'return', 'draw', 'instant', 'control', 'removal'],
-        category: 'archetype',
-        confidence
-      });
-    }
-
-    return themes;
+    return storedThemes;
   }
 
   private async findCardsForStoredTheme(theme: any, sourceCard: Card): Promise<Card[]> {
-    return this.findCardsForTheme(
-      {
-        name: theme.themeName,
-        description: theme.description,
-        keywords: theme.keywords || []
-      },
-      sourceCard
-    );
-  }
-
-  private async findCardsForTheme(theme: {name: string, description: string, keywords: string[]}, sourceCard: Card): Promise<Card[]> {
-    try {
-      // Get a larger sample of cards to analyze
-      const allCards = await db
-        .select()
-        .from(cardCache)
-        .where(sql`card_data->>'id' != ${sourceCard.id}`)
-        .limit(500);
-
-      const matchingCards: Array<{card: Card, score: number}> = [];
-
-      for (const cached of allCards) {
-        const card = cached.cardData;
-        let score = 0;
-        
-        const currentCardText = (card.oracle_text || '').toLowerCase();
-        const typeLine = card.type_line.toLowerCase();
-        const cardName = card.name.toLowerCase();
-
-        // Score based on keyword matches in oracle text (primary)
-        for (const keyword of theme.keywords) {
-          if (currentCardText.includes(keyword)) {
-            score += 25; // High weight for oracle text matches
-          } else if (cardName.includes(keyword) || typeLine.includes(keyword)) {
-            score += 5; // Lower weight for name/type matches
-          }
-        }
-
-        // Oracle text-focused theme matching
-        const themeLower = theme.name.toLowerCase();
-        if (themeLower === 'death & taxes') {
-          if (currentCardText.includes('thalia') || currentCardText.includes('leonin arbiter')) score += 30;
-          if (currentCardText.includes('tax') || currentCardText.includes('additional cost')) score += 20;
-          if (currentCardText.includes('enters the battlefield') && currentCardText.includes('opponent')) score += 15;
-        } else if (themeLower === 'stax') {
-          if (currentCardText.includes('winter orb') || currentCardText.includes('smokestack')) score += 35;
-          if (currentCardText.includes('upkeep') && currentCardText.includes('sacrifice')) score += 25;
-          if (currentCardText.includes('can\'t') && (currentCardText.includes('cast') || currentCardText.includes('play'))) score += 20;
-        } else if (themeLower === 'combo engine') {
-          if (currentCardText.includes('storm') || currentCardText.includes('cascade')) score += 30;
-          if (currentCardText.includes('infinite') || currentCardText.includes('without paying')) score += 25;
-          if (currentCardText.includes('untap') && currentCardText.includes('target')) score += 20;
-        } else if (themeLower === 'cascade/cheating') {
-          if (currentCardText.includes('cascade')) score += 35;
-          if (currentCardText.includes('without paying') && currentCardText.includes('mana cost')) score += 30;
-          if (currentCardText.includes('suspend') || currentCardText.includes('rebound')) score += 20;
-        } else if (themeLower === 'card advantage') {
-          if (currentCardText.includes('draw') && currentCardText.includes('card')) score += 25;
-          if (currentCardText.includes('search') && currentCardText.includes('library')) score += 20;
-          if (currentCardText.includes('scry') || currentCardText.includes('surveil')) score += 15;
-        } else if (themeLower === 'aristocrats') {
-          if (currentCardText.includes('blood artist') || currentCardText.includes('zulaport')) score += 35;
-          if (currentCardText.includes('sacrifice') && currentCardText.includes('creature')) score += 25;
-          if (currentCardText.includes('whenever') && currentCardText.includes('dies')) score += 20;
-        } else if (themeLower === 'ramp') {
-          if (currentCardText.includes('cultivate') || currentCardText.includes('rampant growth')) score += 30;
-          if (currentCardText.includes('search') && currentCardText.includes('land')) score += 25;
-          if (currentCardText.includes('add') && currentCardText.includes('mana')) score += 20;
-        } else if (themeLower === 'control') {
-          if (currentCardText.includes('counterspell') || currentCardText.includes('wrath')) score += 30;
-          if (currentCardText.includes('counter') && currentCardText.includes('spell')) score += 25;
-          if (currentCardText.includes('destroy') && currentCardText.includes('target')) score += 20;
-        }
-
-        // Oracle text analysis for theme matching (most important)
-        const sourceText = (sourceCard.oracle_text || '').toLowerCase();
-        
-        // Score based on shared important phrases in oracle text
-        for (const keyword of theme.keywords) {
-          if (sourceText.includes(keyword) && currentCardText.includes(keyword)) {
-            score += 20; // High weight for oracle text matches
-          }
-        }
-        
-        // Minimal color identity compatibility
-        const sourceColors = sourceCard.color_identity || [];
-        const cardColors = card.color_identity || [];
-        const colorOverlap = sourceColors.filter(c => cardColors.includes(c)).length;
-        if (colorOverlap > 0) score += colorOverlap * 1; // Reduced weight
-
-        if (score >= 10) { // Lower threshold to include more cards
-          matchingCards.push({ card, score });
-        }
-      }
-
-      return matchingCards
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 12)
-        .map(item => item.card);
-    } catch (error) {
-      console.error('Error finding cards for theme:', error);
-      return [];
-    }
+    const dynamicTheme = {
+      name: theme.themeName,
+      description: theme.description || '',
+      keywords: theme.keywords || [],
+      searchTerms: theme.keywords || []
+    };
+    
+    return this.findCardsForDynamicTheme(dynamicTheme, sourceCard);
   }
 }
 
