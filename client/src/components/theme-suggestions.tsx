@@ -9,6 +9,7 @@ import { Sparkles, Wand2, Users, Crown } from "lucide-react";
 interface ThemeSuggestionsProps {
   card: Card;
   onCardClick: (card: Card) => void;
+  currentFilters?: any;
 }
 
 interface ThemeGroup {
@@ -19,7 +20,7 @@ interface ThemeGroup {
   confidence: number;
 }
 
-export function ThemeSuggestions({ card, onCardClick }: ThemeSuggestionsProps) {
+export function ThemeSuggestions({ card, onCardClick, currentFilters }: ThemeSuggestionsProps) {
   const { data: themeGroups, isLoading, error } = useQuery({
     queryKey: ['/api/cards', card.id, 'theme-suggestions'],
     queryFn: async () => {

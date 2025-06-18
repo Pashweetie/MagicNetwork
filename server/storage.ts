@@ -38,7 +38,7 @@ export interface IStorage {
   getUserInteractions(userId: number, limit?: number): Promise<UserInteraction[]>;
   
   // Recommendation system
-  getCardRecommendations(cardId: string, type: 'synergy' | 'functional_similarity', limit?: number): Promise<CardRecommendation[]>;
+  getCardRecommendations(cardId: string, type: 'synergy' | 'functional_similarity', limit?: number, filters?: any): Promise<CardRecommendation[]>;
   generateRecommendationsForCard(cardId: string): Promise<void>;
   getPersonalizedRecommendations(userId: number, limit?: number): Promise<Card[]>;
   
@@ -305,7 +305,7 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
-  async getCardRecommendations(cardId: string, type: 'synergy' | 'functional_similarity', limit: number = 10): Promise<CardRecommendation[]> {
+  async getCardRecommendations(cardId: string, type: 'synergy' | 'functional_similarity', limit: number = 10, filters?: any): Promise<CardRecommendation[]> {
     return db.select()
       .from(cardRecommendations)
       .where(and(

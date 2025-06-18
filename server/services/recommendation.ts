@@ -365,7 +365,7 @@ export class RecommendationService {
     console.log('Finished generating recommendations for popular cards');
   }
 
-  async getThemeSuggestions(cardId: string): Promise<Array<{theme: string, description: string, cards: Card[]}>> {
+  async getThemeSuggestions(cardId: string, filters?: any): Promise<Array<{theme: string, description: string, cards: Card[]}>> {
     try {
       console.log(`Getting theme suggestions for card: ${cardId}`);
       
@@ -1019,6 +1019,38 @@ export class RecommendationService {
     }
 
     return storedThemes;
+  }
+
+  private applyThemeFilters(cards: Card[], filters: any): Card[] {
+    return cards.filter(card => {
+      // Color identity filter (most important for commander)
+      if (filters.colorIdentity && filters.colorIdentity.length > 0) {
+        const allowedColors = new Set(filters.colorIdentity);
+        const cardColors = card.color_identity || [];
+        
+        // Every color in the card must be allowed by the commander
+        for (const color of cardColors) {
+          if (!allowedColors.has(color)) {
+            return false;
+          }
+        }
+      }
+      
+      // Regular color filter
+      if (filters.colors && filters.colors.length > 0) {
+        const cardColors = card.colors || [];
+        const hasMatchingColor = filters.colors.some((color: string) => cardColors.includes(color));
+        if (!hasMatchingColor && cardColors.length > 0) return false;
+      }
+      
+      // Format legality filter
+      if (filters.format && card.legalities) {
+        const formatLegality = card.legalities[filters.format.toLowerCase()];
+        if (formatLegality !== 'legal') return false;
+      }
+      
+      return true;
+    });
   }
 
   private async findCardsForStoredTheme(theme: any, sourceCard: Card): Promise<Card[]> {

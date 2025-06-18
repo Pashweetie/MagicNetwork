@@ -19,14 +19,14 @@ interface CardDetailModalProps {
 }
 
 // Theme Recommendations Component
-function ThemeRecommendations({ cardId, onCardClick }: { cardId: string; onCardClick: (card: Card) => void }) {
+function ThemeRecommendations({ cardId, onCardClick, currentFilters }: { cardId: string; onCardClick: (card: Card) => void; currentFilters?: any }) {
   return (
     <div>
       <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
         <Lightbulb className="w-5 h-5 mr-2 text-purple-400" />
         Themes
       </h3>
-      <ThemeSuggestions card={{ id: cardId } as Card} onCardClick={onCardClick} />
+      <ThemeSuggestions card={{ id: cardId } as Card} onCardClick={onCardClick} currentFilters={currentFilters} />
     </div>
   );
 }
@@ -377,7 +377,7 @@ export function CardDetailModal({ card, isOpen, onClose, onCardClick, onAddCard,
             </TabsList>
             
             <TabsContent value="themes" className="mt-6">
-              <ThemeRecommendations cardId={card.id} onCardClick={onCardClick || (() => onClose())} />
+              <ThemeRecommendations cardId={card.id} onCardClick={onCardClick || (() => onClose())} currentFilters={currentFilters} />
             </TabsContent>
             
             <TabsContent value="synergy" className="mt-6">
