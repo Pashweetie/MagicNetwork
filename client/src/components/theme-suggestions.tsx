@@ -141,15 +141,20 @@ export function ThemeSuggestions({ card, onCardClick }: ThemeSuggestionsProps) {
           </div>
         </div>
         <div className="text-sm text-slate-400">
-          {themeGroups.length} themes
+          {themeGroups.length} theme{themeGroups.length !== 1 ? 's' : ''} detected
         </div>
       </div>
       
       {themeGroups.map((group: ThemeGroup, index: number) => (
         <div key={index} className="space-y-3">
-          <div className="flex items-center space-x-2">
-            {getThemeIcon(group.theme)}
-            <h4 className="font-semibold text-white text-base">{group.theme}</h4>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              {getThemeIcon(group.theme)}
+              <h4 className="font-semibold text-white text-base">{group.theme}</h4>
+            </div>
+            <div className="text-xs text-blue-300 bg-blue-900/30 px-2 py-1 rounded">
+              {group.cards.length} cards
+            </div>
           </div>
           <p className="text-sm text-slate-300 leading-relaxed">
             {group.description}

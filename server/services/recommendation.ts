@@ -1,8 +1,8 @@
 import { storage } from "../storage";
-import { Card } from "@shared/schema";
+import { Card, cardThemes, InsertCardTheme } from "@shared/schema";
 import { db } from "../db";
 import { cardCache } from "@shared/schema";
-import { desc, sql } from "drizzle-orm";
+import { desc, sql, eq, and } from "drizzle-orm";
 
 export class RecommendationService {
   
@@ -85,17 +85,26 @@ export class RecommendationService {
         throw new Error('Card not found');
       }
 
-      // Analyze card for thematic elements
-      const themes = await this.analyzeCardThemes(sourceCard);
-      
-      // For each theme, find matching cards
+      // Check if we already have themes stored for this card
+      let storedThemes = await db
+        .select()
+        .from(cardThemes)
+        .where(eq(cardThemes.cardId, cardId));
+
+      // If no themes stored, analyze and store them
+      if (storedThemes.length === 0) {
+        const analyzedThemes = await this.analyzeAndStoreCardThemes(sourceCard);
+        storedThemes = analyzedThemes;
+      }
+
+      // For each stored theme, find matching cards
       const themeGroups = [];
-      for (const theme of themes) {
-        const matchingCards = await this.findCardsForTheme(theme, sourceCard);
+      for (const storedTheme of storedThemes) {
+        const matchingCards = await this.findCardsForStoredTheme(storedTheme, sourceCard);
         if (matchingCards.length > 0) {
           themeGroups.push({
-            theme: theme.name,
-            description: theme.description,
+            theme: storedTheme.themeName,
+            description: storedTheme.description || 'Strategic theme based on card analysis',
             cards: matchingCards.slice(0, 8) // Limit to 8 cards per theme
           });
         }
@@ -108,12 +117,107 @@ export class RecommendationService {
     }
   }
 
-  private async analyzeCardThemes(card: Card): Promise<Array<{name: string, description: string, keywords: string[]}>> {
-    const themes: Array<{name: string, description: string, keywords: string[]}> = [];
+  // Store themes for a card
+  async analyzeAndStoreCardThemes(card: Card): Promise<any[]> {
+    const themes = await this.analyzeCardThemes(card);
+    const storedThemes = [];
+
+    for (const theme of themes) {
+      try {
+        const [inserted] = await db
+          .insert(cardThemes)
+          .values({
+            cardId: card.id,
+            themeName: theme.name,
+            themeCategory: theme.category,
+            confidence: theme.confidence,
+            keywords: theme.keywords,
+            description: theme.description,
+          })
+          .returning();
+        storedThemes.push(inserted);
+      } catch (error: any) {
+        // Ignore duplicate errors
+        if (error.code !== '23505') {
+          console.error('Error storing theme:', error);
+        }
+      }
+    }
+
+    return storedThemes;
+  }
+
+  private async analyzeCardThemes(card: Card): Promise<Array<{name: string, description: string, keywords: string[], category: string, confidence: number}>> {
+    const themes: Array<{name: string, description: string, keywords: string[], category: string, confidence: number}> = [];
     
     const cardText = (card.oracle_text || '').toLowerCase();
     const typeLine = card.type_line.toLowerCase();
     const cardName = card.name.toLowerCase();
+
+    // Cascade/Cheating theme detection
+    if (
+      cardText.includes('cascade') ||
+      cardText.includes('without paying') && cardText.includes('mana cost') ||
+      cardText.includes('cast') && cardText.includes('without paying') ||
+      cardText.includes('exile') && cardText.includes('cast') ||
+      cardText.includes('suspend') || cardText.includes('rebound')
+    ) {
+      let confidence = 70;
+      if (cardText.includes('cascade')) confidence = 95;
+      if (cardText.includes('without paying') && cardText.includes('mana cost')) confidence = 90;
+      
+      themes.push({
+        name: 'Cascade/Cheating',
+        description: 'Strategy focused on casting spells without paying their mana cost or getting additional value.',
+        keywords: ['cascade', 'without paying', 'suspend', 'rebound', 'exile and cast'],
+        category: 'mechanic',
+        confidence
+      });
+    }
+
+    // Card Advantage theme detection
+    if (
+      (cardText.includes('draw') && cardText.includes('card')) ||
+      cardText.includes('whenever') && cardText.includes('draw') ||
+      cardText.includes('scry') || cardText.includes('surveil') ||
+      cardText.includes('cascade') || // Cascade gives card advantage
+      cardText.includes('search') && cardText.includes('library') ||
+      cardText.includes('return') && cardText.includes('hand')
+    ) {
+      let confidence = 60;
+      if (cardText.includes('draw') && cardText.includes('card')) confidence = 85;
+      if (cardText.includes('cascade')) confidence += 20; // Cascade is strong card advantage
+      
+      themes.push({
+        name: 'Card Advantage',
+        description: 'Strategy focused on generating more cards than opponents through draw, search, and selection.',
+        keywords: ['draw', 'scry', 'surveil', 'search library', 'cascade', 'return to hand'],
+        category: 'strategy',
+        confidence: Math.min(confidence, 95)
+      });
+    }
+
+    // Drain Strategy theme detection
+    if (
+      cardText.includes('lose') && cardText.includes('life') ||
+      cardText.includes('drain') ||
+      cardText.includes('each opponent loses') ||
+      cardText.includes('damage to each opponent') ||
+      cardText.includes('sacrifice') && cardText.includes('each player') ||
+      cardText.includes('discard') && cardText.includes('each player')
+    ) {
+      let confidence = 75;
+      if (cardText.includes('each opponent loses')) confidence = 90;
+      if (cardText.includes('drain')) confidence = 85;
+      
+      themes.push({
+        name: 'Drain Strategy',
+        description: 'Strategy that slowly drains opponents resources and life while maintaining advantage.',
+        keywords: ['lose life', 'drain', 'each opponent', 'damage to each', 'each player sacrifice'],
+        category: 'strategy',
+        confidence
+      });
+    }
 
     // Death & Taxes theme detection
     if (
@@ -123,10 +227,15 @@ export class RecommendationService {
       cardName.includes('thalia') || cardName.includes('leonin arbiter') ||
       cardText.includes('additional cost') || cardText.includes('pay') && cardText.includes('more')
     ) {
+      let confidence = 80;
+      if (cardText.includes('tax') || cardName.includes('thalia')) confidence = 95;
+      
       themes.push({
         name: 'Death & Taxes',
         description: 'White weenie strategy that disrupts opponents with tax effects and efficient creatures.',
-        keywords: ['tax', 'additional cost', 'enters the battlefield', 'artifact cost', 'creature cost', 'spell cost']
+        keywords: ['tax', 'additional cost', 'enters the battlefield', 'artifact cost', 'creature cost', 'spell cost'],
+        category: 'archetype',
+        confidence
       });
     }
 
@@ -138,10 +247,15 @@ export class RecommendationService {
       cardText.includes('upkeep') && cardText.includes('sacrifice') ||
       cardText.includes('lock') || (typeLine.includes('artifact') && cardText.includes('tap'))
     ) {
+      let confidence = 85;
+      if (cardText.includes('winter orb') || cardText.includes('smokestack')) confidence = 95;
+      
       themes.push({
         name: 'Stax',
         description: 'Prison strategy focused on resource denial and symmetrical effects that hurt opponents more.',
-        keywords: ['sacrifice', 'upkeep', 'can\'t cast', 'can\'t play', 'tap', 'don\'t untap', 'prison']
+        keywords: ['sacrifice', 'upkeep', 'can\'t cast', 'can\'t play', 'tap', 'don\'t untap', 'prison'],
+        category: 'archetype',
+        confidence
       });
     }
 
@@ -149,15 +263,21 @@ export class RecommendationService {
     if (
       cardText.includes('infinite') ||
       cardText.includes('untap') && (cardText.includes('all') || cardText.includes('target')) ||
-      cardText.includes('exile') && cardText.includes('cast') && cardText.includes('without paying') ||
-      cardText.includes('storm') || cardText.includes('cascade') ||
+      cardText.includes('storm') ||
       (cardText.includes('draw') && cardText.includes('card')) && cardText.includes('whenever') ||
-      cardText.includes('enters the battlefield') && cardText.includes('search')
+      cardText.includes('enters the battlefield') && cardText.includes('search') ||
+      cardText.includes('tutor') || cardText.includes('demonic tutor')
     ) {
+      let confidence = 70;
+      if (cardText.includes('infinite')) confidence = 95;
+      if (cardText.includes('storm')) confidence = 90;
+      
       themes.push({
         name: 'Combo Engine',
         description: 'Cards that enable powerful synergies and game-winning combinations.',
-        keywords: ['untap', 'storm', 'cascade', 'without paying', 'search', 'tutor', 'infinite', 'combo']
+        keywords: ['untap', 'storm', 'infinite', 'tutor', 'search', 'combo', 'enters and search'],
+        category: 'strategy',
+        confidence
       });
     }
 
@@ -169,10 +289,15 @@ export class RecommendationService {
       cardName.includes('blood artist') || cardName.includes('zulaport cutthroat') ||
       cardText.includes('token') && cardText.includes('sacrifice')
     ) {
+      let confidence = 80;
+      if (cardName.includes('blood artist') || cardName.includes('zulaport')) confidence = 95;
+      
       themes.push({
         name: 'Aristocrats',
         description: 'Sacrifice-based strategy that gains value from creatures dying and entering the battlefield.',
-        keywords: ['sacrifice', 'dies', 'death trigger', 'token', 'enters the battlefield', 'leaves the battlefield']
+        keywords: ['sacrifice', 'dies', 'death trigger', 'token', 'enters the battlefield', 'leaves the battlefield'],
+        category: 'synergy',
+        confidence
       });
     }
 
@@ -184,10 +309,15 @@ export class RecommendationService {
       cardText.includes('ramp') || cardText.includes('accelerate') ||
       cardName.includes('cultivate') || cardName.includes('kodama')
     ) {
+      let confidence = 75;
+      if (cardText.includes('search') && cardText.includes('land')) confidence = 90;
+      
       themes.push({
         name: 'Ramp',
         description: 'Mana acceleration strategy to cast expensive spells ahead of curve.',
-        keywords: ['search', 'land', 'add mana', 'mana dork', 'accelerate', 'ramp']
+        keywords: ['search', 'land', 'add mana', 'mana dork', 'accelerate', 'ramp'],
+        category: 'strategy',
+        confidence
       });
     }
 
@@ -196,17 +326,32 @@ export class RecommendationService {
       cardText.includes('counter') && cardText.includes('spell') ||
       cardText.includes('destroy') && (cardText.includes('target') || cardText.includes('all')) ||
       cardText.includes('return') && cardText.includes('hand') ||
-      cardText.includes('draw') && cardText.includes('card') ||
       typeLine.includes('instant') && (cardText.includes('counter') || cardText.includes('destroy'))
     ) {
+      let confidence = 70;
+      if (cardText.includes('counter') && cardText.includes('spell')) confidence = 85;
+      
       themes.push({
         name: 'Control',
         description: 'Reactive strategy using counterspells, removal, and card draw to control the game.',
-        keywords: ['counter', 'destroy', 'return', 'draw', 'instant', 'control', 'removal']
+        keywords: ['counter', 'destroy', 'return', 'draw', 'instant', 'control', 'removal'],
+        category: 'archetype',
+        confidence
       });
     }
 
     return themes;
+  }
+
+  private async findCardsForStoredTheme(theme: any, sourceCard: Card): Promise<Card[]> {
+    return this.findCardsForTheme(
+      {
+        name: theme.themeName,
+        description: theme.description,
+        keywords: theme.keywords || []
+      },
+      sourceCard
+    );
   }
 
   private async findCardsForTheme(theme: {name: string, description: string, keywords: string[]}, sourceCard: Card): Promise<Card[]> {

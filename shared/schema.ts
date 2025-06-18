@@ -159,6 +159,7 @@ export const insertCardCacheSchema = createInsertSchema(cardCache).omit({ lastUp
 export const insertSearchCacheSchema = createInsertSchema(searchCache).omit({ id: true, createdAt: true, lastAccessed: true, accessCount: true });
 export const insertCardRecommendationSchema = createInsertSchema(cardRecommendations).omit({ id: true, createdAt: true });
 export const insertUserInteractionSchema = createInsertSchema(userInteractions).omit({ id: true, createdAt: true });
+export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, createdAt: true, lastUpdated: true });
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -174,3 +175,5 @@ export type CardRecommendation = typeof cardRecommendations.$inferSelect;
 export type InsertCardRecommendation = z.infer<typeof insertCardRecommendationSchema>;
 export type UserInteraction = typeof userInteractions.$inferSelect;
 export type InsertUserInteraction = z.infer<typeof insertUserInteractionSchema>;
+export type CardTheme = typeof cardThemes.$inferSelect;
+export type InsertCardTheme = z.infer<typeof insertCardThemeSchema>;
