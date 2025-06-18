@@ -133,8 +133,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   return false;
                 }
               } else {
-                // Card must contain at least one specified color, or be colorless if colorless is specified
-                if (cardColors.length > 0 && !searchFilters.colors.some((color: string) => cardColors.includes(color))) {
+                // Card must contain at least one specified color (allow colorless cards if no colors specified)
+                if (!searchFilters.colors.some((color: string) => cardColors.includes(color))) {
                   return false;
                 }
               }
