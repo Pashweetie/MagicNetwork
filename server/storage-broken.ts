@@ -1,9 +1,9 @@
+import { Card, SearchFilters, SearchResponse, User, InsertUser, SavedSearch, InsertSavedSearch, FavoriteCard, InsertFavoriteCard, CardCacheEntry, InsertCardCache, SearchCacheEntry, InsertSearchCache, CardRecommendation, InsertCardRecommendation, UserInteraction, InsertUserInteraction, RecommendationFeedback, InsertRecommendationFeedback } from "@shared/schema";
 import { db } from "./db";
-import { cardCache, searchCache, users, savedSearches, favoriteCards, cardRecommendations, userInteractions, recommendationFeedback, cardThemes } from "@shared/schema";
-import { Card, SearchFilters, SearchResponse, User, InsertUser, SavedSearch, InsertSavedSearch, FavoriteCard, InsertFavoriteCard, CardRecommendation, InsertCardRecommendation, UserInteraction, InsertUserInteraction, InsertRecommendationFeedback } from "@shared/schema";
-import { eq, sql, and, desc, asc } from "drizzle-orm";
-import crypto from "crypto";
+import { users, savedSearches, favoriteCards, cardCache, searchCache, cardRecommendations, userInteractions, recommendationFeedback } from "@shared/schema";
+import { eq, desc, sql, and, inArray } from "drizzle-orm";
 import { scryfallService } from "./services/scryfall";
+import crypto from "crypto";
 
 export interface IStorage {
   // Card search methods
@@ -52,53 +52,48 @@ export class DatabaseStorage implements IStorage {
   private readonly SEARCH_CACHE_TTL = 60 * 60 * 1000; // 1 hour for search cache
 
   private generateQueryHash(filters: SearchFilters, page: number): string {
-    const query = JSON.stringify({ filters, page });
-    return crypto.createHash('md5').update(query).digest('hex');
+    const queryString = JSON.stringify({ filters, page });
+    return crypto.createHash('md5').update(queryString).digest('hex');
   }
 
   async searchCards(filters: SearchFilters, page: number = 1): Promise<SearchResponse> {
-    // Check cache first
-    const cached = await this.getCachedSearchResults(filters, page);
-    if (cached) {
-      // Update access count
-      const queryHash = this.generateQueryHash(filters, page);
-      await db.update(searchCache)
-        .set({ 
-          lastAccessed: new Date(),
-          accessCount: sql`${searchCache.accessCount} + 1`
-        })
-        .where(eq(searchCache.queryHash, queryHash));
-      
-      return cached;
+    // Try to get from cache first
+    const cachedResult = await this.getCachedSearchResults(filters, page);
+    if (cachedResult) {
+      return cachedResult;
     }
 
-    // Search using Scryfall service
-    const results = await scryfallService.searchCards(filters, page);
+    // Always use Scryfall for now - local search needs improvement
+    const result = await scryfallService.searchCards(filters, page);
+    await this.cacheSearchResults(filters, page, result);
     
-    // Cache the results
-    await this.cacheSearchResults(filters, page, results);
-    
-    // Cache individual cards
-    for (const card of results.data) {
-      await this.cacheCard(card);
+    // Cache individual cards efficiently - only if not already cached
+    if (result.data) {
+      const cardCachePromises = result.data.map(async (card) => {
+        const existingCard = await this.getCachedCard(card.id);
+        if (!existingCard) {
+          await this.cacheCard(card);
+        }
+      });
+      await Promise.all(cardCachePromises);
     }
 
-    return results;
+    return result;
   }
 
   async getCard(id: string): Promise<Card | null> {
-    // Check cache first
-    const cached = await this.getCachedCard(id);
-    if (cached) {
+    // Always try cache first (our complete database)
+    const cachedCard = await this.getCachedCard(id);
+    if (cachedCard) {
       // Update search count
-      await db.update(cardCache)
+      await db
+        .update(cardCache)
         .set({ searchCount: sql`${cardCache.searchCount} + 1` })
-        .where(eq(cardCache.cardId, id));
-      
-      return cached;
+        .where(eq(cardCache.id, id));
+      return cachedCard;
     }
 
-    // Fetch from Scryfall
+    // Only fetch from Scryfall if not in our database
     const card = await scryfallService.getCard(id);
     if (card) {
       await this.cacheCard(card);
@@ -108,9 +103,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRandomCard(): Promise<Card> {
-    return scryfallService.getRandomCard();
+    // Get a random cached card first to reduce API calls
+    const [randomCached] = await db
+      .select()
+      .from(cardCache)
+      .orderBy(sql`RANDOM()`)
+      .limit(1);
+    
+    if (randomCached && Math.random() > 0.3) { // 70% chance to use cached
+      return randomCached.cardData;
+    }
+
+    // Otherwise fetch from API
+    const card = await scryfallService.getRandomCard();
+    await this.cacheCard(card);
+    return card;
   }
 
+  // User methods
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
@@ -129,17 +139,18 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  // Saved searches
   async getSavedSearches(userId: number): Promise<SavedSearch[]> {
-    return db.select()
+    return await db
+      .select()
       .from(savedSearches)
-      .where(eq(savedSearches.userId, userId))
-      .orderBy(desc(savedSearches.createdAt));
+      .where(eq(savedSearches.userId, userId));
   }
 
   async createSavedSearch(search: InsertSavedSearch): Promise<SavedSearch> {
     const [savedSearch] = await db
       .insert(savedSearches)
-      .values(search)
+      .values(search as any)
       .returning();
     return savedSearch;
   }
@@ -147,22 +158,22 @@ export class DatabaseStorage implements IStorage {
   async deleteSavedSearch(id: number, userId: number): Promise<boolean> {
     const result = await db
       .delete(savedSearches)
-      .where(and(eq(savedSearches.id, id), eq(savedSearches.userId, userId)));
-    
-    return result.rowCount > 0;
+      .where(eq(savedSearches.id, id) && eq(savedSearches.userId, userId));
+    return (result.rowCount || 0) > 0;
   }
 
+  // Favorite cards
   async getFavoriteCards(userId: number): Promise<FavoriteCard[]> {
-    return db.select()
+    return await db
+      .select()
       .from(favoriteCards)
-      .where(eq(favoriteCards.userId, userId))
-      .orderBy(desc(favoriteCards.createdAt));
+      .where(eq(favoriteCards.userId, userId));
   }
 
   async addFavoriteCard(favorite: InsertFavoriteCard): Promise<FavoriteCard> {
     const [favoriteCard] = await db
       .insert(favoriteCards)
-      .values(favorite)
+      .values(favorite as any)
       .returning();
     return favoriteCard;
   }
@@ -170,24 +181,40 @@ export class DatabaseStorage implements IStorage {
   async removeFavoriteCard(cardId: string, userId: number): Promise<boolean> {
     const result = await db
       .delete(favoriteCards)
-      .where(and(eq(favoriteCards.cardId, cardId), eq(favoriteCards.userId, userId)));
-    
-    return result.rowCount > 0;
+      .where(eq(favoriteCards.cardId, cardId) && eq(favoriteCards.userId, userId));
+    return (result.rowCount || 0) > 0;
   }
 
+  // Cache management methods
   async cacheCard(card: Card): Promise<void> {
     try {
-      await db.insert(cardCache).values({
-        cardId: card.id,
-        cardData: card,
-        searchCount: 1
-      }).onConflictDoUpdate({
-        target: cardCache.cardId,
-        set: {
-          cardData: card,
-          lastUpdated: new Date()
+      console.log(`Attempting to cache card: ${card.name} (${card.id})`);
+      
+      // First try to insert
+      try {
+        await db
+          .insert(cardCache)
+          .values({
+            id: card.id,
+            cardData: card,
+          });
+        console.log(`Successfully cached new card: ${card.name} (${card.id})`);
+      } catch (insertError: any) {
+        // If duplicate key error, update instead
+        if (insertError.code === '23505') { // PostgreSQL unique violation
+          await db
+            .update(cardCache)
+            .set({
+              cardData: card,
+              lastUpdated: new Date(),
+              searchCount: sql`${cardCache.searchCount} + 1`,
+            })
+            .where(eq(cardCache.id, card.id));
+          console.log(`Updated existing cached card: ${card.name} (${card.id})`);
+        } else {
+          throw insertError;
         }
-      });
+      }
     } catch (error) {
       console.error('Error caching card:', error);
     }
@@ -198,17 +225,18 @@ export class DatabaseStorage implements IStorage {
       const [cached] = await db
         .select()
         .from(cardCache)
-        .where(eq(cardCache.cardId, id));
+        .where(eq(cardCache.id, id));
       
       if (!cached) return null;
-      
-      // Check if cache is still valid
-      const age = Date.now() - cached.lastUpdated.getTime();
-      if (age > this.CACHE_TTL) {
+
+      // Check if cache is expired
+      const isExpired = Date.now() - cached.lastUpdated.getTime() > this.CACHE_TTL;
+      if (isExpired) {
+        // Don't delete, just fetch fresh data
         return null;
       }
-      
-      return cached.cardData as Card;
+
+      return cached.cardData;
     } catch (error) {
       console.error('Error getting cached card:', error);
       return null;
@@ -218,19 +246,35 @@ export class DatabaseStorage implements IStorage {
   async cacheSearchResults(filters: SearchFilters, page: number, results: SearchResponse): Promise<void> {
     try {
       const queryHash = this.generateQueryHash(filters, page);
+      console.log(`Attempting to cache search results for hash: ${queryHash}`);
       
-      await db.insert(searchCache).values({
-        queryHash,
-        query: JSON.stringify({ filters, page }),
-        results: results,
-        accessCount: 1
-      }).onConflictDoUpdate({
-        target: searchCache.queryHash,
-        set: {
-          results: results,
-          lastAccessed: new Date()
+      // First try to insert
+      try {
+        await db
+          .insert(searchCache)
+          .values({
+            queryHash,
+            filters,
+            resultData: results,
+            page,
+          });
+        console.log(`Successfully cached new search: ${results.data.length} cards for query hash ${queryHash}`);
+      } catch (insertError: any) {
+        // If duplicate key error, update instead
+        if (insertError.code === '23505') { // PostgreSQL unique violation
+          await db
+            .update(searchCache)
+            .set({
+              resultData: results,
+              lastAccessed: new Date(),
+              accessCount: sql`${searchCache.accessCount} + 1`,
+            })
+            .where(eq(searchCache.queryHash, queryHash));
+          console.log(`Updated existing search cache for query hash ${queryHash}`);
+        } else {
+          throw insertError;
         }
-      });
+      }
     } catch (error) {
       console.error('Error caching search results:', error);
     }
@@ -246,14 +290,23 @@ export class DatabaseStorage implements IStorage {
         .where(eq(searchCache.queryHash, queryHash));
       
       if (!cached) return null;
-      
-      // Check if cache is still valid
-      const age = Date.now() - cached.lastAccessed.getTime();
-      if (age > this.SEARCH_CACHE_TTL) {
+
+      // Check if cache is expired
+      const isExpired = Date.now() - cached.lastAccessed.getTime() > this.SEARCH_CACHE_TTL;
+      if (isExpired) {
         return null;
       }
-      
-      return cached.results as SearchResponse;
+
+      // Update access time
+      await db
+        .update(searchCache)
+        .set({ 
+          lastAccessed: new Date(),
+          accessCount: sql`${searchCache.accessCount} + 1`
+        })
+        .where(eq(searchCache.queryHash, queryHash));
+
+      return cached.resultData;
     } catch (error) {
       console.error('Error getting cached search results:', error);
       return null;
@@ -262,22 +315,20 @@ export class DatabaseStorage implements IStorage {
 
   async cleanupOldCache(): Promise<void> {
     try {
-      const cutoffDate = new Date(Date.now() - this.CACHE_TTL);
+      const cutoffDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
       
-      // Clean up old card cache
-      await db.delete(cardCache)
-        .where(sql`${cardCache.lastUpdated} < ${cutoffDate}`);
+      // Only clean up very old search cache to keep storage manageable
+      await db
+        .delete(searchCache)
+        .where(sql`${searchCache.lastAccessed} < ${cutoffDate} AND ${searchCache.accessCount} < 2`);
       
-      // Clean up old search cache
-      await db.delete(searchCache)
-        .where(sql`${searchCache.lastAccessed} < ${cutoffDate}`);
-      
-      console.log('Cache cleanup completed');
+      console.log('Minimal cache cleanup completed - cards preserved for recommendations');
     } catch (error) {
-      console.error('Error cleaning up cache:', error);
+      console.error('Error during cache cleanup:', error);
     }
   }
 
+  // User interaction tracking for personalized recommendations
   async recordUserInteraction(interaction: InsertUserInteraction): Promise<void> {
     try {
       await db.insert(userInteractions).values(interaction);
@@ -287,113 +338,247 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserInteractions(userId: number, limit: number = 100): Promise<UserInteraction[]> {
-    return db.select()
+    return await db
+      .select()
       .from(userInteractions)
       .where(eq(userInteractions.userId, userId))
       .orderBy(desc(userInteractions.createdAt))
       .limit(limit);
   }
 
+  // Recommendation system
   async getCardRecommendations(cardId: string, type: 'synergy' | 'functional_similarity', limit: number = 10): Promise<CardRecommendation[]> {
-    return db.select()
-      .from(cardRecommendations)
-      .where(and(
-        eq(cardRecommendations.cardId, cardId),
-        eq(cardRecommendations.recommendationType, type)
-      ))
-      .orderBy(desc(cardRecommendations.score))
-      .limit(limit);
+    try {
+      const recommendations = await db
+        .select()
+        .from(cardRecommendations)
+        .where(and(
+          eq(cardRecommendations.sourceCardId, cardId),
+          eq(cardRecommendations.recommendationType, type)
+        ))
+        .orderBy(desc(cardRecommendations.score))
+        .limit(limit);
+
+      return recommendations;
+    } catch (error) {
+      console.error('Error getting card recommendations:', error);
+      return [];
+    }
   }
 
   async generateRecommendationsForCard(cardId: string): Promise<void> {
     try {
-      const sourceCard = await this.getCard(cardId);
+      // Get the source card
+      const sourceCard = await this.getCachedCard(cardId);
       if (!sourceCard) return;
 
-      // Clear existing recommendations
-      await db.delete(cardRecommendations)
-        .where(eq(cardRecommendations.cardId, cardId));
-
-      // Generate synergy recommendations
+      // Generate both types of recommendations
       const synergyCards = await this.findSynergyCards(sourceCard);
-      const synergyRecommendations = synergyCards.map(rec => ({
-        cardId: sourceCard.id,
-        recommendedCardId: rec.cardId,
-        recommendationType: 'synergy' as const,
-        score: rec.score,
-        reason: rec.reason
-      }));
+      const functionalCards = await this.findFunctionallySimarCards(sourceCard);
 
-      // Generate functional similarity recommendations
-      const similarCards = await this.findFunctionallySimarCards(sourceCard);
-      const similarRecommendations = similarCards.map(rec => ({
-        cardId: sourceCard.id,
-        recommendedCardId: rec.cardId,
-        recommendationType: 'functional_similarity' as const,
-        score: rec.score,
-        reason: rec.reason
-      }));
-
-      // Insert all recommendations
-      if (synergyRecommendations.length > 0) {
-        await db.insert(cardRecommendations).values(synergyRecommendations);
-      }
-      if (similarRecommendations.length > 0) {
-        await db.insert(cardRecommendations).values(similarRecommendations);
+      // Store synergy recommendations
+      for (const rec of synergyCards) {
+        try {
+          await db.insert(cardRecommendations).values({
+            sourceCardId: cardId,
+            recommendedCardId: rec.cardId,
+            recommendationType: 'synergy',
+            score: rec.score,
+            reason: rec.reason,
+          });
+        } catch (error: any) {
+          if (error.code !== '23505') {
+            console.error('Error storing synergy recommendation:', error);
+          }
+        }
       }
 
+      // Store functional similarity recommendations
+      for (const rec of functionalCards) {
+        try {
+          await db.insert(cardRecommendations).values({
+            sourceCardId: cardId,
+            recommendedCardId: rec.cardId,
+            recommendationType: 'functional_similarity',
+            score: rec.score,
+            reason: rec.reason,
+          });
+        } catch (error: any) {
+          if (error.code !== '23505') {
+            console.error('Error storing functional recommendation:', error);
+          }
+        }
+      }
     } catch (error) {
       console.error('Error generating recommendations:', error);
     }
   }
 
   private async findSimilarCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
-    // This method is kept for compatibility but delegates to the more specific methods
-    return this.findFunctionallySimarCards(sourceCard);
+    const recommendations: Array<{cardId: string, score: number, reason: string}> = [];
+    
+    // Get all cached cards for analysis
+    const allCards = await db.select().from(cardCache).limit(1000);
+    
+    for (const cached of allCards) {
+      if (cached.id === sourceCard.id) continue;
+      
+      const card = cached.cardData;
+      let score = 0;
+      const reasons: string[] = [];
+
+      // Mana cost similarity (high weight for same CMC)
+      if (sourceCard.cmc === card.cmc) {
+        score += 30;
+        reasons.push('same mana value');
+      } else if (Math.abs(sourceCard.cmc - card.cmc) <= 1) {
+        score += 15;
+        reasons.push('similar mana value');
+      }
+
+      // Color identity similarity
+      const sourceColors = sourceCard.color_identity || [];
+      const cardColors = card.color_identity || [];
+      const colorOverlap = sourceColors.filter(c => cardColors.includes(c)).length;
+      if (colorOverlap > 0) {
+        score += colorOverlap * 10;
+        reasons.push('shared colors');
+      }
+
+      // Type line similarity
+      if (sourceCard.type_line && card.type_line) {
+        const sourceTypes = sourceCard.type_line.toLowerCase().split(/[—\-\s]+/);
+        const cardTypes = card.type_line.toLowerCase().split(/[—\-\s]+/);
+        const typeOverlap = sourceTypes.filter(t => cardTypes.includes(t)).length;
+        if (typeOverlap > 0) {
+          score += typeOverlap * 15;
+          reasons.push('similar card type');
+        }
+      }
+
+      // Enhanced oracle text analysis (primary scoring factor)
+      if (sourceCard.oracle_text && card.oracle_text) {
+        const sourceText = sourceCard.oracle_text.toLowerCase();
+        const cardText = card.oracle_text.toLowerCase();
+        
+        // Key phrase matches (high value)
+        const keyPhrases = [
+          'whenever', 'enters the battlefield', 'leaves the battlefield',
+          'at the beginning', 'sacrifice', 'destroy', 'draw a card',
+          'search your library', 'without paying', 'mana cost',
+          'target player', 'target creature', 'each opponent',
+          'put onto the battlefield', 'return to hand'
+        ];
+        
+        let phraseMatches = 0;
+        for (const phrase of keyPhrases) {
+          if (sourceText.includes(phrase) && cardText.includes(phrase)) {
+            phraseMatches++;
+          }
+        }
+        
+        if (phraseMatches > 0) {
+          score += phraseMatches * 15; // High weight for phrase matches
+          reasons.push('similar mechanics');
+        }
+        
+        // Keyword abilities (medium value)
+        const keywords = ['flying', 'trample', 'haste', 'vigilance', 'deathtouch', 'lifelink', 'first strike', 'double strike', 'hexproof', 'indestructible'];
+        const sourceKeywords = keywords.filter(k => sourceText.includes(k));
+        const cardKeywords = keywords.filter(k => cardText.includes(k));
+        const keywordOverlap = sourceKeywords.filter(k => cardKeywords.includes(k)).length;
+        if (keywordOverlap > 0) {
+          score += keywordOverlap * 5; // Reduced weight
+          reasons.push('shared abilities');
+        }
+      }
+
+      // Power/Toughness similarity for creatures
+      if ((sourceCard as any).power && (card as any).power && (sourceCard as any).toughness && (card as any).toughness) {
+        const powerDiff = Math.abs(parseInt((sourceCard as any).power) - parseInt((card as any).power));
+        const toughnessDiff = Math.abs(parseInt((sourceCard as any).toughness) - parseInt((card as any).toughness));
+        if (powerDiff <= 1 && toughnessDiff <= 1) {
+          score += 12;
+          reasons.push('similar stats');
+        }
+      }
+
+      // Set/block synergy (cards from same set often work well together)
+      if (sourceCard.set === card.set) {
+        score += 8;
+        reasons.push('same set');
+      }
+
+      if (score >= 25) { // Minimum threshold for recommendation
+        recommendations.push({
+          cardId: card.id,
+          score: Math.min(score, 100),
+          reason: reasons.join(', ')
+        });
+      }
+    }
+
+    return recommendations.sort((a, b) => b.score - a.score).slice(0, 20);
   }
 
   async getPersonalizedRecommendations(userId: number, limit: number = 20): Promise<Card[]> {
     try {
-      // Get user interactions to understand preferences
-      const interactions = await this.getUserInteractions(userId, 100);
+      // Get user's recent interactions
+      const interactions = await this.getUserInteractions(userId, 50);
       
       if (interactions.length === 0) {
-        // Return random popular cards for new users
+        // New user - return popular cards
         const popularCards = await db
           .select()
           .from(cardCache)
           .orderBy(desc(cardCache.searchCount))
           .limit(limit);
+        return popularCards.map(c => c.cardData);
+      }
+
+      // Get cards user has interacted with
+      const userCardIds = interactions.map(i => i.cardId);
+      const recommendationScores: Map<string, number> = new Map();
+
+      // For each card the user interacted with, get recommendations
+      for (const interaction of interactions.slice(0, 10)) { // Limit to recent 10
+        const recommendations = await this.getCardRecommendations(interaction.cardId, 'synergy', 15);
         
-        return popularCards.map(cached => cached.cardData as Card);
+        // Weight recommendations based on interaction type and recency
+        const interactionWeight = this.getInteractionWeight(interaction.interactionType);
+        const ageWeight = this.getAgeWeight(interaction.createdAt);
+        
+        for (const rec of recommendations) {
+          if (userCardIds.includes(rec.recommendedCardId)) continue; // Skip cards user already knows
+          
+          const currentScore = recommendationScores.get(rec.recommendedCardId) || 0;
+          const newScore = currentScore + (rec.score * interactionWeight * ageWeight);
+          recommendationScores.set(rec.recommendedCardId, newScore);
+        }
       }
 
-      // Calculate preferences based on interactions
-      const cardIds = interactions.map(i => i.cardId);
-      const uniqueCardIds = [...new Set(cardIds)];
-      
-      // Get cards the user has interacted with
-      const userCards: Card[] = [];
-      for (const cardId of uniqueCardIds.slice(0, 10)) {
-        const card = await this.getCard(cardId);
-        if (card) userCards.push(card);
+      // Get top recommended cards
+      const sortedRecommendations = Array.from(recommendationScores.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, limit);
+
+      if (sortedRecommendations.length === 0) {
+        // Fallback to popular cards
+        const popularCards = await db
+          .select()
+          .from(cardCache)
+          .orderBy(desc(cardCache.searchCount))
+          .limit(limit);
+        return popularCards.map(c => c.cardData);
       }
 
-      // Find recommendations based on user's cards
-      const recommendations = new Set<string>();
-      for (const card of userCards) {
-        const recs = await this.getCardRecommendations(card.id, 'synergy', 5);
-        recs.forEach(rec => recommendations.add(rec.recommendedCardId));
-      }
+      const recommendedCardIds = sortedRecommendations.map(r => r[0]);
+      const cards = await db
+        .select()
+        .from(cardCache)
+        .where(inArray(cardCache.id, recommendedCardIds));
 
-      // Get the recommended cards
-      const recommendedCards: Card[] = [];
-      for (const cardId of Array.from(recommendations).slice(0, limit)) {
-        const card = await this.getCard(cardId);
-        if (card) recommendedCards.push(card);
-      }
-
-      return recommendedCards;
+      return cards.map(c => c.cardData);
     } catch (error) {
       console.error('Error getting personalized recommendations:', error);
       return [];
@@ -402,13 +587,11 @@ export class DatabaseStorage implements IStorage {
 
   private getInteractionWeight(interactionType: string): number {
     switch (interactionType) {
-      case 'view': return 1;
-      case 'search': return 2;
-      case 'favorite': return 5;
-      case 'add_to_deck': return 8;
-      case 'recommendation_helpful': return 3;
-      case 'recommendation_not_helpful': return -1;
-      default: return 1;
+      case 'favorite': return 1.0;
+      case 'deck_add': return 0.9;
+      case 'search': return 0.6;
+      case 'view': return 0.3;
+      default: return 0.1;
     }
   }
 
@@ -644,6 +827,90 @@ export class DatabaseStorage implements IStorage {
     const keywords = ['flying', 'trample', 'lifelink', 'deathtouch', 'vigilance', 'haste', 'reach', 
                      'first strike', 'double strike', 'hexproof', 'indestructible', 'flash', 'defender'];
     return keywords.filter(keyword => text.includes(keyword));
+  }
+
+  async recordRecommendationFeedback(feedback: InsertRecommendationFeedback): Promise<void> {
+    try {
+      await db.insert(recommendationFeedback).values(feedback);
+    } catch (error) {
+      console.error('Error recording recommendation feedback:', error);
+    }
+  }
+
+  async getRecommendationWeights(): Promise<{[key: string]: number}> {
+    try {
+      // Analyze feedback to adjust weights
+      const feedbackData = await db
+        .select()
+        .from(recommendationFeedback);
+
+      const weights: {[key: string]: number} = {
+        'oracle_text_match': 1.0,
+        'type_match': 0.8,
+        'synergy_bonus': 1.2,
+        'mana_cost_similarity': 0.3
+      };
+
+      // Adjust weights based on feedback
+      const helpfulCount = feedbackData.filter(f => f.feedback === 'helpful').length;
+      const totalCount = feedbackData.length;
+      
+      if (totalCount > 10) {
+        const helpfulRatio = helpfulCount / totalCount;
+        if (helpfulRatio < 0.6) {
+          // If less than 60% helpful, adjust weights
+          weights.oracle_text_match *= 1.2;
+          weights.synergy_bonus *= 1.1;
+          weights.mana_cost_similarity *= 0.8;
+        }
+      }
+
+      return weights;
+    } catch (error) {
+      console.error('Error getting recommendation weights:', error);
+      return {
+        'oracle_text_match': 1.0,
+        'type_match': 0.8,
+        'synergy_bonus': 1.2,
+        'mana_cost_similarity': 0.3
+      };
+    }
+  }
+
+        for (const { pattern, weight, reason } of effectPatterns) {
+          const regex = new RegExp(pattern);
+          if (regex.test(sourceText) && regex.test(cardText)) {
+            score += weight;
+            reasons.push(reason);
+          }
+        }
+
+        // Mana cost similarity for functional alternatives
+        const manaDiff = Math.abs(sourceCard.cmc - card.cmc);
+        if (manaDiff <= 1 && score > 0) {
+          score += 10;
+          reasons.push('similar cost');
+        }
+      }
+
+      // Type similarity
+      const sourceMainType = sourceCard.type_line.split(' ')[0];
+      const cardMainType = card.type_line.split(' ')[0];
+      if (sourceMainType === cardMainType && score > 0) {
+        score += 15;
+        reasons.push('same type');
+      }
+
+      if (score >= 20) {
+        functionalCards.push({
+          cardId: card.id,
+          score: Math.min(score, 100),
+          reason: reasons.join(', ')
+        });
+      }
+    }
+
+    return functionalCards.sort((a, b) => b.score - a.score).slice(0, 15);
   }
 
   async recordRecommendationFeedback(feedback: InsertRecommendationFeedback): Promise<void> {

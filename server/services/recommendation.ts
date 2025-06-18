@@ -520,32 +520,68 @@ export class RecommendationService {
     const typeLine = (card.type_line || '').toLowerCase();
     const manaCost = card.mana_cost || '';
 
-    // Enhanced pattern matching with contextual analysis
-    
-    // THEFT & CONTROL MAGIC - Enhanced detection
+    // EQUIPMENT VOLTRON - Focused on single creature power
     if (this.matchesTheme(cardName, oracleText, [
-      'abduction', 'steal', 'mind control', 'confiscate', 'control magic',
-      'gain control', 'take control', 'exchange control', 'threaten',
-      'act of treason', 'claims to fame', 'insurrection', 'dominate'
-    ])) {
+      'equipment', 'attach', 'equipped creature gets', 'equip', 'aura', 'enchant creature',
+      'target creature gets', 'hexproof', 'protection', 'unblockable', 'flying'
+    ]) || typeLine.includes('equipment') || typeLine.includes('aura')) {
       themes.push({
-        name: 'Theft & Control Magic',
-        description: 'Taking control of opponent permanents and resources',
-        keywords: ['steal', 'control', 'gain control', 'exchange', 'threaten'],
-        searchTerms: ['gain control', 'take control', 'steal', 'exchange control', 'control target']
+        name: 'Voltron Equipment',
+        description: 'Build up one powerful creature with equipment and auras',
+        keywords: ['equipment', 'aura', 'equip', 'attach', 'hexproof', 'protection'],
+        searchTerms: ['equipment', 'aura', 'enchant creature', 'equipped creature gets', 'target creature gets']
       });
     }
 
-    // SPELL TRIGGERS & PROWESS - Enhanced detection
+    // ARISTOCRATS - Death triggers and sacrifice
     if (this.matchesTheme(cardName, oracleText, [
-      'prowess', 'whenever you cast', 'noncreature spell', 'instant or sorcery',
-      'spell trigger', 'magecraft', 'storm', 'spellslinger'
+      'sacrifice', 'when.*dies', 'whenever.*dies', 'death trigger', 'blood artist',
+      'aristocrat', 'sac outlet', 'zulaport cutthroat', 'grave pact'
     ])) {
       themes.push({
-        name: 'Spell Triggers',
-        description: 'Cards that benefit from casting spells',
-        keywords: ['prowess', 'whenever you cast', 'noncreature spell', 'magecraft'],
-        searchTerms: ['prowess', 'whenever you cast', 'noncreature spell', 'instant or sorcery']
+        name: 'Aristocrats',
+        description: 'Sacrifice creatures for value and death triggers',
+        keywords: ['sacrifice', 'dies', 'death trigger', 'blood artist', 'zulaport'],
+        searchTerms: ['when.*dies', 'whenever.*dies', 'sacrifice.*creature', 'blood artist', 'zulaport cutthroat']
+      });
+    }
+
+    // TOKEN GENERATION - Create creature tokens
+    if (this.matchesTheme(cardName, oracleText, [
+      'create.*token', 'token creature', 'populate', 'convoke', 'go wide',
+      'creature token', 'enters.*token', 'army of the damned'
+    ])) {
+      themes.push({
+        name: 'Token Generation',
+        description: 'Create and benefit from creature tokens',
+        keywords: ['token', 'create', 'populate', 'convoke', 'go wide'],
+        searchTerms: ['create.*token', 'token creature', 'populate', 'convoke']
+      });
+    }
+
+    // GRAVEYARD VALUE - Recursion and graveyard interaction
+    if (this.matchesTheme(cardName, oracleText, [
+      'graveyard', 'return.*from.*graveyard', 'mill', 'dredge', 'flashback',
+      'unearth', 'reanimate', 'living death', 'regrowth', 'eternal witness'
+    ])) {
+      themes.push({
+        name: 'Graveyard Value',
+        description: 'Use the graveyard as a resource for card advantage',
+        keywords: ['graveyard', 'return', 'mill', 'dredge', 'flashback', 'reanimate'],
+        searchTerms: ['return.*from.*graveyard', 'mill', 'dredge', 'flashback', 'unearth']
+      });
+    }
+
+    // ARTIFACT SYNERGY - Artifact-based strategies
+    if (this.matchesTheme(cardName, oracleText, [
+      'artifact', 'metalcraft', 'affinity', 'improvise', 'fabricate',
+      'tinker', 'welder', 'modular', 'artifacts matter'
+    ]) || typeLine.includes('artifact')) {
+      themes.push({
+        name: 'Artifact Synergy',
+        description: 'Leverage artifacts for powerful synergies',
+        keywords: ['artifact', 'metalcraft', 'affinity', 'improvise', 'fabricate'],
+        searchTerms: ['artifact', 'metalcraft', 'affinity', 'improvise', 'fabricate']
       });
     }
 
