@@ -41,6 +41,9 @@ export interface IStorage {
   // Recommendation system (simplified)
   getCardRecommendations(cardId: string, type: 'synergy' | 'functional_similarity', limit?: number, filters?: any): Promise<CardRecommendation[]>;
   
+  // Theme-based synergy system
+  findCardsBySharedThemes(sourceCard: Card, sourceThemes: Array<{theme: string, description: string, confidence: number, cards: Card[]}>, filters?: any): Promise<Array<{card: Card, sharedThemes: Array<{theme: string, confidence: number}>, synergyScore: number, reason: string}>>;
+  
   // Tag system
   getCardTags(cardId: string): Promise<CardTag[]>;
   createCardTag(tag: InsertCardTag): Promise<CardTag>;
@@ -1156,6 +1159,79 @@ Example: 75|Token generator enables sacrifice payoff`;
       'synergy_bonus': 1.2,
       'mana_cost_similarity': 0.3
     };
+  }
+
+  async findCardsBySharedThemes(
+    sourceCard: Card, 
+    sourceThemes: Array<{theme: string, description: string, confidence: number, cards: Card[]}>, 
+    filters?: any
+  ): Promise<Array<{card: Card, sharedThemes: Array<{theme: string, confidence: number}>, synergyScore: number, reason: string}>> {
+    try {
+      const synergies: Array<{card: Card, sharedThemes: Array<{theme: string, confidence: number}>, synergyScore: number, reason: string}> = [];
+      const cardThemeMap = new Map<string, Array<{theme: string, confidence: number}>>();
+      
+      // Extract all theme names from source card
+      const sourceThemeNames = sourceThemes.map(t => t.theme);
+      
+      // Collect all cards from theme groups and track their themes
+      for (const themeGroup of sourceThemes) {
+        for (const card of themeGroup.cards) {
+          if (card.id === sourceCard.id) continue; // Skip source card
+          
+          if (!cardThemeMap.has(card.id)) {
+            cardThemeMap.set(card.id, []);
+          }
+          
+          cardThemeMap.get(card.id)!.push({
+            theme: themeGroup.theme,
+            confidence: themeGroup.confidence
+          });
+        }
+      }
+      
+      // Calculate synergy scores based on shared themes
+      for (const [cardId, sharedThemes] of cardThemeMap.entries()) {
+        if (sharedThemes.length === 0) continue;
+        
+        const card = await this.getCard(cardId);
+        if (!card) continue;
+        
+        // Apply filters early
+        if (filters && !cardMatchesFilters(card, filters)) continue;
+        
+        // Calculate synergy score
+        const averageConfidence = sharedThemes.reduce((sum, t) => sum + t.confidence, 0) / sharedThemes.length;
+        const themeOverlap = sharedThemes.length / sourceThemeNames.length;
+        const synergyScore = (averageConfidence / 100) * themeOverlap;
+        
+        // Generate reason
+        const themeNames = sharedThemes.map(t => t.theme);
+        const reason = `Shares ${sharedThemes.length} theme${sharedThemes.length > 1 ? 's' : ''}: ${themeNames.slice(0, 3).join(', ')}${themeNames.length > 3 ? '...' : ''}`;
+        
+        synergies.push({
+          card,
+          sharedThemes,
+          synergyScore,
+          reason
+        });
+      }
+      
+      // Sort by synergy score and theme count
+      return synergies
+        .sort((a, b) => {
+          // Primary sort: synergy score
+          if (Math.abs(a.synergyScore - b.synergyScore) > 0.1) {
+            return b.synergyScore - a.synergyScore;
+          }
+          // Secondary sort: number of shared themes
+          return b.sharedThemes.length - a.sharedThemes.length;
+        })
+        .slice(0, 20);
+        
+    } catch (error) {
+      console.error('Error finding cards by shared themes:', error);
+      return [];
+    }
   }
 }
 
