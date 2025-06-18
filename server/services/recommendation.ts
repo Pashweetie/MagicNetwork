@@ -140,6 +140,12 @@ export class RecommendationService {
   }
 
   private async analyzeCardWithLocalAI(card: Card): Promise<Array<{name: string, description: string, keywords: string[], searchTerms: string[]}>> {
+    // Validate card data
+    if (!card || !card.name) {
+      console.error('Invalid card data:', card);
+      return [];
+    }
+
     // First try local AI if available
     if (this.textGenerator) {
       try {
@@ -157,21 +163,31 @@ export class RecommendationService {
   }
 
   private async generateThemesWithAI(card: Card): Promise<Array<{name: string, description: string, keywords: string[], searchTerms: string[]}>> {
-    const prompt = `Identify strategic deck themes for Magic card "${card.name}". Type: ${card.type_line}. Text: ${card.oracle_text || 'No rules text'}. What 3 competitive deck archetypes use this card? Examples: Control, Aggro, Combo, Prison, Theft, Tokens, Reanimator, Artifacts, Tribal.`;
+    if (!card?.name) {
+      console.error('Cannot generate themes for card without name:', card);
+      return [];
+    }
+
+    const prompt = `Analyze Magic card "${card.name}" (${card.type_line || 'Unknown type'}): ${card.oracle_text || 'No text'}. List strategic deck themes: Control, Aggro, Combo, Prison, Theft, Tokens, Reanimator, Artifacts, Tribal, Stax.`;
     
     try {
-      console.log(`Generating AI themes for ${card.name}...`);
+      console.log(`Generating AI themes for "${card.name}"...`);
       const result = await this.textGenerator(prompt, {
-        max_length: 150,
-        temperature: 0.8,
-        do_sample: true,
+        max_length: 120,
+        temperature: 0.7,
+        do_sample: false,
       });
       
-      // Parse AI response and extract themes
       const aiText = result[0]?.generated_text || '';
-      console.log(`AI response for ${card.name}: ${aiText.substring(0, 100)}...`);
+      console.log(`AI response: "${aiText.substring(0, 80)}..."`);
+      
+      if (!aiText || aiText.length < 5) {
+        console.log('AI response too short, using fallback');
+        return [];
+      }
+      
       const parsedThemes = this.parseAIThemes(aiText, card);
-      console.log(`Parsed ${parsedThemes.length} themes from AI response`);
+      console.log(`Extracted ${parsedThemes.length} themes`);
       return parsedThemes;
     } catch (error) {
       console.error('AI theme generation failed:', error);
@@ -183,32 +199,60 @@ export class RecommendationService {
     const themes = [];
     const text = aiText.toLowerCase();
     
+    console.log(`Parsing AI text: "${text}"`);
+    
     // Extract common strategic themes from AI response
     const themePatterns = {
-      'Theft & Control Magic': ['theft', 'steal', 'control', 'gain control'],
-      'Stax & Prison': ['stax', 'prison', 'tax', 'restriction', 'lock'],
-      'Token Generation': ['token', 'create', 'generate', 'swarm'],
-      'Reanimator': ['reanimate', 'graveyard', 'return', 'resurrect'],
-      'Combo Enabler': ['combo', 'infinite', 'engine', 'catalyst'],
-      'Artifact Synergy': ['artifact', 'equipment', 'construct'],
-      'Aristocrats': ['sacrifice', 'dies', 'death', 'aristocrat'],
-      'Burn Strategy': ['damage', 'burn', 'direct'],
-      'Card Draw': ['draw', 'card advantage', 'cards'],
-      'Ramp Strategy': ['ramp', 'mana', 'acceleration']
+      'Theft & Control Magic': {
+        keywords: ['theft', 'steal', 'control', 'gain control', 'take control'],
+        searchTerms: ['gain control', 'take control', 'steal', 'threaten', 'confiscate']
+      },
+      'Stax & Prison': {
+        keywords: ['stax', 'prison', 'tax', 'restriction', 'lock', 'sphere', 'orb'],
+        searchTerms: ['additional cost', 'can\'t attack', 'can\'t activate', 'costs more']
+      },
+      'Token Strategies': {
+        keywords: ['token', 'create', 'generate', 'swarm', 'populate'],
+        searchTerms: ['create token', 'token creature', 'populate', 'convoke']
+      },
+      'Reanimator': {
+        keywords: ['reanimate', 'graveyard', 'return', 'resurrect', 'unearth'],
+        searchTerms: ['return from graveyard', 'return target creature', 'reanimate']
+      },
+      'Combo Enabler': {
+        keywords: ['combo', 'infinite', 'engine', 'catalyst', 'storm'],
+        searchTerms: ['infinite', 'untap all', 'storm', 'cascade']
+      },
+      'Artifact Synergy': {
+        keywords: ['artifact', 'equipment', 'construct', 'metalcraft'],
+        searchTerms: ['artifact', 'equipment', 'metalcraft', 'affinity']
+      },
+      'Aristocrats': {
+        keywords: ['sacrifice', 'dies', 'death', 'aristocrat', 'blood'],
+        searchTerms: ['sacrifice', 'when dies', 'whenever dies', 'death trigger']
+      }
     };
 
-    for (const [themeName, keywords] of Object.entries(themePatterns)) {
-      if (keywords.some(keyword => text.includes(keyword))) {
+    // Also check the card's own text for direct theme matches
+    const cardText = `${card.name} ${card.oracle_text || ''}`.toLowerCase();
+    
+    for (const [themeName, themeData] of Object.entries(themePatterns)) {
+      const matchesAI = themeData.keywords.some(keyword => text.includes(keyword));
+      const matchesCard = themeData.keywords.some(keyword => cardText.includes(keyword));
+      
+      if (matchesAI || matchesCard) {
+        console.log(`Matched theme: ${themeName} (AI: ${matchesAI}, Card: ${matchesCard})`);
         themes.push({
           name: themeName,
-          description: `${themeName} strategy utilizing ${card.name}`,
-          keywords: keywords,
-          searchTerms: keywords
+          description: `${themeName} strategies that work with ${card.name}`,
+          keywords: themeData.keywords,
+          searchTerms: themeData.searchTerms
         });
       }
     }
 
-    return themes.slice(0, 3);
+    console.log(`Extracted ${themes.length} themes: ${themes.map(t => t.name).join(', ')}`);
+    return themes.slice(0, 4);
   }
 
   private analyzeCardIntelligently(card: Card): Array<{name: string, description: string, keywords: string[], searchTerms: string[]}> {
