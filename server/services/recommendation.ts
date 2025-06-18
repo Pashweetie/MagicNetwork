@@ -3,8 +3,19 @@ import { Card, cardThemes, InsertCardTheme } from "@shared/schema";
 import { db } from "../db";
 import { cardCache } from "@shared/schema";
 import { desc, sql, eq } from "drizzle-orm";
+import { Ollama } from 'ollama';
 
 export class RecommendationService {
+  private ollama: Ollama | null = null;
+
+  constructor() {
+    // Initialize Ollama (runs locally, no API key needed)
+    try {
+      this.ollama = new Ollama({ host: 'http://localhost:11434' });
+    } catch (error) {
+      console.log('Ollama not available, using fallback themes');
+    }
+  }
   
   // Generate recommendations for a specific card
   async generateCardRecommendations(cardId: string): Promise<void> {
@@ -86,8 +97,8 @@ export class RecommendationService {
 
       const card = sourceCard as Card;
 
-      // Generate themes using local pattern analysis
-      const detectedThemes = this.analyzeCardThemesLocally(card);
+      // Generate themes using AI analysis
+      const detectedThemes = await this.analyzeCardWithAI(card);
       
       const results: Array<{theme: string, description: string, cards: Card[]}> = [];
 
@@ -110,12 +121,69 @@ export class RecommendationService {
     }
   }
 
-  private analyzeCardThemesLocally(card: Card): Array<{name: string, description: string, keywords: string[], searchTerms: string[]}> {
+  private async analyzeCardWithAI(card: Card): Promise<Array<{name: string, description: string, keywords: string[], searchTerms: string[]}>> {
+    if (!this.ollama) {
+      return this.getFallbackThemes(card);
+    }
+
+    try {
+      const prompt = `Analyze this Magic: The Gathering card and identify 3-5 strategic deck themes it belongs to or enables.
+
+Card Name: ${card.name}
+Type: ${card.type_line}
+Mana Cost: ${card.mana_cost || 'N/A'}
+Oracle Text: ${card.oracle_text || 'N/A'}
+
+Focus on identifying specific strategic themes this card supports. Consider:
+- What deck archetypes want this card? (Aggro, Control, Combo, Midrange, Stax, Prison, etc.)
+- What mechanical strategies does it enable? (Artifacts, Graveyard, Tokens, +1/+1 Counters, etc.)
+- What specific themes or synergies? (Theft/Control Magic, Mill, Burn, Lifegain, Sacrifice, etc.)
+- What tribal strategies does it support?
+
+For each theme, provide:
+1. A concise theme name (2-4 words)
+2. A brief description explaining why this card fits
+3. Keywords that other cards in this theme might have
+4. Search terms to find related cards in the database
+
+Be specific and strategic - focus on how this card actually gets used in competitive play.
+
+Respond in JSON format:
+{
+  "themes": [
+    {
+      "name": "Theft & Control Magic",
+      "description": "Taking control of opponent's permanents and resources",
+      "keywords": ["steal", "control", "gain control", "exchange"],
+      "searchTerms": ["gain control", "take control", "steal", "exchange control", "control target"]
+    }
+  ]
+}`;
+
+      const response = await this.ollama.chat({
+        model: 'llama3.2',
+        messages: [{ role: 'user', content: prompt }],
+      });
+
+      try {
+        const parsed = JSON.parse(response.message.content);
+        return parsed.themes || [];
+      } catch (parseError) {
+        console.error('Error parsing Ollama response:', parseError);
+        return this.getFallbackThemes(card);
+      }
+    } catch (error) {
+      console.error('Error generating Ollama themes:', error);
+      return this.getFallbackThemes(card);
+    }
+  }
+
+  private getFallbackThemes(card: Card): Array<{name: string, description: string, keywords: string[], searchTerms: string[]}> {
     const themes = [];
-    const cardName = card.name.toLowerCase();
-    const cardText = `${card.name} ${card.oracle_text || ''} ${card.type_line}`.toLowerCase();
+    const cardName = (card.name || '').toLowerCase();
+    const cardText = `${card.name || ''} ${card.oracle_text || ''} ${card.type_line || ''}`.toLowerCase();
     const oracleText = (card.oracle_text || '').toLowerCase();
-    const typeLine = card.type_line.toLowerCase();
+    const typeLine = (card.type_line || '').toLowerCase();
     
     // THEFT & CONTROL MAGIC
     if (cardName.includes('abduction') || cardName.includes('steal') || cardName.includes('mind control') ||
@@ -390,7 +458,7 @@ export class RecommendationService {
   }
 
   async analyzeAndStoreCardThemes(card: Card): Promise<any[]> {
-    const themes = this.analyzeCardThemesLocally(card);
+    const themes = await this.analyzeCardWithAI(card);
     const storedThemes = [];
 
     for (const theme of themes) {
@@ -401,7 +469,7 @@ export class RecommendationService {
           description: theme.description,
           keywords: theme.keywords,
           themeCategory: 'strategic',
-          confidence: 80
+          confidence: 85
         }).returning();
         
         storedThemes.push(insertedTheme);

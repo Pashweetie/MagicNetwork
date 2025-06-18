@@ -120,18 +120,7 @@ function SimilarRecommendations({ cardId, onCardClick }: { cardId: string; onCar
           {availableCards.map((rec: any) => (
             <div key={rec.card.id} className="relative group">
               <CardTile card={rec.card} onClick={onCardClick} />
-              {onAddCard && (
-                <Button
-                  size="sm"
-                  className="absolute top-2 right-2 w-8 h-8 p-0 bg-green-600 hover:bg-green-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAddCard(rec.card);
-                  }}
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
-              )}
+
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
                 <div className="text-xs text-blue-400 font-medium">{rec.score}% match</div>
                 <div className="text-xs text-slate-300 truncate">{rec.reason}</div>
