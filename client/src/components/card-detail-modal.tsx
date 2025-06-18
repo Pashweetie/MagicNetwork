@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Lightbulb, GitMerge, Copy, AlertCircle, Plus } from "lucide-react";
+import { Lightbulb, GitMerge, Copy, AlertCircle, Plus, ThumbsUp, ThumbsDown } from "lucide-react";
 import { ThemeSuggestions } from "./theme-suggestions";
 import { CardTile } from "./card-tile";
 import { Card } from "@shared/schema";
@@ -32,11 +32,12 @@ function ThemeRecommendations({ cardId, onCardClick }: { cardId: string; onCardC
 }
 
 // Synergy Recommendations Component
-function SynergyRecommendations({ cardId, onCardClick, onAddCard }: { cardId: string; onCardClick: (card: Card) => void; onAddCard?: (card: Card) => void }) {
+function SynergyRecommendations({ cardId, onCardClick, onAddCard, currentFilters }: { cardId: string; onCardClick: (card: Card) => void; onAddCard?: (card: Card) => void; currentFilters?: any }) {
   const { data: recommendations, isLoading, error } = useQuery({
     queryKey: ['/api/cards', cardId, 'recommendations', 'synergy'],
     queryFn: async () => {
-      const response = await fetch(`/api/cards/${cardId}/recommendations?type=synergy&limit=15`);
+      const filterParams = currentFilters ? `&filters=${encodeURIComponent(JSON.stringify(currentFilters))}` : '';
+      const response = await fetch(`/api/cards/${cardId}/recommendations?type=synergy&limit=15${filterParams}`);
       if (!response.ok) throw new Error('Failed to fetch synergy recommendations');
       return response.json();
     },
@@ -105,11 +106,12 @@ function SynergyRecommendations({ cardId, onCardClick, onAddCard }: { cardId: st
 }
 
 // Similar Recommendations Component
-function SimilarRecommendations({ cardId, onCardClick, onAddCard }: { cardId: string; onCardClick: (card: Card) => void; onAddCard?: (card: Card) => void }) {
+function SimilarRecommendations({ cardId, onCardClick, onAddCard, currentFilters }: { cardId: string; onCardClick: (card: Card) => void; onAddCard?: (card: Card) => void; currentFilters?: any }) {
   const { data: recommendations, isLoading, error } = useQuery({
     queryKey: ['/api/cards', cardId, 'recommendations', 'functional_similarity'],
     queryFn: async () => {
-      const response = await fetch(`/api/cards/${cardId}/recommendations?type=functional_similarity&limit=15`);
+      const filterParams = currentFilters ? `&filters=${encodeURIComponent(JSON.stringify(currentFilters))}` : '';
+      const response = await fetch(`/api/cards/${cardId}/recommendations?type=functional_similarity&limit=15${filterParams}`);
       if (!response.ok) throw new Error('Failed to fetch similar recommendations');
       return response.json();
     },
@@ -382,6 +384,8 @@ export function CardDetailModal({ card, isOpen, onClose, onCardClick, onAddCard,
               <SynergyRecommendations 
                 cardId={card.id} 
                 onCardClick={onCardClick || (() => onClose())}
+                onAddCard={onAddCard}
+                currentFilters={currentFilters}
               />
             </TabsContent>
             
@@ -389,6 +393,8 @@ export function CardDetailModal({ card, isOpen, onClose, onCardClick, onAddCard,
               <SimilarRecommendations 
                 cardId={card.id} 
                 onCardClick={onCardClick || (() => onClose())}
+                onAddCard={onAddCard}
+                currentFilters={currentFilters}
               />
             </TabsContent>
           </Tabs>
