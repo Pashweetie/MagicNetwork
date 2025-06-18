@@ -1,5 +1,130 @@
 import { SearchFilters } from "@shared/schema";
 
+export class ScryfallParser {
+  // Convert SearchFilters to Scryfall query string for search bar display
+  static filtersToQuery(filters: SearchFilters): string {
+    const parts: string[] = [];
+
+    // Basic query text
+    if (filters.query) {
+      parts.push(filters.query);
+    }
+
+    // Colors
+    if (filters.colors?.length) {
+      const colorQuery = filters.colors.map(c => `c:${c.toLowerCase()}`).join(' ');
+      parts.push(colorQuery);
+    }
+
+    // Types
+    if (filters.types?.length) {
+      const typeQuery = filters.types.map(t => `t:${t.toLowerCase()}`).join(' ');
+      parts.push(typeQuery);
+    }
+
+    // Rarities
+    if (filters.rarities?.length) {
+      const rarityQuery = filters.rarities.map(r => `r:${r.toLowerCase()}`).join(' ');
+      parts.push(rarityQuery);
+    }
+
+    // Oracle text
+    if (filters.oracleText) {
+      const words = filters.oracleText.trim().split(/\s+/);
+      const oracleQueries = words.map(word => `o:${word}`);
+      parts.push(...oracleQueries);
+    }
+
+    // CMC
+    if (filters.minMv !== undefined && filters.maxMv !== undefined) {
+      if (filters.minMv === filters.maxMv) {
+        parts.push(`cmc:${filters.minMv}`);
+      } else {
+        parts.push(`cmc>=${filters.minMv}`, `cmc<=${filters.maxMv}`);
+      }
+    } else if (filters.minMv !== undefined) {
+      parts.push(`cmc>=${filters.minMv}`);
+    } else if (filters.maxMv !== undefined) {
+      parts.push(`cmc<=${filters.maxMv}`);
+    }
+
+    // Set
+    if (filters.set) {
+      parts.push(`s:${filters.set}`);
+    }
+
+    return parts.join(' ');
+  }
+
+  // Parse a scryfall query string into SearchFilters
+  static parseQuery(query: string): SearchFilters {
+    const filters: SearchFilters = {};
+    
+    if (!query || !query.trim()) {
+      return filters;
+    }
+
+    // Simple parsing for common patterns
+    const parts = query.split(' ');
+    const remainingParts: string[] = [];
+
+    for (const part of parts) {
+      if (part.startsWith('t:')) {
+        const type = part.substring(2);
+        if (!filters.types) filters.types = [];
+        if (!filters.types.includes(type)) {
+          filters.types.push(type);
+        }
+      } else if (part.startsWith('c:')) {
+        const color = part.substring(2).toUpperCase();
+        if (!filters.colors) filters.colors = [];
+        if (!filters.colors.includes(color)) {
+          filters.colors.push(color);
+        }
+      } else if (part.startsWith('r:')) {
+        const rarity = part.substring(2);
+        if (!filters.rarities) filters.rarities = [];
+        if (!filters.rarities.includes(rarity)) {
+          filters.rarities.push(rarity);
+        }
+      } else if (part.startsWith('o:')) {
+        const text = part.substring(2);
+        if (!filters.oracleText) {
+          filters.oracleText = text;
+        } else {
+          filters.oracleText += ' ' + text;
+        }
+      } else if (part.startsWith('s:')) {
+        filters.set = part.substring(2);
+      } else if (part.startsWith('cmc:')) {
+        const cmc = parseInt(part.substring(4));
+        if (!isNaN(cmc)) {
+          filters.minMv = cmc;
+          filters.maxMv = cmc;
+        }
+      } else if (part.startsWith('cmc>=')) {
+        const cmc = parseInt(part.substring(5));
+        if (!isNaN(cmc)) {
+          filters.minMv = cmc;
+        }
+      } else if (part.startsWith('cmc<=')) {
+        const cmc = parseInt(part.substring(5));
+        if (!isNaN(cmc)) {
+          filters.maxMv = cmc;
+        }
+      } else {
+        remainingParts.push(part);
+      }
+    }
+
+    if (remainingParts.length > 0) {
+      filters.query = remainingParts.join(' ');
+    }
+
+    return filters;
+  }
+}
+
 export class ScryfallQueryParser {
   private static colorMap: Record<string, string> = {
     'w': 'W',

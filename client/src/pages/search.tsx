@@ -13,7 +13,7 @@ import { Card as UICard, CardContent, CardHeader, CardTitle } from "@/components
 import { Grid, List, Package, Settings, X, Crown, ChevronUp, ChevronDown } from "lucide-react";
 import { useCardSearch } from "@/hooks/use-scryfall";
 import { useDeck, FORMATS } from "@/hooks/use-deck";
-import { ScryfallQueryParser } from "@/lib/scryfall-parser";
+import { ScryfallQueryParser, ScryfallParser } from "@/lib/scryfall-parser";
 import { SearchFilters } from "@shared/schema";
 import { Link } from "wouter";
 
@@ -70,9 +70,22 @@ export default function Search() {
     }
   }, []);
 
-  const handleFiltersChange = (filters: SearchFilters) => {
+  const handleFiltersChange = useCallback((filters: SearchFilters) => {
     setManualFilters(filters);
     setUseManualFilters(Object.keys(filters).length > 0);
+    
+    // Update search query to show filters
+    const queryText = ScryfallParser.filtersToQuery(filters);
+    setSearchQuery(queryText);
+  }, []);
+
+  const handleFiltersChange = useCallback((filters: SearchFilters) => {
+    setManualFilters(filters);
+    setUseManualFilters(Object.keys(filters).length > 0);
+    
+    // Update search query to show filters
+    const queryText = ScryfallParser.filtersToQuery(filters);
+    setSearchQuery(queryText);
     
     // Update search bar with filter text
     if (Object.keys(filters).length > 0) {

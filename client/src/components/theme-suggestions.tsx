@@ -16,6 +16,7 @@ interface ThemeGroup {
   description: string;
   cards: Card[];
   icon: React.ReactNode;
+  confidence: number;
 }
 
 export function ThemeSuggestions({ card, onCardClick }: ThemeSuggestionsProps) {

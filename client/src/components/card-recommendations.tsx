@@ -30,13 +30,15 @@ export function CardRecommendations({ cardId, onCardClick, onAddCard }: CardReco
           const response = await fetch(`/api/cards/${cardId}/theme-suggestions`);
           if (!response.ok) throw new Error('Failed to fetch theme suggestions');
           const data = await response.json();
-          return data.flatMap((theme: any) => 
-            theme.cards.map((card: any) => ({
-              card,
-              score: 0.8,
-              reason: `${theme.theme}: ${theme.description}`
-            }))
-          );
+          return data
+            .filter((theme: any) => (theme.confidence || 0.8) >= 0.7)
+            .flatMap((theme: any) => 
+              theme.cards.map((card: any) => ({
+                card,
+                score: theme.confidence || 0.8,
+                reason: `${theme.theme}: ${theme.description}`
+              }))
+            );
         } else {
           const response = await fetch(`/api/cards/${cardId}/recommendations?type=${activeTab}&limit=8`);
           if (!response.ok) throw new Error('Failed to fetch recommendations');
@@ -94,7 +96,7 @@ export function CardRecommendations({ cardId, onCardClick, onAddCard }: CardReco
 
   return (
     <div className="space-y-4">
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'synergy' | 'functional_similarity')} className="w-full">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'synergy' | 'functional_similarity' | 'themes')} className="w-full">
         <div className="flex items-center justify-between mb-4">
           <TabsList className="grid w-full grid-cols-3 bg-slate-800 border-slate-700 max-w-lg">
             <TabsTrigger value="themes" className="data-[state=active]:bg-slate-700 flex items-center space-x-1">
