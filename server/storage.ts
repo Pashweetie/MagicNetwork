@@ -433,7 +433,6 @@ export class DatabaseStorage implements IStorage {
 
     const sourceText = (sourceCard.oracle_text || '').toLowerCase();
     const sourceType = sourceCard.type_line.toLowerCase();
-    const sourceName = sourceCard.name.toLowerCase();
 
     for (const cached of sampleCards) {
       const card = cached.cardData;
@@ -442,7 +441,7 @@ export class DatabaseStorage implements IStorage {
       let score = 0;
       const reasons: string[] = [];
 
-      // ENABLER-PAYOFF RELATIONSHIPS (what this card enables vs what enables this card)
+      // ENABLER-PAYOFF RELATIONSHIPS
       
       // Source creates tokens -> Card benefits from tokens
       if ((sourceText.includes('create') && sourceText.includes('token')) &&
