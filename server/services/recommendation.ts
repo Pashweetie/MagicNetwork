@@ -520,17 +520,42 @@ export class RecommendationService {
     const typeLine = (card.type_line || '').toLowerCase();
     const manaCost = card.mana_cost || '';
 
-    // EQUIPMENT VOLTRON - Focused on single creature power
+    console.log(`Analyzing ${card.name} for themes. Oracle text: ${oracleText.substring(0, 100)}...`);
+
+    // DUNGEON/INITIATIVE MECHANICS - Check for adventure/dungeon themes first
     if (this.matchesTheme(cardName, oracleText, [
+      'initiative', 'dungeon', 'venture', 'the initiative', 'take the initiative',
+      'undercity', 'dungeon of the mad mage', 'lost mine', 'tomb of annihilation'
+    ])) {
+      themes.push({
+        name: 'Dungeon & Initiative',
+        description: 'Cards that work with dungeons and the initiative mechanic',
+        keywords: ['initiative', 'dungeon', 'venture', 'undercity'],
+        searchTerms: ['take the initiative', 'venture into', 'dungeon', 'initiative', 'undercity']
+      });
+      console.log(`Added Dungeon & Initiative theme for ${card.name}`);
+    }
+
+    // EQUIPMENT VOLTRON - Only for creatures that benefit from being buffed OR equipment itself
+    const isGoodVoltronTarget = (
+      typeLine.includes('legendary') || // Commanders
+      oracleText.includes('hexproof') || oracleText.includes('protection') ||
+      oracleText.includes('unblockable') || oracleText.includes('trample') ||
+      oracleText.includes('double strike') || oracleText.includes('equipped') ||
+      typeLine.includes('equipment') || typeLine.includes('aura')
+    );
+    
+    if (isGoodVoltronTarget && this.matchesTheme(cardName, oracleText, [
       'equipment', 'attach', 'equipped creature gets', 'equip', 'aura', 'enchant creature',
-      'target creature gets', 'hexproof', 'protection', 'unblockable', 'flying'
-    ]) || typeLine.includes('equipment') || typeLine.includes('aura')) {
+      'target creature gets', 'hexproof', 'protection', 'unblockable'
+    ])) {
       themes.push({
         name: 'Voltron Equipment',
         description: 'Build up one powerful creature with equipment and auras',
         keywords: ['equipment', 'aura', 'equip', 'attach', 'hexproof', 'protection'],
         searchTerms: ['equipment', 'aura', 'enchant creature', 'equipped creature gets', 'target creature gets']
       });
+      console.log(`Added Voltron Equipment theme for ${card.name}`);
     }
 
     // ARISTOCRATS - Death triggers and sacrifice

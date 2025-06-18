@@ -176,6 +176,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Theme feedback endpoint
+  app.post("/api/cards/:id/theme-feedback", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { themeName, feedback, reason } = req.body;
+      
+      // For now, assume userId = 1 (would come from auth in real app)
+      const userId = 1;
+      
+      await storage.recordRecommendationFeedback({
+        userId,
+        cardId: id,
+        recommendationType: 'theme',
+        themeName,
+        feedback,
+        reason
+      });
+      
+      res.json({ message: "Feedback recorded" });
+    } catch (error) {
+      console.error('Theme feedback error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
