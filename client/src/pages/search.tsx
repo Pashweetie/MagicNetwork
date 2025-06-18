@@ -1,21 +1,33 @@
 import { useState, useEffect, useMemo } from "react";
+import { Card } from "@shared/schema";
 import { Header } from "@/components/header";
 import { FilterSidebar } from "@/components/filter-sidebar";
 import { CardGrid } from "@/components/card-grid";
+import { CardDetailModal } from "@/components/card-detail-modal";
+import { DeckCardTile } from "@/components/deck-card-tile";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Grid, List } from "lucide-react";
+import { Card as UICard, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Grid, List, Package, Settings } from "lucide-react";
 import { useCardSearch } from "@/hooks/use-scryfall";
+import { useDeck, FORMATS } from "@/hooks/use-deck";
 import { ScryfallQueryParser } from "@/lib/scryfall-parser";
 import { SearchFilters } from "@shared/schema";
+import { Link } from "wouter";
 
 export default function Search() {
+  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [showDeckPanel, setShowDeckPanel] = useState(false);
   const [sortBy, setSortBy] = useState("relevance");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [manualFilters, setManualFilters] = useState<SearchFilters>({});
   const [useManualFilters, setUseManualFilters] = useState(false);
+  
+  const deck = useDeck();
 
   // Use either parsed query filters OR manual filters, not both
   const activeFilters = useMemo(() => {
@@ -55,6 +67,16 @@ export default function Search() {
     if (Object.keys(filters).length > 0) {
       setSearchQuery(""); // Clear search query when using manual filters
     }
+  };
+
+  const handleCardClick = (card: Card) => {
+    setSelectedCard(card);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedCard(null);
   };
 
   const handleLoadMore = () => {
@@ -116,8 +138,51 @@ export default function Search() {
         )}
         
         <main className="flex-1 overflow-y-auto">
-          {/* Results Header */}
+          {/* Deck Panel Toggle */}
           <div className="bg-slate-800 border-b border-slate-700 px-6 py-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeckPanel(!showDeckPanel)}
+                  className="flex items-center space-x-2"
+                >
+                  <Package className="w-4 h-4" />
+                  <span>Deck ({deck.totalCards})</span>
+                </Button>
+                
+                <Link href="/deck-builder">
+                  <Button variant="secondary" className="flex items-center space-x-2">
+                    <Settings className="w-4 h-4" />
+                    <span>AI Deck Builder</span>
+                  </Button>
+                </Link>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-slate-400">Format:</span>
+                <Select 
+                  value={deck.format.name} 
+                  onValueChange={(value) => {
+                    const format = FORMATS.find(f => f.name === value);
+                    if (format) deck.setFormat(format);
+                  }}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FORMATS.map(format => (
+                      <SelectItem key={format.name} value={format.name}>
+                        {format.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            {/* Results Header */}
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-white">
@@ -163,19 +228,106 @@ export default function Search() {
             </div>
           </div>
 
-          {/* Card Grid */}
+          {/* Deck Panel */}
+          {showDeckPanel && (
+            <div className="px-6 py-4 bg-slate-850">
+              <UICard className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Package className="w-5 h-5" />
+                      <span>Current Deck</span>
+                      <Badge variant="secondary">{deck.totalCards} cards</Badge>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setShowDeckPanel(false)}
+                    >
+                      ✕
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {deck.deckEntries.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400">
+                      <Package className="w-12 h-12 mx-auto mb-4 text-slate-600" />
+                      <p>No cards in deck</p>
+                      <p className="text-sm mt-1">Click + on cards to add them</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 max-h-64 overflow-y-auto">
+                      {deck.deckEntries.map(entry => (
+                        <DeckCardTile
+                          key={entry.card.id}
+                          card={entry.card}
+                          quantity={entry.quantity}
+                          maxCopies={deck.getMaxCopies(entry.card)}
+                          onAdd={() => deck.addCard(entry.card)}
+                          onRemove={() => deck.removeCard(entry.card.id)}
+                          onClick={handleCardClick}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </UICard>
+            </div>
+          )}
+
+          {/* Card Grid with Deck Functionality */}
           <div className="p-6">
-            <CardGrid
-              cards={allCards}
-              isLoading={isFetching}
-              hasMore={hasNextPage || false}
-              onLoadMore={handleLoadMore}
-              onRetry={handleRetry}
-              error={error?.message}
-            />
+            {viewMode === "grid" ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                {allCards.map((card, index) => (
+                  <DeckCardTile
+                    key={`${card.id}-${index}`}
+                    card={card}
+                    quantity={deck.getCardQuantity(card.id)}
+                    maxCopies={deck.getMaxCopies(card)}
+                    onAdd={() => deck.addCard(card)}
+                    onRemove={() => deck.removeCard(card.id)}
+                    onClick={handleCardClick}
+                  />
+                ))}
+              </div>
+            ) : (
+              <CardGrid
+                cards={allCards}
+                isLoading={isFetching}
+                hasMore={hasNextPage || false}
+                onLoadMore={handleLoadMore}
+                onRetry={handleRetry}
+                error={error?.message}
+              />
+            )}
+
+            {/* Loading and pagination */}
+            {isFetching && (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+              </div>
+            )}
+
+            {hasNextPage && !isFetching && (
+              <div className="flex justify-center py-8">
+                <Button 
+                  onClick={handleLoadMore}
+                  variant="outline"
+                >
+                  Load More
+                </Button>
+              </div>
+            )}
           </div>
         </main>
       </div>
+
+      <CardDetailModal
+        card={selectedCard}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+      />
     </div>
   );
 }
