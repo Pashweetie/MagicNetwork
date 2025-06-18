@@ -87,6 +87,16 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
     const currentQuantity = getCardQuantity(card.id);
     const maxAllowed = getMaxCopies(card);
     
+    // Check color identity constraints for Commander format
+    if (format.name === 'Commander' && commander) {
+      const commanderColors = commander.color_identity || [];
+      const cardColors = card.color_identity || [];
+      
+      if (!cardColors.every(color => commanderColors.includes(color))) {
+        return false; // Card color identity doesn't match commander
+      }
+    }
+    
     if (currentQuantity >= maxAllowed) {
       return false; // Can't add more
     }
@@ -109,7 +119,7 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
     });
     
     return true;
-  }, [getCardQuantity, getMaxCopies]);
+  }, [getCardQuantity, getMaxCopies, format, commander]);
 
   const removeCard = useCallback((cardId: string): boolean => {
     const currentQuantity = getCardQuantity(cardId);

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card as UICard, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Grid, List, Package, Settings } from "lucide-react";
+import { Grid, List, Package, Settings, X, Crown, ChevronUp, ChevronDown } from "lucide-react";
 import { useCardSearch } from "@/hooks/use-scryfall";
 import { useDeck, FORMATS } from "@/hooks/use-deck";
 import { ScryfallQueryParser } from "@/lib/scryfall-parser";
