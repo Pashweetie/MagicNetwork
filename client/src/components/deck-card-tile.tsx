@@ -28,6 +28,14 @@ export function DeckCardTile({
 }: DeckCardTileProps) {
   const canAdd = quantity < maxCopies;
   const canRemove = quantity > 0;
+  
+  const canBeCommander = () => {
+    const typeLine = card.type_line?.toLowerCase() || '';
+    const isLegendary = typeLine.includes('legendary');
+    const isCreature = typeLine.includes('creature');
+    const isPlaneswalker = typeLine.includes('planeswalker');
+    return isLegendary && (isCreature || isPlaneswalker);
+  };
 
   return (
     <div className="relative group">
