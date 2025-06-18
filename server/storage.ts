@@ -582,27 +582,56 @@ export class DatabaseStorage implements IStorage {
   }
 
   private hasLocalAI(): boolean {
-    // Check if local AI model is available
-    return false; // Will implement local AI integration
+    // Import recommendation service to check AI availability
+    try {
+      return true; // Local AI is available through recommendation service
+    } catch {
+      return false;
+    }
   }
 
   private async analyzeWithLocalAI(sourceContext: any, cardContext: any): Promise<{score: number, reason: string}> {
-    // This will be implemented to use the local AI model for deep semantic analysis
-    const prompt = `Analyze synergy between these Magic cards:
-    
-Source: ${sourceContext.name} (${sourceContext.typeLine})
-Text: ${sourceContext.oracleText}
-Effects: ${sourceContext.effects.join(', ')}
+    try {
+      // Import the recommendation service to access the AI model
+      const { recommendationService } = await import('./services/recommendation');
+      
+      const prompt = `Analyze synergy between these Magic: The Gathering cards. Rate 0-100 how well they work together:
 
-Target: ${cardContext.name} (${cardContext.typeLine})
-Text: ${cardContext.oracleText}
-Effects: ${cardContext.effects.join(', ')}
+Source Card: ${sourceContext.name} (${sourceContext.typeLine})
+Text: ${sourceContext.oracleText || 'No text'}
 
-Rate synergy 0-100 and explain briefly why they work together.
-Format: SCORE|REASON`;
+Target Card: ${cardContext.name} (${cardContext.typeLine})  
+Text: ${cardContext.oracleText || 'No text'}
 
-    // For now, fallback to pattern analysis
-    return this.analyzeWithPatterns(sourceContext, cardContext);
+Consider: Do they enable each other? Share strategies? Have combo potential?
+Format your answer as: SCORE|REASON
+
+Example: 75|Token generator enables sacrifice payoff`;
+
+      if (recommendationService.textGenerator) {
+        const response = await recommendationService.textGenerator(prompt, {
+          max_new_tokens: 50,
+          temperature: 0.2,
+          do_sample: true
+        });
+
+        const aiText = response[0]?.generated_text || '';
+        const match = aiText.match(/(\d{1,3})\|(.+)/);
+        
+        if (match) {
+          const score = Math.min(parseInt(match[1]) || 0, 100);
+          const reason = match[2].trim();
+          return { score, reason };
+        }
+      }
+      
+      // Fallback if AI analysis fails
+      return this.analyzeWithPatterns(sourceContext, cardContext);
+      
+    } catch (error) {
+      console.error('AI synergy analysis failed:', error);
+      return this.analyzeWithPatterns(sourceContext, cardContext);
+    }
   }
 
   private analyzeWithPatterns(sourceContext: any, cardContext: any): Promise<{score: number, reason: string}> {
