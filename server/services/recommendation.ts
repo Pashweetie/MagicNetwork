@@ -71,33 +71,51 @@ export class RecommendationService {
   // Context-aware suggestion engine
   async getContextualSuggestions(userId: number, limit: number = 20): Promise<Card[]> {
     try {
-      // Update user preferences based on recent interactions
-      await this.updateUserPreferences(userId);
+      // Get user's recent interactions to find preferences
+      const interactions = await db.select()
+        .from(userInteractions)
+        .where(eq(userInteractions.userId, userId))
+        .orderBy(desc(userInteractions.createdAt))
+        .limit(50);
+
+      if (interactions.length === 0) {
+        // Return some popular cards if no interactions
+        const popularCards = await db.select()
+          .from(cardCache)
+          .orderBy(desc(cardCache.searchCount))
+          .limit(limit);
+        
+        return popularCards.map(cached => cached.cardData as Card);
+      }
+
+      // Analyze interaction patterns
+      const cardIds = interactions.map(i => i.cardId);
+      const cards = await Promise.all(
+        cardIds.map(id => storage.getCard(id))
+      );
       
-      // Generate contextual suggestions
-      await this.generateContextualSuggestions(userId);
+      const validCards = cards.filter(card => card !== null) as Card[];
       
-      // Get fresh suggestions
-      const suggestions = await db
-        .select()
-        .from(adaptiveRecommendations)
-        .where(and(
-          eq(adaptiveRecommendations.userId, userId),
-          gte(adaptiveRecommendations.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000)) // Last 24 hours
-        ))
-        .orderBy(desc(adaptiveRecommendations.score))
-        .limit(limit);
-
-      // Get card data for suggestions
-      const cardIds = suggestions.map(s => s.recommendedCardId);
-      if (cardIds.length === 0) return [];
-
-      const cards = await db
-        .select()
-        .from(cardCache)
-        .where(inArray(cardCache.id, cardIds));
-
-      return cards.map(c => c.cardData as Card);
+      // Find similar cards based on interaction patterns
+      const suggestions: Card[] = [];
+      const usedCardIds = new Set(cardIds);
+      
+      for (const card of validCards.slice(0, 10)) {
+        const recommendations = await storage.getCardRecommendations(card.id, 'synergy', 3);
+        for (const rec of recommendations) {
+          if (!usedCardIds.has(rec.recommendedCardId)) {
+            const suggestedCard = await storage.getCard(rec.recommendedCardId);
+            if (suggestedCard) {
+              suggestions.push(suggestedCard);
+              usedCardIds.add(rec.recommendedCardId);
+              if (suggestions.length >= limit) break;
+            }
+          }
+        }
+        if (suggestions.length >= limit) break;
+      }
+      
+      return suggestions.slice(0, limit);
     } catch (error) {
       console.error('Error getting contextual suggestions:', error);
       return [];
