@@ -419,14 +419,39 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
-      // Oracle text keyword similarity
+      // Enhanced oracle text analysis (primary scoring factor)
       if (sourceCard.oracle_text && card.oracle_text) {
+        const sourceText = sourceCard.oracle_text.toLowerCase();
+        const cardText = card.oracle_text.toLowerCase();
+        
+        // Key phrase matches (high value)
+        const keyPhrases = [
+          'whenever', 'enters the battlefield', 'leaves the battlefield',
+          'at the beginning', 'sacrifice', 'destroy', 'draw a card',
+          'search your library', 'without paying', 'mana cost',
+          'target player', 'target creature', 'each opponent',
+          'put onto the battlefield', 'return to hand'
+        ];
+        
+        let phraseMatches = 0;
+        for (const phrase of keyPhrases) {
+          if (sourceText.includes(phrase) && cardText.includes(phrase)) {
+            phraseMatches++;
+          }
+        }
+        
+        if (phraseMatches > 0) {
+          score += phraseMatches * 15; // High weight for phrase matches
+          reasons.push('similar mechanics');
+        }
+        
+        // Keyword abilities (medium value)
         const keywords = ['flying', 'trample', 'haste', 'vigilance', 'deathtouch', 'lifelink', 'first strike', 'double strike', 'hexproof', 'indestructible'];
-        const sourceKeywords = keywords.filter(k => sourceCard.oracle_text!.toLowerCase().includes(k));
-        const cardKeywords = keywords.filter(k => card.oracle_text!.toLowerCase().includes(k));
+        const sourceKeywords = keywords.filter(k => sourceText.includes(k));
+        const cardKeywords = keywords.filter(k => cardText.includes(k));
         const keywordOverlap = sourceKeywords.filter(k => cardKeywords.includes(k)).length;
         if (keywordOverlap > 0) {
-          score += keywordOverlap * 8;
+          score += keywordOverlap * 5; // Reduced weight
           reasons.push('shared abilities');
         }
       }

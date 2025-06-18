@@ -105,29 +105,48 @@ export class RecommendationService {
         }
       }
 
-      // If still no themes (card has no meaningful themes), create a generic one
+      // If still no themes (card has no meaningful themes), create a generic one based on type
       if (storedThemes.length === 0) {
         const cardToAnalyze = sourceCard || await storage.getCachedCard(cardId);
         if (cardToAnalyze) {
+          const mainType = cardToAnalyze.type_line.split(' ')[0].toLowerCase();
+          await db.insert(cardThemes).values({
+            cardId: cardId,
+            themeName: `${mainType.charAt(0).toUpperCase() + mainType.slice(1)} Cards`,
+            themeCategory: 'general',
+            confidence: 50,
+            keywords: [mainType, cardToAnalyze.type_line.toLowerCase()],
+            description: `Cards that share the ${mainType} type and similar mechanics`,
+          }).onConflictDoNothing();
+          
           storedThemes = [{
-            themeName: 'Similar Cards',
-            description: 'Cards with similar effects and mechanics',
-            keywords: [cardToAnalyze.type_line.toLowerCase()],
-            themeCategory: 'general'
+            id: 0,
+            cardId: cardId,
+            themeName: `${mainType.charAt(0).toUpperCase() + mainType.slice(1)} Cards`,
+            description: `Cards that share the ${mainType} type and similar mechanics`,
+            keywords: [mainType, cardToAnalyze.type_line.toLowerCase()],
+            themeCategory: 'general',
+            confidence: 50,
+            createdAt: new Date(),
+            lastUpdated: new Date()
           }];
         }
       }
 
       // For each stored theme, find matching cards
       const themeGroups = [];
-      for (const storedTheme of storedThemes) {
-        const matchingCards = await this.findCardsForStoredTheme(storedTheme, sourceCard || await storage.getCachedCard(cardId));
-        if (matchingCards.length > 0) {
-          themeGroups.push({
-            theme: storedTheme.themeName,
-            description: storedTheme.description || 'Strategic theme based on card analysis',
-            cards: matchingCards.slice(0, 8) // Limit to 8 cards per theme
-          });
+      const cardForMatching = sourceCard || await storage.getCachedCard(cardId);
+      
+      if (cardForMatching) {
+        for (const storedTheme of storedThemes) {
+          const matchingCards = await this.findCardsForStoredTheme(storedTheme, cardForMatching);
+          if (matchingCards.length > 0) {
+            themeGroups.push({
+              theme: storedTheme.themeName,
+              description: storedTheme.description || 'Strategic theme based on card analysis',
+              cards: matchingCards.slice(0, 8) // Limit to 8 cards per theme
+            });
+          }
         }
       }
 
