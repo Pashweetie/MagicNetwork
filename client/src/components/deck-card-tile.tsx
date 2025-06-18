@@ -56,14 +56,15 @@ export function DeckCardTile({
 
       {/* Add/Remove Controls */}
       {showControls && (
-        <div className="absolute bottom-2 right-2 flex space-x-1">
+        <div className="absolute bottom-2 right-2 flex space-x-1 z-10">
           {quantity > 0 && (
             <Button
               size="sm"
               variant="destructive"
-              className="w-6 h-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="w-7 h-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-red-600 hover:bg-red-700 border-0"
               onClick={(e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 onRemove();
               }}
               disabled={!canRemove}
@@ -75,11 +76,12 @@ export function DeckCardTile({
           <Button
             size="sm"
             variant={quantity > 0 ? "secondary" : "default"}
-            className={`w-6 h-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity ${
-              !canAdd ? "opacity-50" : ""
-            }`}
+            className={`w-7 h-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity border-0 ${
+              quantity > 0 ? "bg-blue-600 hover:bg-blue-700" : "bg-green-600 hover:bg-green-700"
+            } ${!canAdd ? "opacity-50" : ""}`}
             onClick={(e) => {
               e.stopPropagation();
+              e.preventDefault();
               onAdd();
             }}
             disabled={!canAdd}
@@ -91,7 +93,7 @@ export function DeckCardTile({
 
       {/* Max copies indicator */}
       {showControls && quantity === maxCopies && maxCopies < 999 && (
-        <div className="absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
           <Badge variant="outline" className="text-xs bg-slate-800 text-slate-300 border-slate-600">
             Max
           </Badge>
@@ -99,7 +101,7 @@ export function DeckCardTile({
       )}
 
       {/* Card name overlay */}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
         <p className="text-xs text-white font-medium truncate">{card.name}</p>
         <p className="text-xs text-slate-300">{card.type_line}</p>
         {quantity > 0 && (
