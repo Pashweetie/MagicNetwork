@@ -11,16 +11,20 @@ import { SearchFilters } from "@shared/schema";
 
 export default function Search() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sortBy, setSortBy] = useState("relevance");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [manualFilters, setManualFilters] = useState<SearchFilters>({});
+  const [useManualFilters, setUseManualFilters] = useState(false);
 
-  // Combine parsed query filters with manual filters
-  const combinedFilters = useMemo(() => {
-    const parsedFilters = ScryfallQueryParser.parseQuery(searchQuery);
-    return { ...parsedFilters, ...manualFilters };
-  }, [searchQuery, manualFilters]);
+  // Use either parsed query filters OR manual filters, not both
+  const activeFilters = useMemo(() => {
+    if (useManualFilters && Object.keys(manualFilters).length > 0) {
+      return manualFilters;
+    } else {
+      return ScryfallQueryParser.parseQuery(searchQuery);
+    }
+  }, [searchQuery, manualFilters, useManualFilters]);
 
   const {
     data,
@@ -30,7 +34,7 @@ export default function Search() {
     isLoading,
     error,
     refetch,
-  } = useCardSearch(combinedFilters);
+  } = useCardSearch(activeFilters);
 
   // Flatten all pages of cards
   const allCards = useMemo(() => {
@@ -41,10 +45,16 @@ export default function Search() {
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
+    setUseManualFilters(false); // Switch to search query mode
+    setManualFilters({}); // Clear manual filters
   };
 
   const handleFiltersChange = (filters: SearchFilters) => {
     setManualFilters(filters);
+    setUseManualFilters(Object.keys(filters).length > 0); // Switch to manual filter mode if filters exist
+    if (Object.keys(filters).length > 0) {
+      setSearchQuery(""); // Clear search query when using manual filters
+    }
   };
 
   const handleLoadMore = () => {
@@ -62,21 +72,29 @@ export default function Search() {
   };
 
   const getDisplayQuery = () => {
-    const parts: string[] = [];
-    
-    if (combinedFilters.query) {
-      parts.push(combinedFilters.query);
+    if (useManualFilters) {
+      const parts: string[] = [];
+      
+      if (activeFilters.colors?.length) {
+        parts.push(`Colors: ${activeFilters.colors.join(', ')}`);
+      }
+      
+      if (activeFilters.types?.length) {
+        parts.push(`Types: ${activeFilters.types.join(', ')}`);
+      }
+      
+      if (activeFilters.rarities?.length) {
+        parts.push(`Rarity: ${activeFilters.rarities.join(', ')}`);
+      }
+      
+      if (activeFilters.oracleText) {
+        parts.push(`Text: "${activeFilters.oracleText}"`);
+      }
+      
+      return parts.join(' • ') || 'Filter criteria';
+    } else {
+      return searchQuery || 'All cards';
     }
-    
-    if (combinedFilters.colors?.length) {
-      parts.push(`c:${combinedFilters.colors.join('')}`);
-    }
-    
-    if (combinedFilters.types?.length) {
-      parts.push(combinedFilters.types.map(t => `t:${t}`).join(' '));
-    }
-    
-    return parts.join(' ') || 'All cards';
   };
 
   return (
@@ -88,12 +106,14 @@ export default function Search() {
       />
       
       <div className="flex h-screen pt-16">
-        <FilterSidebar
-          isOpen={isSidebarOpen}
-          filters={manualFilters}
-          onFiltersChange={handleFiltersChange}
-          onClose={() => setIsSidebarOpen(false)}
-        />
+        {isSidebarOpen && (
+          <FilterSidebar
+            isOpen={isSidebarOpen}
+            filters={manualFilters}
+            onFiltersChange={handleFiltersChange}
+            onClose={() => setIsSidebarOpen(false)}
+          />
+        )}
         
         <main className="flex-1 overflow-y-auto">
           {/* Results Header */}

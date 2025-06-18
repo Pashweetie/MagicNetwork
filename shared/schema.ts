@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { pgTable, text, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
 
 export const cardSchema = z.object({
   id: z.string(),
@@ -73,3 +75,40 @@ export const searchResponseSchema = z.object({
 export type Card = z.infer<typeof cardSchema>;
 export type SearchFilters = z.infer<typeof searchFiltersSchema>;
 export type SearchResponse = z.infer<typeof searchResponseSchema>;
+
+// Database tables
+export const users = pgTable('users', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  username: text('username').notNull().unique(),
+  email: text('email').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const savedSearches = pgTable('saved_searches', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  name: text('name').notNull(),
+  filters: jsonb('filters').$type<SearchFilters>().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const favoriteCards = pgTable('favorite_cards', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  cardId: text('card_id').notNull(),
+  cardData: jsonb('card_data').$type<Card>().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Zod schemas for database operations
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
+export const insertSavedSearchSchema = createInsertSchema(savedSearches).omit({ id: true, createdAt: true });
+export const insertFavoriteCardSchema = createInsertSchema(favoriteCards).omit({ id: true, createdAt: true });
+
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type SavedSearch = typeof savedSearches.$inferSelect;
+export type InsertSavedSearch = z.infer<typeof insertSavedSearchSchema>;
+export type FavoriteCard = typeof favoriteCards.$inferSelect;
+export type InsertFavoriteCard = z.infer<typeof insertFavoriteCardSchema>;

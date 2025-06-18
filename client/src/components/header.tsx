@@ -39,7 +39,8 @@ export function Header({ onSearch, onToggleSidebar, searchQuery }: HeaderProps) 
               variant="ghost"
               size="icon"
               onClick={onToggleSidebar}
-              className="lg:hidden text-slate-400 hover:text-white hover:bg-slate-700"
+              className="text-slate-400 hover:text-white hover:bg-slate-700"
+              title="Toggle filters"
             >
               <Menu className="h-5 w-5" />
             </Button>

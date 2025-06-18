@@ -1,13 +1,31 @@
-import { Card, SearchFilters, SearchResponse } from "@shared/schema";
+import { Card, SearchFilters, SearchResponse, User, InsertUser, SavedSearch, InsertSavedSearch, FavoriteCard, InsertFavoriteCard } from "@shared/schema";
+import { db } from "./db";
+import { users, savedSearches, favoriteCards } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
-  // Keep existing user methods if needed for future features
+  // Card search methods
   searchCards(filters: SearchFilters, page: number): Promise<SearchResponse>;
   getCard(id: string): Promise<Card | null>;
   getRandomCard(): Promise<Card>;
+  
+  // User methods
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(insertUser: InsertUser): Promise<User>;
+  
+  // Saved searches
+  getSavedSearches(userId: number): Promise<SavedSearch[]>;
+  createSavedSearch(search: InsertSavedSearch): Promise<SavedSearch>;
+  deleteSavedSearch(id: number, userId: number): Promise<boolean>;
+  
+  // Favorite cards
+  getFavoriteCards(userId: number): Promise<FavoriteCard[]>;
+  addFavoriteCard(favorite: InsertFavoriteCard): Promise<FavoriteCard>;
+  removeFavoriteCard(cardId: string, userId: number): Promise<boolean>;
 }
 
-export class MemStorage implements IStorage {
+export class DatabaseStorage implements IStorage {
   // Cache for storing recent search results
   private searchCache: Map<string, { result: SearchResponse; timestamp: number }> = new Map();
   private cardCache: Map<string, { card: Card; timestamp: number }> = new Map();
@@ -29,8 +47,8 @@ export class MemStorage implements IStorage {
       return cached.result;
     }
 
-    // In a real implementation, this would call the Scryfall service
-    // For now, return empty results since we're integrating with the actual API
+    // For now, return empty results since we're using Scryfall service
+    // In future, this could cache popular searches in the database
     const result: SearchResponse = {
       data: [],
       has_more: false,
@@ -48,14 +66,77 @@ export class MemStorage implements IStorage {
       return cached.card;
     }
 
-    // In a real implementation, this would call the Scryfall service
     return null;
   }
 
   async getRandomCard(): Promise<Card> {
-    // In a real implementation, this would call the Scryfall service
-    throw new Error("Random card not implemented in memory storage");
+    throw new Error("Random card not implemented in database storage");
+  }
+
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  // Saved searches
+  async getSavedSearches(userId: number): Promise<SavedSearch[]> {
+    return await db
+      .select()
+      .from(savedSearches)
+      .where(eq(savedSearches.userId, userId));
+  }
+
+  async createSavedSearch(search: InsertSavedSearch): Promise<SavedSearch> {
+    const [savedSearch] = await db
+      .insert(savedSearches)
+      .values(search)
+      .returning();
+    return savedSearch;
+  }
+
+  async deleteSavedSearch(id: number, userId: number): Promise<boolean> {
+    const result = await db
+      .delete(savedSearches)
+      .where(eq(savedSearches.id, id) && eq(savedSearches.userId, userId));
+    return result.rowCount > 0;
+  }
+
+  // Favorite cards
+  async getFavoriteCards(userId: number): Promise<FavoriteCard[]> {
+    return await db
+      .select()
+      .from(favoriteCards)
+      .where(eq(favoriteCards.userId, userId));
+  }
+
+  async addFavoriteCard(favorite: InsertFavoriteCard): Promise<FavoriteCard> {
+    const [favoriteCard] = await db
+      .insert(favoriteCards)
+      .values(favorite)
+      .returning();
+    return favoriteCard;
+  }
+
+  async removeFavoriteCard(cardId: string, userId: number): Promise<boolean> {
+    const result = await db
+      .delete(favoriteCards)
+      .where(eq(favoriteCards.cardId, cardId) && eq(favoriteCards.userId, userId));
+    return result.rowCount > 0;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

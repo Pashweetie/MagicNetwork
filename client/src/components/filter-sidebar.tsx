@@ -36,6 +36,11 @@ export function FilterSidebar({ isOpen, filters, onFiltersChange, onClose }: Fil
     price: false,
     keywords: false,
   });
+  
+  const hasActiveFilters = Object.keys(filters).some(key => {
+    const value = filters[key as keyof SearchFilters];
+    return Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null && value !== '';
+  });
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({
@@ -105,20 +110,44 @@ export function FilterSidebar({ isOpen, filters, onFiltersChange, onClose }: Fil
         w-80 bg-slate-800 border-r border-slate-700 overflow-y-auto
         transform transition-transform duration-300 ease-in-out
         fixed lg:relative z-40 h-full
-        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white">Filters</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearAllFilters}
-              className="text-slate-400 hover:text-white text-sm"
-            >
-              Clear All
-            </Button>
+            <div className="flex items-center space-x-2">
+              <h2 className="text-lg font-semibold text-white">Filters</h2>
+              {hasActiveFilters && (
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              )}
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearAllFilters}
+                className="text-slate-400 hover:text-white text-sm"
+                disabled={!hasActiveFilters}
+              >
+                Clear All
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+                className="text-slate-400 hover:text-white text-sm lg:hidden"
+              >
+                ×
+              </Button>
+            </div>
           </div>
+          
+          {hasActiveFilters && (
+            <div className="mb-4 p-3 bg-blue-900/30 border border-blue-700 rounded-lg">
+              <p className="text-xs text-blue-300">
+                Using filter criteria instead of search query. Clear filters to return to text search.
+              </p>
+            </div>
+          )}
 
           {/* Color Filter */}
           <div className="mb-6">
