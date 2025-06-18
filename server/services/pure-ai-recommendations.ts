@@ -4,14 +4,14 @@ import { cardCache, cardThemes } from "@shared/schema";
 import { sql, eq } from "drizzle-orm";
 
 export class PureAIRecommendationService {
-  private textGenerator: any = null;
-  private isReady = false;
+  public textGenerator: any = null;
+  public isReady = false;
 
   constructor() {
     this.initializeAI();
   }
 
-  private async initializeAI() {
+  public async initializeAI() {
     if (this.isReady) return;
     
     try {

@@ -195,6 +195,9 @@ export const insertSearchCacheSchema = createInsertSchema(searchCache).omit({ id
 export const insertCardRecommendationSchema = createInsertSchema(cardRecommendations).omit({ id: true, createdAt: true });
 export const insertUserInteractionSchema = createInsertSchema(userInteractions).omit({ id: true, createdAt: true });
 
+export const insertCardTagSchema = createInsertSchema(cardTags).omit({ id: true, createdAt: true, lastUpdated: true });
+export const insertTagRelationshipSchema = createInsertSchema(tagRelationships).omit({ id: true, createdAt: true, lastUpdated: true });
+export const insertUserTagFeedbackSchema = createInsertSchema(userTagFeedback).omit({ id: true, createdAt: true });
 export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, createdAt: true, lastUpdated: true });
 export const insertRecommendationFeedbackSchema = createInsertSchema(recommendationFeedback).omit({ id: true, createdAt: true });
 // Deck persistence schema
@@ -231,6 +234,12 @@ export type InsertCardRecommendation = z.infer<typeof insertCardRecommendationSc
 export type UserInteraction = typeof userInteractions.$inferSelect;
 export type InsertUserInteraction = z.infer<typeof insertUserInteractionSchema>;
 
+export type CardTag = typeof cardTags.$inferSelect;
+export type InsertCardTag = z.infer<typeof insertCardTagSchema>;
+export type TagRelationship = typeof tagRelationships.$inferSelect;
+export type InsertTagRelationship = z.infer<typeof insertTagRelationshipSchema>;
+export type UserTagFeedback = typeof userTagFeedback.$inferSelect;
+export type InsertUserTagFeedback = z.infer<typeof insertUserTagFeedbackSchema>;
 export type CardTheme = typeof cardThemes.$inferSelect;
 export type InsertCardTheme = z.infer<typeof insertCardThemeSchema>;
 export type RecommendationFeedback = typeof recommendationFeedback.$inferSelect;

@@ -40,6 +40,15 @@ export interface IStorage {
   // Recommendation system (simplified)
   getCardRecommendations(cardId: string, type: 'synergy' | 'functional_similarity', limit?: number, filters?: any): Promise<CardRecommendation[]>;
   
+  // Tag system
+  getCardTags(cardId: string): Promise<CardTag[]>;
+  createCardTag(tag: InsertCardTag): Promise<CardTag>;
+  updateCardTagVotes(cardId: string, tag: string, upvotes: number, downvotes: number): Promise<void>;
+  findCardsByTags(tags: string[], filters?: any): Promise<Card[]>;
+  getTagRelationships(tag: string): Promise<TagRelationship[]>;
+  createTagRelationship(relationship: InsertTagRelationship): Promise<TagRelationship>;
+  recordUserTagFeedback(feedback: InsertUserTagFeedback): Promise<void>;
+  
   // Feedback system
   recordRecommendationFeedback(feedback: InsertRecommendationFeedback): Promise<void>;
   getRecommendationWeights(): Promise<{[key: string]: number}>;

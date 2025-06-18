@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { recommendationService } from "./services/recommendation";
 import { pureAIService } from "./services/pure-ai-recommendations";
+import { tagSystem } from "./services/tag-system";
 import { searchFiltersSchema, cardCache } from "@shared/schema";
 import { db } from "./db";
 import { desc } from "drizzle-orm";
@@ -267,6 +268,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Theme suggestions error:', error);
       res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get card tags
+  app.get('/api/cards/:cardId/tags', async (req, res) => {
+    try {
+      const { cardId } = req.params;
+      
+      const card = await storage.getCard(cardId);
+      if (!card) {
+        return res.status(404).json({ error: 'Card not found' });
+      }
+
+      const tags = await tagSystem.generateCardTags(card);
+      res.json(tags);
+    } catch (error) {
+      console.error('Card tags error:', error);
+      res.status(500).json({ error: 'Failed to get card tags' });
+    }
+  });
+
+  // Vote on card tags
+  app.post('/api/cards/:cardId/tags/:tag/vote', async (req, res) => {
+    try {
+      const { cardId, tag } = req.params;
+      const { vote, userId } = req.body; // 'up' or 'down'
+      
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      await storage.recordUserTagFeedback({
+        userId,
+        cardId,
+        tag: decodeURIComponent(tag),
+        vote
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Tag vote error:', error);
+      res.status(500).json({ error: 'Failed to record vote' });
+    }
+  });
+
+  // Get similar cards based on tags
+  app.get('/api/cards/:cardId/similar-by-tags', async (req, res) => {
+    try {
+      const { cardId } = req.params;
+      const filters = req.query as any;
+      
+      const cards = await tagSystem.findCardsWithSimilarTags(cardId, filters);
+      res.json({ cards });
+    } catch (error) {
+      console.error('Similar cards error:', error);
+      res.status(500).json({ error: 'Failed to find similar cards' });
+    }
+  });
+
+  // Get synergistic cards based on tag relationships
+  app.get('/api/cards/:cardId/synergistic-by-tags', async (req, res) => {
+    try {
+      const { cardId } = req.params;
+      const filters = req.query as any;
+      
+      const cards = await tagSystem.findSynergisticCards(cardId, filters);
+      res.json({ cards });
+    } catch (error) {
+      console.error('Synergistic cards error:', error);
+      res.status(500).json({ error: 'Failed to find synergistic cards' });
     }
   });
 
