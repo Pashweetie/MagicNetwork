@@ -166,14 +166,22 @@ Oracle Text: ${card.oracle_text || 'No text'}`;
     return themes;
   }
 
-  // Optimized card matching for themes
+  // AI-powered card matching for themes
   async findCardsForTheme(theme: {theme: string, description: string}, sourceCard: Card, filters?: any): Promise<Card[]> {
+    if (!this.isReady) {
+      await this.initializeAI();
+      if (!this.isReady) {
+        console.log('AI not available, cannot find theme cards');
+        return [];
+      }
+    }
+
     try {
       const candidates = await db
         .select()
         .from(cardCache)
         .where(sql`card_data->>'id' != ${sourceCard.id}`)
-        .limit(300); // Reduced for performance
+        .limit(200); // Process smaller batches for AI analysis
 
       const scoredCards: Array<{card: Card, score: number}> = [];
 
@@ -184,13 +192,14 @@ Oracle Text: ${card.oracle_text || 'No text'}`;
         // Apply filters early
         if (filters && !this.cardMatchesFilters(card, filters)) continue;
 
-        const score = this.scoreCardForTheme(card, theme);
-        if (score > 0.3) {
-          scoredCards.push({ card, score });
+        // Use AI to score card relevance to theme
+        const aiScore = await this.scoreCardForThemeWithAI(card, theme);
+        if (aiScore > 0.6) {
+          scoredCards.push({ card, score: aiScore });
         }
 
-        // Process in batches to avoid blocking
-        if (scoredCards.length >= 20) break;
+        // Process in smaller batches to avoid overwhelming AI
+        if (scoredCards.length >= 15) break;
       }
 
       return scoredCards
@@ -199,50 +208,58 @@ Oracle Text: ${card.oracle_text || 'No text'}`;
         .map(item => item.card);
 
     } catch (error) {
-      console.error('Card matching failed:', error);
+      console.error('AI card matching failed:', error);
       return [];
     }
   }
 
-  private scoreCardForTheme(card: Card, theme: {theme: string, description: string}): number {
-    const text = (card.oracle_text || '').toLowerCase();
-    const type = (card.type_line || '').toLowerCase();
-    const themeName = theme.theme.toLowerCase();
+  // Pure AI-based theme scoring - no hardcoded patterns
+  private async scoreCardForThemeWithAI(card: Card, theme: {theme: string, description: string}): Promise<number> {
+    if (!this.isReady) return 0;
 
-    let score = 0;
+    try {
+      const cardContext = `"${card.name}" (${card.type_line}): ${card.oracle_text || 'No text'}`;
+      
+      let aiResponse = '';
 
-    // Theme-specific scoring
-    if (themeName.includes('token')) {
-      if (text.includes('token') || text.includes('create')) score += 0.8;
-      if (text.includes('populate') || text.includes('convoke')) score += 0.6;
+      if (this.textGenerator.chat) {
+        // Using OpenAI GPT
+        const response = await this.textGenerator.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: "You are a Magic: The Gathering expert. Rate how well a card fits a specific theme on a scale of 0-100. Consider strategic synergies, mechanical interactions, and thematic relevance."
+            },
+            {
+              role: "user",
+              content: `Rate how well this card fits the "${theme.theme}" theme (${theme.description}) on a scale of 0-100:\n\nCard: ${cardContext}\n\nRespond with only a number from 0-100:`
+            }
+          ],
+          max_tokens: 10,
+          temperature: 0.1
+        });
+
+        aiResponse = response.choices[0]?.message?.content || '0';
+      } else {
+        // Using local transformer
+        const prompt = `Rate 0-100 how well this Magic card fits the "${theme.theme}" strategy: "${theme.description}". Card: ${cardContext} - Answer only a number 0-100:`;
+        
+        const response = await this.textGenerator(prompt, {
+          max_new_tokens: 10,
+          temperature: 0.2
+        });
+
+        aiResponse = response[0]?.generated_text || '0';
+      }
+
+      const score = parseInt(aiResponse.match(/\d+/)?.[0] || '0');
+      return Math.min(Math.max(score, 0), 100) / 100; // Convert to 0-1 scale
+
+    } catch (error) {
+      console.error('AI theme scoring failed:', error);
+      return 0;
     }
-
-    if (themeName.includes('graveyard')) {
-      if (text.includes('graveyard')) score += 0.8;
-      if (text.includes('return') || text.includes('mill')) score += 0.6;
-    }
-
-    if (themeName.includes('artifact')) {
-      if (type.includes('artifact') || text.includes('artifact')) score += 0.8;
-      if (text.includes('equipment') || text.includes('metalcraft')) score += 0.6;
-    }
-
-    if (themeName.includes('damage') || themeName.includes('direct')) {
-      if (text.includes('damage') && (text.includes('player') || text.includes('opponent'))) score += 0.8;
-      if (text.includes('burn') || text.includes('lightning')) score += 0.6;
-    }
-
-    if (themeName.includes('control')) {
-      if (text.includes('counter') && text.includes('spell')) score += 0.8;
-      if (text.includes('draw') || text.includes('return')) score += 0.4;
-    }
-
-    if (themeName.includes('sacrifice')) {
-      if (text.includes('sacrifice') || text.includes('dies')) score += 0.8;
-      if (text.includes('death') || text.includes('destroy')) score += 0.4;
-    }
-
-    return Math.min(score, 1.0);
   }
 
   private async scoreCardForThemeWithAI(card: Card, theme: {theme: string, description: string}): Promise<number> {
@@ -316,69 +333,15 @@ Oracle Text: ${card.oracle_text || 'No text'}`;
         };
       }
 
-      // Fallback to pattern analysis
-      const fallbackScore = this.calculateSynergyScore(sourceCard, targetCard);
-      return {
-        score: Math.round(fallbackScore),
-        reason: this.getSynergyReason(sourceCard, targetCard, fallbackScore)
-      };
+      // Return zero if AI analysis fails - no fallback patterns
+      return { score: 0, reason: 'AI analysis unavailable' };
     } catch (error) {
       console.error('AI synergy analysis failed:', error);
       return { score: 0, reason: 'analysis failed' };
     }
   }
 
-  private calculateSynergyScore(source: Card, target: Card): number {
-    const sourceText = (source.oracle_text || '').toLowerCase();
-    const targetText = (target.oracle_text || '').toLowerCase();
-    const sourceType = (source.type_line || '').toLowerCase();
-    const targetType = (target.type_line || '').toLowerCase();
-
-    let score = 0;
-
-    // Token synergies
-    if (sourceText.includes('token') && (targetText.includes('token') || targetText.includes('creature'))) {
-      score += 30;
-    }
-
-    // Artifact synergies
-    if ((sourceType.includes('artifact') || sourceText.includes('artifact')) && 
-        (targetType.includes('artifact') || targetText.includes('artifact'))) {
-      score += 35;
-    }
-
-    // Graveyard synergies
-    if (sourceText.includes('graveyard') && targetText.includes('graveyard')) {
-      score += 40;
-    }
-
-    // Equipment/creature synergies
-    if (sourceType.includes('equipment') && targetType.includes('creature')) {
-      score += 25;
-    }
-
-    // Mana cost synergies
-    if (source.cmc && target.cmc && Math.abs(source.cmc - target.cmc) <= 1) {
-      score += 10;
-    }
-
-    // Color identity synergies
-    const sourceColors = source.color_identity || [];
-    const targetColors = target.color_identity || [];
-    const sharedColors = sourceColors.filter(c => targetColors.includes(c));
-    if (sharedColors.length > 0) {
-      score += sharedColors.length * 5;
-    }
-
-    return Math.min(score, 100);
-  }
-
-  private getSynergyReason(source: Card, target: Card, score: number): string {
-    if (score >= 70) return 'Strong strategic synergy';
-    if (score >= 50) return 'Good deck synergy';
-    if (score >= 30) return 'Some synergy potential';
-    return 'Limited synergy';
-  }
+  // Removed hardcoded pattern matching - AI only
 
   // AI-powered functional similarity analysis
   async analyzeFunctionalSimilarity(sourceCard: Card, targetCard: Card): Promise<{score: number, reason: string}> {
@@ -433,70 +396,15 @@ Oracle Text: ${card.oracle_text || 'No text'}`;
         };
       }
 
-      // Fallback to pattern analysis
-      const fallbackScore = this.calculateSimilarityScore(sourceCard, targetCard);
-      return {
-        score: Math.round(fallbackScore),
-        reason: this.getSimilarityReason(sourceCard, targetCard, fallbackScore)
-      };
+      // Return zero if AI analysis fails - no fallback patterns
+      return { score: 0, reason: 'AI analysis unavailable' };
     } catch (error) {
       console.error('AI similarity analysis failed:', error);
       return { score: 0, reason: 'analysis failed' };
     }
   }
 
-  private calculateSimilarityScore(source: Card, target: Card): number {
-    const sourceText = (source.oracle_text || '').toLowerCase();
-    const targetText = (target.oracle_text || '').toLowerCase();
-    const sourceType = (source.type_line || '').toLowerCase();
-    const targetType = (target.type_line || '').toLowerCase();
-
-    let score = 0;
-
-    // Type similarity
-    if (sourceType === targetType) score += 40;
-    else if (sourceType.split(' ')[0] === targetType.split(' ')[0]) score += 25;
-
-    // Mana cost similarity
-    if (source.cmc === target.cmc) score += 20;
-    else if (source.cmc && target.cmc && Math.abs(source.cmc - target.cmc) <= 1) score += 10;
-
-    // Functional similarity based on effects
-    const sourceEffects = this.extractEffects(sourceText);
-    const targetEffects = this.extractEffects(targetText);
-    const sharedEffects = sourceEffects.filter(e => targetEffects.includes(e));
-    score += sharedEffects.length * 15;
-
-    // Color identity similarity
-    const sourceColors = source.color_identity || [];
-    const targetColors = target.color_identity || [];
-    if (sourceColors.length === targetColors.length) {
-      const sharedColors = sourceColors.filter(c => targetColors.includes(c));
-      if (sharedColors.length === sourceColors.length) score += 15;
-    }
-
-    return Math.min(score, 100);
-  }
-
-  private extractEffects(text: string): string[] {
-    const effects = [];
-    if (text.includes('draw')) effects.push('draw');
-    if (text.includes('damage')) effects.push('damage');
-    if (text.includes('destroy')) effects.push('destroy');
-    if (text.includes('counter')) effects.push('counter');
-    if (text.includes('search')) effects.push('search');
-    if (text.includes('return')) effects.push('return');
-    if (text.includes('exile')) effects.push('exile');
-    if (text.includes('token')) effects.push('token');
-    return effects;
-  }
-
-  private getSimilarityReason(source: Card, target: Card, score: number): string {
-    if (score >= 80) return 'Very similar function and role';
-    if (score >= 60) return 'Similar deck role';
-    if (score >= 40) return 'Comparable function';
-    return 'Different roles';
-  }
+  // Removed hardcoded pattern matching - AI only
 
   private cardMatchesFilters(card: Card, filters: any): boolean {
     if (!filters) return true;
