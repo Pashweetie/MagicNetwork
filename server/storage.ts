@@ -514,10 +514,33 @@ export class DatabaseStorage implements IStorage {
     return 0.3;
   }
 
-  // Find cards that synergize well (enabler-payoff relationships)
+  // Find cards that synergize well using stored recommendations
   async findSynergyCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
-    // Use AI service for synergy detection
-    return await this.findAISynergyCards(sourceCard);
+    try {
+      // First check if we have stored recommendations
+      const storedRecs = await db
+        .select()
+        .from(cardRecommendations)
+        .where(and(
+          eq(cardRecommendations.sourceCardId, sourceCard.id),
+          eq(cardRecommendations.recommendationType, 'synergy')
+        ))
+        .limit(20);
+
+      if (storedRecs.length > 0) {
+        return storedRecs.map(rec => ({
+          cardId: rec.targetCardId,
+          score: rec.score,
+          reason: rec.reason || 'stored synergy'
+        }));
+      }
+
+      // If no stored recommendations, generate basic ones
+      return await this.generateBasicSynergy(sourceCard);
+    } catch (error) {
+      console.error('Error finding synergy cards:', error);
+      return [];
+    }
   }
 
   private async findAISynergyCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
@@ -944,6 +967,47 @@ Example: 75|Token generator enables sacrifice payoff`;
     const results = similar.sort((a, b) => b.score - a.score).slice(0, 15);
     console.log(`Found ${results.length} functionally similar cards`);
     return results;
+  }
+
+  private calculateBasicSimilarity(sourceCard: Card, targetCard: Card): {score: number, reason: string} {
+    let score = 0;
+    const reasons: string[] = [];
+    
+    // Type similarity
+    if (sourceCard.type_line === targetCard.type_line) {
+      score += 0.5;
+      reasons.push('same type');
+    }
+    
+    // Mana cost similarity  
+    const cmcDiff = Math.abs((sourceCard.cmc || 0) - (targetCard.cmc || 0));
+    if (cmcDiff === 0) {
+      score += 0.3;
+      reasons.push('same cost');
+    } else if (cmcDiff === 1) {
+      score += 0.15;
+      reasons.push('similar cost');
+    }
+    
+    // Power/Toughness similarity for creatures
+    if (sourceCard.power && targetCard.power && sourceCard.toughness && targetCard.toughness) {
+      const powerDiff = Math.abs(parseInt(sourceCard.power) - parseInt(targetCard.power));
+      const toughnessDiff = Math.abs(parseInt(sourceCard.toughness) - parseInt(targetCard.toughness));
+      if (powerDiff <= 1 && toughnessDiff <= 1) {
+        score += 0.2;
+        reasons.push('similar stats');
+      }
+    }
+    
+    // Text similarity
+    const textSim = this.analyzeSimilarEffects(sourceCard.oracle_text || '', targetCard.oracle_text || '');
+    score += textSim.score * 0.4;
+    reasons.push(...textSim.reasons);
+    
+    return {
+      score: Math.min(score, 1.0),
+      reason: reasons.join(', ') || 'basic similarity'
+    };
   }
 
   private analyzeSimilarEffects(sourceText: string, cardText: string): {score: number, reasons: string[]} {

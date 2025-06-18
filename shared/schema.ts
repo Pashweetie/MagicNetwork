@@ -155,7 +155,45 @@ export const userInteractions = pgTable('user_interactions', {
 
 
 
-// New table to store card themes
+// Card tags system for improved recommendations
+export const cardTags = pgTable('card_tags', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  cardId: text('card_id').notNull(),
+  tag: text('tag').notNull(),
+  confidence: real('confidence').default(0.8),
+  aiGenerated: boolean('ai_generated').default(true),
+  upvotes: integer('upvotes').default(0),
+  downvotes: integer('downvotes').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+  lastUpdated: timestamp('last_updated').defaultNow()
+});
+
+// Tag relationships for synergy analysis
+export const tagRelationships = pgTable('tag_relationships', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  sourceTag: text('source_tag').notNull(),
+  targetTag: text('target_tag').notNull(),
+  synergyScore: real('synergy_score').default(0.5),
+  relationshipType: text('relationship_type').notNull(),
+  userFeedbackScore: real('user_feedback_score').default(0),
+  aiGenerated: boolean('ai_generated').default(true),
+  upvotes: integer('upvotes').default(0),
+  downvotes: integer('downvotes').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+  lastUpdated: timestamp('last_updated').defaultNow()
+});
+
+// User tag feedback
+export const userTagFeedback = pgTable('user_tag_feedback', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  userId: integer('user_id').references(() => users.id),
+  cardId: text('card_id').notNull(),
+  tag: text('tag').notNull(),
+  vote: text('vote').notNull(),
+  createdAt: timestamp('created_at').defaultNow()
+});
+
+// Legacy themes table
 export const cardThemes = pgTable('card_themes', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
   card_id: text('card_id').references(() => cardCache.id).notNull(),
