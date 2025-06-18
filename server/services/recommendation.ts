@@ -93,21 +93,17 @@ export class RecommendationService {
 
   async getThemeSuggestions(cardId: string): Promise<Array<{theme: string, description: string, cards: Card[]}>> {
     try {
-      // Get the source card using direct query
-      const result = await db.execute(sql`SELECT * FROM card_cache WHERE id = ${cardId} LIMIT 1`);
+      console.log(`Getting theme suggestions for card: ${cardId}`);
       
-      // Handle different result formats
-      let sourceCard;
-      if ((result as any).rows && (result as any).rows.length > 0) {
-        sourceCard = (result as any).rows[0];
-      } else if (Array.isArray(result) && result.length > 0) {
-        sourceCard = result[0];
-      } else {
-        console.log('No card found for ID:', cardId);
+      // Use storage.getCard for consistent data handling
+      const card = await storage.getCard(cardId);
+      
+      if (!card) {
+        console.error(`Card not found for ID: ${cardId}`);
         return [];
       }
 
-      const card = sourceCard as Card;
+      console.log(`Retrieved card: ${card.name} (${card.type_line})`);
 
       // Generate themes using local AI analysis
       const detectedThemes = await this.analyzeCardWithLocalAI(card);
