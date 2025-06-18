@@ -2,7 +2,9 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { recommendationService } from "./services/recommendation";
-import { searchFiltersSchema } from "@shared/schema";
+import { searchFiltersSchema, cardCache } from "@shared/schema";
+import { db } from "./db";
+import { desc } from "drizzle-orm";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -131,9 +133,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { limit = 20 } = req.query;
       
-      // Get popular cards based on search count
-      const popularCards = await storage.getPersonalizedRecommendations(1, parseInt(limit as string));
-      res.json(popularCards);
+      // Return popular cards based on search frequency
+      const popularCards = await db.select()
+        .from(cardCache)
+        .orderBy(desc(cardCache.searchCount))
+        .limit(parseInt(limit as string));
+      
+      const suggestions = popularCards.map((c: any) => c.cardData);
+      res.json(suggestions);
     } catch (error) {
       console.error('Contextual suggestions error:', error);
       res.status(500).json({ message: "Internal server error" });

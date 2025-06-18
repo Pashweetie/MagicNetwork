@@ -45,7 +45,7 @@ export function ContextualSuggestions({ limit = 20 }: ContextualSuggestionsProps
     );
   }
 
-  if (suggestions.length === 0) {
+  if (!suggestions || (suggestions as Card[]).length === 0) {
     return (
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-white">Suggested for You</h3>
@@ -64,7 +64,7 @@ export function ContextualSuggestions({ limit = 20 }: ContextualSuggestionsProps
       </p>
       
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-        {suggestions.map((card: Card, index: number) => (
+        {(suggestions as Card[]).map((card: Card, index: number) => (
           <div 
             key={`contextual-${card.id}-${index}`}
             className="relative group cursor-pointer hover:scale-105 transition-transform"
