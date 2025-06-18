@@ -224,20 +224,20 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleThemeFeedback(group.theme, 'helpful');
+                          handleThemeVote(group.theme, 'up');
                         }}
                         className="text-green-400 hover:text-green-300 p-1 hover:bg-green-400/20 rounded"
-                        title="This recommendation is helpful"
+                        title="Vote up - increases confidence"
                       >
                         <ThumbsUp className="w-3 h-3" />
                       </button>
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleThemeFeedback(group.theme, 'not_helpful');
+                          handleThemeVote(group.theme, 'down');
                         }}
                         className="text-red-400 hover:text-red-300 p-1 hover:bg-red-400/20 rounded"
-                        title="This recommendation is not helpful"
+                        title="Vote down - decreases confidence"
                       >
                         <ThumbsDown className="w-3 h-3" />
                       </button>

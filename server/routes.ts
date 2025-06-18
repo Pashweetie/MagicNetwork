@@ -297,7 +297,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = 1;
 
       const { db } = await import('./db');
-      const { cardThemes, eq, and, sql } = await import('@shared/schema');
+      const { cardThemes } = await import('@shared/schema');
+      const { eq, and, sql } = await import('drizzle-orm');
       
       const theme = await db.select().from(cardThemes)
         .where(and(eq(cardThemes.card_id, cardId), eq(cardThemes.theme_name, themeName)))
@@ -323,36 +324,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         VALUES (${userId}, 'theme', ${theme[0].id}, ${vote})
       `);
 
-      // Update vote counts
+      // Update vote counts using raw SQL since schema may not have these columns yet
       const voteIncrement = vote === 'up' ? 1 : 0;
       const downvoteIncrement = vote === 'down' ? 1 : 0;
       
-      const updatedTheme = await db.update(cardThemes)
-        .set({
-          upvotes: sql`upvotes + ${voteIncrement}`,
-          downvotes: sql`downvotes + ${downvoteIncrement}`,
-          user_votes_count: sql`user_votes_count + 1`,
-          last_updated: new Date()
-        })
-        .where(eq(cardThemes.id, theme[0].id))
-        .returning();
+      await db.execute(sql`
+        UPDATE card_themes 
+        SET upvotes = COALESCE(upvotes, 0) + ${voteIncrement},
+            downvotes = COALESCE(downvotes, 0) + ${downvoteIncrement},
+            user_votes_count = COALESCE(user_votes_count, 0) + 1,
+            last_updated = NOW()
+        WHERE id = ${theme[0].id}
+      `);
 
-      // Recalculate confidence
-      const totalVotes = updatedTheme[0].upvotes + updatedTheme[0].downvotes;
-      const positiveRatio = totalVotes > 0 ? updatedTheme[0].upvotes / totalVotes : 0.5;
+      // Get updated theme data
+      const updatedTheme = await db.execute(sql`
+        SELECT upvotes, downvotes, confidence FROM card_themes WHERE id = ${theme[0].id}
+      `);
+      
+      const upvotes = Number(updatedTheme.rows[0]?.upvotes) || 0;
+      const downvotes = Number(updatedTheme.rows[0]?.downvotes) || 0;
+      const totalVotes = upvotes + downvotes;
+      const positiveRatio = totalVotes > 0 ? upvotes / totalVotes : 0.5;
       const baseConfidence = theme[0].confidence;
       const adjustedConfidence = Math.max(10, Math.min(100, Math.round(baseConfidence * (0.7 + 0.6 * positiveRatio))));
 
-      await db.update(cardThemes)
-        .set({ confidence: adjustedConfidence })
-        .where(eq(cardThemes.id, theme[0].id));
+      await db.execute(sql`
+        UPDATE card_themes SET confidence = ${adjustedConfidence} WHERE id = ${theme[0].id}
+      `);
 
       res.json({ 
         success: true, 
         message: `Vote recorded! Theme confidence updated.`,
         newConfidence: adjustedConfidence,
-        upvotes: updatedTheme[0].upvotes,
-        downvotes: updatedTheme[0].downvotes
+        upvotes: upvotes,
+        downvotes: downvotes
       });
     } catch (error) {
       console.error('Error recording theme vote:', error);
@@ -368,7 +374,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = 1;
 
       const { db } = await import('./db');
-      const { cardRecommendations, eq, sql } = await import('@shared/schema');
+      const { cardRecommendations } = await import('@shared/schema');
+      const { eq, sql } = await import('drizzle-orm');
       
       const recommendation = await db.select().from(cardRecommendations)
         .where(eq(cardRecommendations.id, parseInt(recommendationId)))
@@ -394,35 +401,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         VALUES (${userId}, 'recommendation', ${parseInt(recommendationId)}, ${vote})
       `);
 
-      // Update vote counts
+      // Update vote counts using raw SQL
       const voteIncrement = vote === 'up' ? 1 : 0;
       const downvoteIncrement = vote === 'down' ? 1 : 0;
       
-      const updatedRec = await db.update(cardRecommendations)
-        .set({
-          upvotes: sql`upvotes + ${voteIncrement}`,
-          downvotes: sql`downvotes + ${downvoteIncrement}`,
-          user_votes_count: sql`user_votes_count + 1`
-        })
-        .where(eq(cardRecommendations.id, parseInt(recommendationId)))
-        .returning();
+      await db.execute(sql`
+        UPDATE card_recommendations 
+        SET upvotes = COALESCE(upvotes, 0) + ${voteIncrement},
+            downvotes = COALESCE(downvotes, 0) + ${downvoteIncrement},
+            user_votes_count = COALESCE(user_votes_count, 0) + 1
+        WHERE id = ${parseInt(recommendationId)}
+      `);
 
-      // Recalculate score
-      const totalVotes = updatedRec[0].upvotes + updatedRec[0].downvotes;
-      const positiveRatio = totalVotes > 0 ? updatedRec[0].upvotes / totalVotes : 0.5;
+      // Get updated recommendation data
+      const updatedRec = await db.execute(sql`
+        SELECT upvotes, downvotes, score FROM card_recommendations WHERE id = ${parseInt(recommendationId)}
+      `);
+      
+      const upvotes = Number(updatedRec.rows[0]?.upvotes) || 0;
+      const downvotes = Number(updatedRec.rows[0]?.downvotes) || 0;
+      const totalVotes = upvotes + downvotes;
+      const positiveRatio = totalVotes > 0 ? upvotes / totalVotes : 0.5;
       const baseScore = recommendation[0].score;
       const adjustedScore = Math.max(10, Math.min(100, Math.round(baseScore * (0.7 + 0.6 * positiveRatio))));
 
-      await db.update(cardRecommendations)
-        .set({ score: adjustedScore })
-        .where(eq(cardRecommendations.id, parseInt(recommendationId)));
+      await db.execute(sql`
+        UPDATE card_recommendations SET score = ${adjustedScore} WHERE id = ${parseInt(recommendationId)}
+      `);
 
       res.json({ 
         success: true, 
         message: `Vote recorded! Recommendation score updated.`,
         newScore: adjustedScore,
-        upvotes: updatedRec[0].upvotes,
-        downvotes: updatedRec[0].downvotes
+        upvotes: upvotes,
+        downvotes: downvotes
       });
     } catch (error) {
       console.error('Error recording recommendation vote:', error);
