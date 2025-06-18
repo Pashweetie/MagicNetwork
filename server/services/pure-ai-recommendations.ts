@@ -2,6 +2,7 @@ import { Card } from "@shared/schema";
 import { db } from "../db";
 import { cardCache, cardThemes } from "@shared/schema";
 import { sql, eq } from "drizzle-orm";
+import { cardMatchesFilters } from "../utils/card-filters";
 
 export class PureAIRecommendationService {
   public textGenerator: any = null;

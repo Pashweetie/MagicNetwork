@@ -1,6 +1,7 @@
 import { storage } from "../storage";
 import { Card } from "@shared/schema";
 import { pureAIService } from "./pure-ai-recommendations";
+import { cardMatchesFilters } from "../utils/card-filters";
 
 export class RecommendationService {
   

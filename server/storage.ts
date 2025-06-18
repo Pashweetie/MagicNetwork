@@ -4,6 +4,7 @@ import { Card, SearchFilters, SearchResponse, User, InsertUser, SavedSearch, Ins
 import { eq, sql, and, desc, asc } from "drizzle-orm";
 import crypto from "crypto";
 import { scryfallService } from "./services/scryfall";
+import { cardMatchesFilters } from "./utils/card-filters";
 
 export interface IStorage {
   // Card search methods
@@ -329,87 +330,9 @@ export class DatabaseStorage implements IStorage {
       card: row.card_cache.cardData as Card
     }));
 
-    // Apply filters if provided
+    // Apply filters if provided using centralized filtering
     if (filters) {
-      result = result.filter(rec => {
-        const card = rec.card;
-        
-        // Color filters
-        if (filters.colors && filters.colors.length > 0) {
-          const cardColors = card.colors || [];
-          if (filters.includeMulticolored) {
-            // Card must contain all specified colors
-            if (!filters.colors.every((color: string) => cardColors.includes(color))) {
-              return false;
-            }
-          } else {
-            // Card must match at least one specified color
-            if (!filters.colors.some((color: string) => cardColors.includes(color)) && cardColors.length > 0) {
-              return false;
-            }
-          }
-        }
-
-        // Query-based color identity filter (like "id<=R")
-        if (filters.query && typeof filters.query === 'string') {
-          const colorIdentityMatch = filters.query.match(/id<=([WUBRG]+)/);
-          if (colorIdentityMatch) {
-            const allowedColors = colorIdentityMatch[1].split('');
-            const cardColorIdentity = card.color_identity || [];
-            
-            const isValidIdentity = cardColorIdentity.every((color: string) => 
-              allowedColors.includes(color)
-            );
-            
-            if (!isValidIdentity) {
-              return false;
-            }
-          }
-        }
-
-        // Color identity filter (commander constraint)
-        if (filters.colorIdentity && filters.colorIdentity.length > 0) {
-          const cardIdentity = card.color_identity || [];
-          // Card's color identity must be subset of allowed colors
-          if (!cardIdentity.every((color: string) => filters.colorIdentity.includes(color))) {
-            return false;
-          }
-        }
-
-        // Type filters
-        if (filters.types && filters.types.length > 0) {
-          const cardTypes = card.type_line.toLowerCase();
-          if (!filters.types.some((type: string) => cardTypes.includes(type.toLowerCase()))) {
-            return false;
-          }
-        }
-
-        // Mana value range
-        if (filters.minMv !== undefined && card.cmc < filters.minMv) {
-          return false;
-        }
-        if (filters.maxMv !== undefined && card.cmc > filters.maxMv) {
-          return false;
-        }
-
-        // Format legality
-        if (filters.format && filters.format !== 'all' && card.legalities) {
-          const formatLegality = card.legalities[filters.format.toLowerCase()];
-          if (formatLegality !== 'legal') return false;
-        }
-
-        // Set filter
-        if (filters.set && filters.set !== 'all') {
-          if (card.set !== filters.set) return false;
-        }
-
-        // Rarity filter
-        if (filters.rarity && filters.rarity !== 'all') {
-          if (card.rarity !== filters.rarity) return false;
-        }
-        
-        return true;
-      });
+      result = result.filter(rec => cardMatchesFilters(rec.card, filters));
     }
 
     return result.slice(0, limit);
