@@ -14,6 +14,7 @@ interface CardDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCardClick?: (card: Card) => void;
+  onAddCard?: (card: Card) => void;
 }
 
 // Theme Recommendations Component
@@ -30,7 +31,7 @@ function ThemeRecommendations({ cardId, onCardClick }: { cardId: string; onCardC
 }
 
 // Synergy Recommendations Component
-function SynergyRecommendations({ cardId, onCardClick }: { cardId: string; onCardClick: (card: Card) => void }) {
+function SynergyRecommendations({ cardId, onCardClick, onAddCard }: { cardId: string; onCardClick: (card: Card) => void; onAddCard?: (card: Card) => void }) {
   const { data: recommendations, isLoading, error } = useQuery({
     queryKey: ['/api/cards', cardId, 'recommendations', 'synergy'],
     queryFn: async () => {
@@ -103,7 +104,7 @@ function SynergyRecommendations({ cardId, onCardClick }: { cardId: string; onCar
 }
 
 // Similar Recommendations Component
-function SimilarRecommendations({ cardId, onCardClick }: { cardId: string; onCardClick: (card: Card) => void }) {
+function SimilarRecommendations({ cardId, onCardClick, onAddCard }: { cardId: string; onCardClick: (card: Card) => void; onAddCard?: (card: Card) => void }) {
   const { data: recommendations, isLoading, error } = useQuery({
     queryKey: ['/api/cards', cardId, 'recommendations', 'functional_similarity'],
     queryFn: async () => {
@@ -197,7 +198,7 @@ function SimilarRecommendations({ cardId, onCardClick }: { cardId: string; onCar
   );
 }
 
-export function CardDetailModal({ card, isOpen, onClose, onCardClick }: CardDetailModalProps) {
+export function CardDetailModal({ card, isOpen, onClose, onCardClick, onAddCard }: CardDetailModalProps) {
   if (!card) return null;
 
   const getCardImage = () => {
