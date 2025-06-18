@@ -112,6 +112,9 @@ export class ScryfallParser {
         if (!isNaN(cmc)) {
           filters.maxMv = cmc;
         }
+      } else if (part.startsWith('id<=') || part.startsWith('id:')) {
+        // Keep color identity filters in the query string for Scryfall
+        remainingParts.push(part);
       } else {
         remainingParts.push(part);
       }

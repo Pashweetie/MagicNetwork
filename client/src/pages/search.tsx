@@ -30,14 +30,34 @@ export default function Search() {
   
   const deck = useDeck();
 
-  // Use either parsed query filters OR manual filters, not both
+  // Use either parsed query filters OR manual filters, with commander restrictions
   const activeFilters = useMemo(() => {
+    let baseFilters;
     if (useManualFilters && Object.keys(manualFilters).length > 0) {
-      return manualFilters;
+      baseFilters = manualFilters;
     } else {
-      return ScryfallQueryParser.parseQuery(searchQuery);
+      baseFilters = ScryfallQueryParser.parseQuery(searchQuery);
     }
-  }, [searchQuery, manualFilters, useManualFilters]);
+
+    // Apply commander color identity filtering
+    if (deck.format.name === 'Commander' && deck.commander) {
+      const commanderColors = deck.commander.color_identity || [];
+      let colorFilter = '';
+      
+      if (commanderColors.length > 0) {
+        colorFilter = `id<=${commanderColors.join('')}`;
+      } else {
+        colorFilter = 'id:c'; // colorless only if commander is colorless
+      }
+      
+      return {
+        ...baseFilters,
+        query: baseFilters.query ? `${baseFilters.query} ${colorFilter}` : colorFilter
+      };
+    }
+    
+    return baseFilters;
+  }, [searchQuery, manualFilters, useManualFilters, deck.format.name, deck.commander]);
 
   const {
     data,
@@ -104,9 +124,19 @@ export default function Search() {
   };
 
   const getDisplayQuery = () => {
+    const parts: string[] = [];
+    
+    // Always show search query if present
+    if (searchQuery) {
+      parts.push(searchQuery);
+    }
+    
+    // Show the actual query being sent (including commander filter)
+    if (activeFilters.query && activeFilters.query !== searchQuery) {
+      parts.push(`Filter: ${activeFilters.query}`);
+    }
+    
     if (useManualFilters) {
-      const parts: string[] = [];
-      
       if (activeFilters.colors?.length) {
         parts.push(`Colors: ${activeFilters.colors.join(', ')}`);
       }
@@ -122,11 +152,9 @@ export default function Search() {
       if (activeFilters.oracleText) {
         parts.push(`Text: "${activeFilters.oracleText}"`);
       }
-      
-      return parts.join(' • ') || 'Filter criteria';
-    } else {
-      return searchQuery || 'All cards';
     }
+    
+    return parts.join(' • ') || 'All cards';
   };
 
   return (
