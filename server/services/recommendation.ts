@@ -132,8 +132,7 @@ export class RecommendationService {
     }
   }
 
-  // Store themes for a card
-  async analyzeAndStoreCardThemes(card: Card): Promise<any[]> {
+  private analyzeCardThemesLocally(card: Card): Array<{name: string, description: string, keywords: string[], searchTerms: string[]}> {
     const themes = await this.analyzeCardThemes(card);
     const storedThemes = [];
 
@@ -162,7 +161,102 @@ export class RecommendationService {
     return storedThemes;
   }
 
-  private async analyzeCardThemes(card: Card): Promise<Array<{name: string, description: string, keywords: string[], category: string, confidence: number}>> {
+  private async findCardsForDynamicTheme(theme: {name: string, description: string, keywords: string[], searchTerms: string[]}, sourceCard: Card): Promise<Card[]> {
+    try {
+      const searchQueries: string[] = [];
+      
+      // Build search queries from theme keywords and search terms
+      for (const term of theme.searchTerms) {
+        searchQueries.push(`oracle:"${term}"`);
+      }
+      
+      for (const keyword of theme.keywords) {
+        searchQueries.push(`oracle:"${keyword}"`);
+      }
+      
+      // Also search by theme name components
+      const themeWords = theme.name.toLowerCase().split(/\s+|&|\//);
+      for (const word of themeWords) {
+        if (word.length > 3 && !['the', 'and', 'for', 'with'].includes(word)) {
+          searchQueries.push(`oracle:"${word}"`);
+        }
+      }
+
+      // Execute database searches
+      const matchingCards: Array<{card: Card, score: number}> = [];
+      
+      for (const query of searchQueries.slice(0, 8)) { // Limit queries to avoid too many DB calls
+        try {
+          const cards = await db.execute(sql`
+            SELECT * FROM card_cache 
+            WHERE id != ${sourceCard.id}
+            AND (
+              LOWER(oracle_text) LIKE ${`%${query.replace('oracle:"', '').replace('"', '')}%`}
+              OR LOWER(name) LIKE ${`%${query.replace('oracle:"', '').replace('"', '')}%`}
+              OR LOWER(type_line) LIKE ${`%${query.replace('oracle:"', '').replace('"', '')}%`}
+            )
+            LIMIT 20
+          `);
+          
+          for (const card of cards as any[]) {
+            const score = this.calculateThemeRelevance(card, theme);
+            if (score > 0.3) {
+              matchingCards.push({ card: card as Card, score });
+            }
+          }
+        } catch (error) {
+          console.error('Error searching for theme cards:', error);
+        }
+      }
+
+      // Sort by relevance and remove duplicates
+      const uniqueCards = new Map<string, {card: Card, score: number}>();
+      for (const item of matchingCards) {
+        if (!uniqueCards.has(item.card.id) || uniqueCards.get(item.card.id)!.score < item.score) {
+          uniqueCards.set(item.card.id, item);
+        }
+      }
+
+      return Array.from(uniqueCards.values())
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 15)
+        .map(item => item.card);
+    } catch (error) {
+      console.error('Error finding cards for dynamic theme:', error);
+      return [];
+    }
+  }
+
+  private calculateThemeRelevance(card: any, theme: {name: string, keywords: string[], searchTerms: string[]}): number {
+    const cardText = `${card.name} ${card.oracle_text || ''} ${card.type_line}`.toLowerCase();
+    let score = 0;
+    
+    // Check search terms (higher weight)
+    for (const term of theme.searchTerms) {
+      if (cardText.includes(term.toLowerCase())) {
+        score += 0.4;
+      }
+    }
+    
+    // Check keywords (medium weight)
+    for (const keyword of theme.keywords) {
+      if (cardText.includes(keyword.toLowerCase())) {
+        score += 0.2;
+      }
+    }
+    
+    // Check theme name components (lower weight)
+    const themeWords = theme.name.toLowerCase().split(/\s+|&|\//);
+    for (const word of themeWords) {
+      if (word.length > 3 && cardText.includes(word)) {
+        score += 0.1;
+      }
+    }
+    
+    return Math.min(score, 1.0);
+  }
+
+  async analyzeAndStoreCardThemes(card: Card): Promise<any[]> {
     const themes: Array<{name: string, description: string, keywords: string[], category: string, confidence: number}> = [];
     
     const cardText = (card.oracle_text || '').toLowerCase();
