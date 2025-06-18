@@ -151,6 +151,22 @@ export const userInteractions = pgTable('user_interactions', {
   userIdx: index('user_interactions_user_idx').on(table.userId),
 }));
 
+// New table to store card themes
+export const cardThemes = pgTable('card_themes', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  cardId: text('card_id').references(() => cardCache.id).notNull(),
+  themeName: text('theme_name').notNull(),
+  themeCategory: text('theme_category').notNull(), // 'strategy', 'archetype', 'mechanic', 'synergy'
+  confidence: integer('confidence').notNull(), // 1-100 confidence score
+  keywords: text('keywords').array(), // Keywords that triggered this theme
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+}, (table) => ({
+  cardThemeIdx: index('card_theme_idx').on(table.cardId, table.themeName),
+  themeNameIdx: index('theme_name_idx').on(table.themeName),
+}));
+
 // Zod schemas for database operations
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertSavedSearchSchema = createInsertSchema(savedSearches).omit({ id: true, createdAt: true });
