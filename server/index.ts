@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { runCacheCleanup } from "./cache-cleanup";
 
 const app = express();
 app.use(express.json());
@@ -66,5 +67,11 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Run initial cache cleanup after server starts
+    setTimeout(runCacheCleanup, 10000); // 10 seconds after startup
+    
+    // Set up periodic cache cleanup every 6 hours
+    setInterval(runCacheCleanup, 6 * 60 * 60 * 1000);
   });
 })();

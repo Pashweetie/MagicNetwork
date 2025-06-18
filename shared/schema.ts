@@ -120,7 +120,7 @@ export const searchCache = pgTable('search_cache', {
 export const favoriteCards = pgTable('favorite_cards', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
   userId: integer('user_id').references(() => users.id).notNull(),
-  cardId: text('card_id').references(() => cardCache.id).notNull(),
+  cardId: text('card_id').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

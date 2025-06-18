@@ -10,9 +10,3 @@ export async function runCacheCleanup() {
     console.error('Cache cleanup failed:', error);
   }
 }
-
-// Run cleanup every 6 hours if this module is executed directly
-if (require.main === module) {
-  runCacheCleanup();
-  setInterval(runCacheCleanup, 6 * 60 * 60 * 1000);
-}
