@@ -1,5 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Lightbulb, GitMerge, Copy, AlertCircle } from "lucide-react";
 import { ThemeSuggestions } from "./theme-suggestions";
 import { Card } from "@shared/schema";
@@ -310,11 +311,36 @@ export function CardDetailModal({ card, isOpen, onClose }: CardDetailModalProps)
           </div>
         )}
 
-        {/* Three Recommendation Categories */}
-        <div className="space-y-8 mt-6">
-          <ThemeRecommendations cardId={card.id} onCardClick={onClose} />
-          <SynergyRecommendations cardId={card.id} onCardClick={onClose} />
-          <SimilarRecommendations cardId={card.id} onCardClick={onClose} />
+        {/* Three Recommendation Categories in Tabs */}
+        <div className="mt-6">
+          <Tabs defaultValue="themes" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 bg-slate-800 border-slate-700">
+              <TabsTrigger value="themes" className="data-[state=active]:bg-slate-700 flex items-center space-x-2">
+                <Lightbulb className="w-4 h-4" />
+                <span>Themes</span>
+              </TabsTrigger>
+              <TabsTrigger value="synergy" className="data-[state=active]:bg-slate-700 flex items-center space-x-2">
+                <GitMerge className="w-4 h-4" />
+                <span>Synergy</span>
+              </TabsTrigger>
+              <TabsTrigger value="similar" className="data-[state=active]:bg-slate-700 flex items-center space-x-2">
+                <Copy className="w-4 h-4" />
+                <span>Similar</span>
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="themes" className="mt-6">
+              <ThemeRecommendations cardId={card.id} onCardClick={onClose} />
+            </TabsContent>
+            
+            <TabsContent value="synergy" className="mt-6">
+              <SynergyRecommendations cardId={card.id} onCardClick={onClose} />
+            </TabsContent>
+            
+            <TabsContent value="similar" className="mt-6">
+              <SimilarRecommendations cardId={card.id} onCardClick={onClose} />
+            </TabsContent>
+          </Tabs>
         </div>
       </DialogContent>
     </Dialog>
