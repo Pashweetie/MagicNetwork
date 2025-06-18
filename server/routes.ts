@@ -457,6 +457,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Card-theme relevance voting endpoint
+  app.post('/api/cards/:cardId/theme-relevance-vote', async (req, res) => {
+    try {
+      const { cardId } = req.params;
+      const { themeName, vote, sourceCardId } = req.body;
+      const userId = 1;
+
+      const { db } = await import('./db');
+      const { sql } = await import('drizzle-orm');
+      
+      // Create or update card-theme relevance vote
+      await db.execute(sql`
+        INSERT INTO user_votes (user_id, target_type, target_id, vote, metadata)
+        VALUES (${userId}, 'card_theme_relevance', 0, ${vote}, ${JSON.stringify({
+          cardId,
+          themeName,
+          sourceCardId
+        })})
+      `);
+
+      // Record card-theme relevance feedback
+      const feedbackType = vote === 'up' ? 'relevant' : 'irrelevant';
+      await db.execute(sql`
+        INSERT INTO card_theme_feedback (card_id, theme_name, source_card_id, feedback_type, user_id)
+        VALUES (${cardId}, ${themeName}, ${sourceCardId}, ${feedbackType}, ${userId})
+        ON CONFLICT (card_id, theme_name, source_card_id, user_id) DO UPDATE SET
+          feedback_type = ${feedbackType},
+          created_at = NOW()
+      `);
+
+      res.json({ 
+        success: true, 
+        message: `Card relevance vote recorded!`
+      });
+    } catch (error) {
+      console.error('Error recording card-theme vote:', error);
+      res.status(500).json({ error: 'Failed to record vote' });
+    }
+  });
+
   // Get similar cards based on tags
   app.get('/api/cards/:cardId/similar-by-tags', async (req, res) => {
     try {

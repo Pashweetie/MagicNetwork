@@ -94,6 +94,75 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
     }
   };
 
+  const handleCardThemeVote = async (cardId: string, themeName: string, vote: 'up' | 'down') => {
+    const voteKey = `${cardId}-${themeName}`;
+    if (userHasVoted[voteKey]) {
+      const toast = document.createElement('div');
+      toast.className = 'fixed top-4 right-4 bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+      toast.textContent = 'You have already voted on this card-theme relationship';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/cards/${cardId}/theme-relevance-vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          themeName,
+          vote,
+          sourceCardId: card.id
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        
+        // Mark card-theme combination as voted
+        setUserHasVoted(prev => ({ ...prev, [voteKey]: true }));
+        
+        // Show visual feedback
+        const button = document.activeElement as HTMLButtonElement;
+        if (button) {
+          const originalClasses = button.className;
+          button.className = originalClasses + ' bg-green-600 text-white';
+          button.disabled = true;
+          
+          const toast = document.createElement('div');
+          toast.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+          toast.textContent = `${result.message} Card relevance ${vote === 'up' ? 'increased' : 'decreased'}`;
+          document.body.appendChild(toast);
+          
+          // Disable both vote buttons for this card-theme
+          const cardElement = button.closest('.theme-card');
+          if (cardElement) {
+            const voteButtons = cardElement.querySelectorAll('button[title*="card"]');
+            voteButtons.forEach(btn => (btn as HTMLButtonElement).disabled = true);
+          }
+          
+          setTimeout(() => {
+            toast.remove();
+          }, 2000);
+        }
+      } else {
+        const error = await response.json();
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-4 right-4 bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+        toast.textContent = error.error || 'Failed to record vote';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+      }
+    } catch (error) {
+      console.error('Failed to submit card-theme vote:', error);
+      const toast = document.createElement('div');
+      toast.className = 'fixed top-4 right-4 bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+      toast.textContent = 'Network error - please try again';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+  };
+
   const getThemeIcon = (theme: string) => {
     const themeLower = theme.toLowerCase();
     if (themeLower.includes('stax') || themeLower.includes('control')) {
@@ -185,7 +254,7 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
             <div className="flex items-center space-x-2">
               <div className="flex items-center gap-2">
                 <div className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded confidence-display" data-theme={group.theme}>
-                  {Math.round(group.confidence || 50)}% confidence
+                  {Math.round(group.confidence || 50)}% fit
                 </div>
                 <div className="text-xs text-blue-300 bg-blue-900/30 px-2 py-1 rounded">
                   {group.cards.length} cards
@@ -249,20 +318,20 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleThemeVote(group.theme, 'up');
+                          handleCardThemeVote(themeCard.id, group.theme, 'up');
                         }}
                         className="text-green-400 hover:text-green-300 p-1 hover:bg-green-400/20 rounded"
-                        title="Vote up - increases confidence"
+                        title="This card fits this theme well"
                       >
                         <ThumbsUp className="w-3 h-3" />
                       </button>
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleThemeVote(group.theme, 'down');
+                          handleCardThemeVote(themeCard.id, group.theme, 'down');
                         }}
                         className="text-red-400 hover:text-red-300 p-1 hover:bg-red-400/20 rounded"
-                        title="Vote down - decreases confidence"
+                        title="This card doesn't fit this theme"
                       >
                         <ThumbsDown className="w-3 h-3" />
                       </button>
