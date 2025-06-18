@@ -69,11 +69,7 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
     
-    // Run initial cache cleanup after server starts
-    setTimeout(runCacheCleanup, 10000); // 10 seconds after startup
-    
-    // Set up periodic cache cleanup every 6 hours
-    setInterval(runCacheCleanup, 6 * 60 * 60 * 1000);
+
     
     // Generate recommendations for popular cards after startup
     setTimeout(() => {
