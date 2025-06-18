@@ -153,32 +153,7 @@ export const userInteractions = pgTable('user_interactions', {
   userIdx: index('user_interactions_user_idx').on(table.userId),
 }));
 
-export const userPreferences = pgTable('user_preferences', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull(),
-  preferenceType: text('preference_type').notNull(), // 'archetype', 'color', 'strategy', 'card_type'
-  preferenceValue: text('preference_value').notNull(), // 'aggro', 'blue', 'combo', 'creature'
-  weight: real('weight').default(1.0).notNull(), // How strong this preference is
-  learnedFromInteractions: integer('learned_from_interactions').default(0).notNull(),
-  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
-}, (table) => ({
-  userPrefIdx: index('user_preferences_user_idx').on(table.userId),
-  typePrefIdx: index('user_preferences_type_idx').on(table.preferenceType),
-}));
 
-export const contextualSuggestions = pgTable('contextual_suggestions', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull(),
-  cardId: text('card_id').notNull(),
-  suggestionType: text('suggestion_type').notNull(), // 'trending', 'similar_taste', 'deck_completion', etc.
-  score: real('score').notNull(),
-  reasoning: text('reasoning'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  expiresAt: timestamp('expires_at'),
-}, (table) => ({
-  userSuggIdx: index('contextual_suggestions_user_idx').on(table.userId),
-  scoreIdx: index('contextual_suggestions_score_idx').on(table.score),
-}));
 
 export const userPreferences = pgTable('user_preferences', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),

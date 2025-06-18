@@ -1,5 +1,5 @@
 import { storage } from "../storage";
-import { Card, cardThemes, InsertCardTheme, userInteractions, userPreferences, adaptiveRecommendations, InsertUserPreference, InsertAdaptiveRecommendation } from "@shared/schema";
+import { Card, cardThemes, InsertCardTheme, userInteractions, userPreferences, adaptiveRecommendations } from "@shared/schema";
 import { db } from "../db";
 import { cardCache } from "@shared/schema";
 import { desc, sql, eq, and, inArray, gte } from "drizzle-orm";
@@ -161,7 +161,8 @@ export class RecommendationService {
     const maxScore = Math.max(...Array.from(preferences.values()));
     if (maxScore === 0) return;
 
-    for (const [value, score] of preferences.entries()) {
+    for (const entry of preferences.entries()) {
+      const [value, score] = entry;
       const normalizedScore = score / maxScore;
       
       // Only save significant preferences
@@ -207,7 +208,7 @@ export class RecommendationService {
       const knownCardIds = new Set(interactedCards.map(i => i.cardId));
 
       // Generate suggestions based on preferences
-      const suggestions: InsertAdaptiveRecommendation[] = [];
+      const suggestions: any[] = [];
 
       // Get sample of cards to score
       const candidateCards = await db
