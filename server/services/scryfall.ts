@@ -41,6 +41,52 @@ export class ScryfallService {
       parts.push(`mv<=${filters.maxMv}`);
     }
     
+    if (filters.oracleText) {
+      parts.push(`o:"${filters.oracleText}"`);
+    }
+    
+    if (filters.set) {
+      parts.push(`s:${filters.set}`);
+    }
+    
+    if (filters.artist) {
+      parts.push(`a:"${filters.artist}"`);
+    }
+    
+    if (filters.power) {
+      parts.push(`pow:${filters.power}`);
+    }
+    
+    if (filters.toughness) {
+      parts.push(`tou:${filters.toughness}`);
+    }
+    
+    if (filters.loyalty) {
+      parts.push(`loy:${filters.loyalty}`);
+    }
+    
+    if (filters.minPrice !== undefined) {
+      parts.push(`usd>=${filters.minPrice}`);
+    }
+    
+    if (filters.maxPrice !== undefined) {
+      parts.push(`usd<=${filters.maxPrice}`);
+    }
+    
+    if (filters.colorIdentity && filters.colorIdentity.length > 0) {
+      parts.push(`id:${filters.colorIdentity.join('')}`);
+    }
+    
+    if (filters.keywords && filters.keywords.length > 0) {
+      filters.keywords.forEach(keyword => {
+        parts.push(`k:${keyword}`);
+      });
+    }
+    
+    if (filters.produces && filters.produces.length > 0) {
+      parts.push(`produces:${filters.produces.join('')}`);
+    }
+    
     return parts.join(' ');
   }
 

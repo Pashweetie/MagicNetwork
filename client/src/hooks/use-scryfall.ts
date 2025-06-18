@@ -17,6 +17,17 @@ export function useCardSearch(filters: SearchFilters) {
       if (filters.minMv !== undefined) searchParams.set('minMv', filters.minMv.toString());
       if (filters.maxMv !== undefined) searchParams.set('maxMv', filters.maxMv.toString());
       if (filters.includeMulticolored) searchParams.set('includeMulticolored', 'true');
+      if (filters.oracleText) searchParams.set('oracleText', filters.oracleText);
+      if (filters.set) searchParams.set('set', filters.set);
+      if (filters.artist) searchParams.set('artist', filters.artist);
+      if (filters.power) searchParams.set('power', filters.power);
+      if (filters.toughness) searchParams.set('toughness', filters.toughness);
+      if (filters.loyalty) searchParams.set('loyalty', filters.loyalty);
+      if (filters.minPrice !== undefined) searchParams.set('minPrice', filters.minPrice.toString());
+      if (filters.maxPrice !== undefined) searchParams.set('maxPrice', filters.maxPrice.toString());
+      if (filters.colorIdentity?.length) searchParams.set('colorIdentity', filters.colorIdentity.join(','));
+      if (filters.keywords?.length) searchParams.set('keywords', filters.keywords.join(','));
+      if (filters.produces?.length) searchParams.set('produces', filters.produces.join(','));
 
       const response = await fetch(`/api/cards/search?${searchParams}`, {
         credentials: 'include',

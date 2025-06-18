@@ -20,6 +20,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         minMv: req.query.minMv ? parseInt(req.query.minMv as string) : undefined,
         maxMv: req.query.maxMv ? parseInt(req.query.maxMv as string) : undefined,
         includeMulticolored: req.query.includeMulticolored === 'true',
+        oracleText: req.query.oracleText as string,
+        set: req.query.set as string,
+        artist: req.query.artist as string,
+        power: req.query.power as string,
+        toughness: req.query.toughness as string,
+        loyalty: req.query.loyalty as string,
+        minPrice: req.query.minPrice ? parseFloat(req.query.minPrice as string) : undefined,
+        maxPrice: req.query.maxPrice ? parseFloat(req.query.maxPrice as string) : undefined,
+        colorIdentity: req.query.colorIdentity ? (req.query.colorIdentity as string).split(',') : undefined,
+        keywords: req.query.keywords ? (req.query.keywords as string).split(',') : undefined,
+        produces: req.query.produces ? (req.query.produces as string).split(',') : undefined,
       };
 
       // Validate filters

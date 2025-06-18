@@ -50,6 +50,17 @@ export const searchFiltersSchema = z.object({
   minMv: z.number().optional(),
   maxMv: z.number().optional(),
   includeMulticolored: z.boolean().optional(),
+  oracleText: z.string().optional(),
+  set: z.string().optional(),
+  artist: z.string().optional(),
+  power: z.string().optional(),
+  toughness: z.string().optional(),
+  loyalty: z.string().optional(),
+  minPrice: z.number().optional(),
+  maxPrice: z.number().optional(),
+  colorIdentity: z.array(z.string()).optional(),
+  keywords: z.array(z.string()).optional(),
+  produces: z.array(z.string()).optional(),
 });
 
 export const searchResponseSchema = z.object({
