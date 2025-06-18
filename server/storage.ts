@@ -61,15 +61,13 @@ export class DatabaseStorage implements IStorage {
     const cached = await this.getCachedSearchResults(filters, page);
     if (cached) {
       // Update access count
+      const queryHash = this.generateQueryHash(filters, page);
       await db.update(searchCache)
         .set({ 
           lastAccessed: new Date(),
           accessCount: sql`${searchCache.accessCount} + 1`
         })
-        .where(and(
-          eq(searchCache.filters, filters),
-          eq(searchCache.page, page)
-        ));
+        .where(eq(searchCache.queryHash, queryHash));
       
       return cached;
     }
@@ -141,7 +139,11 @@ export class DatabaseStorage implements IStorage {
   async createSavedSearch(search: InsertSavedSearch): Promise<SavedSearch> {
     const [savedSearch] = await db
       .insert(savedSearches)
-      .values(search)
+      .values({
+        name: search.name,
+        userId: search.userId,
+        filters: search.filters
+      })
       .returning();
     return savedSearch;
   }
@@ -151,7 +153,7 @@ export class DatabaseStorage implements IStorage {
       .delete(savedSearches)
       .where(and(eq(savedSearches.id, id), eq(savedSearches.userId, userId)));
     
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   async getFavoriteCards(userId: number): Promise<FavoriteCard[]> {
@@ -174,7 +176,7 @@ export class DatabaseStorage implements IStorage {
       .delete(favoriteCards)
       .where(and(eq(favoriteCards.cardId, cardId), eq(favoriteCards.userId, userId)));
     
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   async cacheCard(card: Card): Promise<void> {
@@ -222,13 +224,12 @@ export class DatabaseStorage implements IStorage {
       const queryHash = this.generateQueryHash(filters, page);
       
       await db.insert(searchCache).values({
-        id: crypto.randomUUID(),
-        filters,
-        page,
+        queryHash,
+        query: JSON.stringify({ filters, page }),
         results: results,
         accessCount: 1
       }).onConflictDoUpdate({
-        target: [searchCache.filters, searchCache.page],
+        target: searchCache.queryHash,
         set: {
           results: results,
           lastAccessed: new Date()
@@ -241,13 +242,12 @@ export class DatabaseStorage implements IStorage {
 
   async getCachedSearchResults(filters: SearchFilters, page: number): Promise<SearchResponse | null> {
     try {
+      const queryHash = this.generateQueryHash(filters, page);
+      
       const [cached] = await db
         .select()
         .from(searchCache)
-        .where(and(
-          eq(searchCache.filters, filters),
-          eq(searchCache.page, page)
-        ));
+        .where(eq(searchCache.queryHash, queryHash));
       
       if (!cached) return null;
       
@@ -257,7 +257,7 @@ export class DatabaseStorage implements IStorage {
         return null;
       }
       
-      return cached.results;
+      return cached.results as SearchResponse;
     } catch (error) {
       console.error('Error getting cached search results:', error);
       return null;
