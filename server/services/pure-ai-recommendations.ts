@@ -26,12 +26,9 @@ export class PureAIRecommendationService {
         return;
       }
 
-      // Fallback to local transformer
-      const { pipeline } = await import('@xenova/transformers');
-      console.log('Loading local neural network for theme analysis...');
-      this.textGenerator = await pipeline('text2text-generation', 'Xenova/flan-t5-small');
-      this.isReady = true;
-      console.log('Local neural network ready for theme analysis');
+      // Skip local transformer for now - too resource intensive
+      console.log('No OpenAI key available, AI theme generation disabled');
+      this.isReady = false;
     } catch (error) {
       console.error('Failed to initialize AI:', error);
       this.isReady = false;
@@ -103,33 +100,34 @@ Oracle Text: ${card.oracle_text || 'No text'}`;
 
       if (this.textGenerator.chat) {
         // Using OpenAI GPT
-        const response = await this.textGenerator.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            {
-              role: "system",
-              content: "You are a Magic: The Gathering deck building expert. Analyze cards and identify 2-3 strategic deck themes they support. Be specific and strategic, avoiding generic terms. Focus on actual deck archetypes and strategies."
-            },
-            {
-              role: "user",
-              content: `Analyze this Magic card and identify 2-3 specific strategic themes it supports:\n\n${cardContext}\n\nFormat your response as:\nTheme1: Brief description\nTheme2: Brief description\nTheme3: Brief description (if applicable)`
-            }
-          ],
-          max_tokens: 200,
-          temperature: 0.3
-        });
+        try {
+          const response = await this.textGenerator.chat.completions.create({
+            model: "gpt-4o-mini", // Use cheaper model
+            messages: [
+              {
+                role: "system",
+                content: "You are a Magic: The Gathering expert. Analyze cards and identify 2-3 strategic themes. Be concise."
+              },
+              {
+                role: "user",
+                content: `Analyze this Magic card for 2-3 themes:\n\n${cardContext}\n\nFormat: Theme1: Description\nTheme2: Description`
+              }
+            ],
+            max_tokens: 150,
+            temperature: 0.2
+          });
 
-        aiResponse = response.choices[0]?.message?.content || '';
+          aiResponse = response.choices[0]?.message?.content || '';
+        } catch (error: any) {
+          if (error.status === 429) {
+            console.log('OpenAI quota exceeded, falling back to basic analysis');
+            return this.getFallbackThemes(card);
+          }
+          throw error;
+        }
       } else {
-        // Using local transformer
-        const prompt = `Analyze this Magic card for strategic deck themes: ${cardContext} - List 2-3 strategic themes like "Voltron Equipment", "Token Swarm", "Reanimator", etc. Format: Theme1: Description. Theme2: Description.`;
-        
-        const response = await this.textGenerator(prompt, {
-          max_new_tokens: 100,
-          temperature: 0.4
-        });
-
-        aiResponse = response[0]?.generated_text || '';
+        // No AI available
+        return this.getFallbackThemes(card);
       }
 
       return this.parseAIThemeResponse(aiResponse);

@@ -54,27 +54,18 @@ export class RecommendationService {
       
       console.log(`Retrieved card: ${card.name} (${card.type_line})`);
       
-      // Use pure AI neural network to analyze card for themes
+      // Get AI-generated themes (uses cache if available)
       const aiThemes = await pureAIService.analyzeCardThemes(card);
-      console.log(`Neural network identified ${aiThemes.length} themes for ${card.name}:`, aiThemes.map(t => t.theme));
+      console.log(`AI identified ${aiThemes.length} themes for ${card.name}`);
       
-      // Build theme suggestions with cards using pure AI
-      const themeGroups: Array<{theme: string, description: string, cards: Card[]}> = [];
+      // Return just theme names - cards loaded on-demand to avoid performance issues
+      const themeGroups = aiThemes.map(theme => ({
+        theme: theme.theme,
+        description: theme.description,
+        cards: [] // Empty - loaded when user expands theme
+      }));
       
-      for (const theme of aiThemes) {
-        console.log(`Neural network finding cards for theme: ${theme.theme}`);
-        const themeCards = await pureAIService.findCardsForTheme(theme, card, filters);
-        
-        if (themeCards.length > 0) {
-          themeGroups.push({
-            theme: theme.theme,
-            description: theme.description,
-            cards: themeCards.slice(0, 12)
-          });
-        }
-      }
-      
-      console.log(`Returning ${themeGroups.length} neural network theme groups`);
+      console.log(`Returning ${themeGroups.length} theme groups (cards on-demand)`);
       return themeGroups;
       
     } catch (error) {

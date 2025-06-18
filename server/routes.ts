@@ -269,6 +269,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // On-demand theme card loading
+  app.get('/api/cards/:cardId/theme/:themeName/cards', async (req, res) => {
+    try {
+      const { cardId, themeName } = req.params;
+      const filters = req.query as any;
+      
+      const card = await storage.getCard(cardId);
+      if (!card) {
+        return res.status(404).json({ error: 'Card not found' });
+      }
+
+      const theme = { theme: decodeURIComponent(themeName), description: `${decodeURIComponent(themeName)} strategy` };
+      const matchingCards = await pureAIService.findCardsForTheme(theme, card, filters);
+      
+      res.json({ cards: matchingCards });
+    } catch (error) {
+      console.error('Theme suggestions error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Generate recommendations for popular cards (admin endpoint)
   app.post("/api/admin/generate-recommendations", async (req, res) => {
     try {
