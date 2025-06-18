@@ -20,15 +20,28 @@ interface RecommendationWithCard {
 }
 
 export function CardRecommendations({ cardId, onCardClick, onAddCard }: CardRecommendationsProps) {
-  const [activeTab, setActiveTab] = useState<'synergy' | 'functional_similarity'>('synergy');
+  const [activeTab, setActiveTab] = useState<'synergy' | 'functional_similarity' | 'themes'>('themes');
   
   const { data: recommendations, isLoading, error } = useQuery({
     queryKey: ['/api/cards', cardId, 'recommendations', activeTab],
     queryFn: async () => {
       try {
-        const response = await fetch(`/api/cards/${cardId}/recommendations?type=${activeTab}&limit=8`);
-        if (!response.ok) throw new Error('Failed to fetch recommendations');
-        return response.json();
+        if (activeTab === 'themes') {
+          const response = await fetch(`/api/cards/${cardId}/theme-suggestions`);
+          if (!response.ok) throw new Error('Failed to fetch theme suggestions');
+          const data = await response.json();
+          return data.flatMap((theme: any) => 
+            theme.cards.map((card: any) => ({
+              card,
+              score: 0.8,
+              reason: `${theme.theme}: ${theme.description}`
+            }))
+          );
+        } else {
+          const response = await fetch(`/api/cards/${cardId}/recommendations?type=${activeTab}&limit=8`);
+          if (!response.ok) throw new Error('Failed to fetch recommendations');
+          return response.json();
+        }
       } catch (err) {
         console.error('Error fetching recommendations:', err);
         return [];
@@ -83,7 +96,11 @@ export function CardRecommendations({ cardId, onCardClick, onAddCard }: CardReco
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'synergy' | 'functional_similarity')} className="w-full">
         <div className="flex items-center justify-between mb-4">
-          <TabsList className="grid w-full grid-cols-2 bg-slate-800 border-slate-700 max-w-md">
+          <TabsList className="grid w-full grid-cols-3 bg-slate-800 border-slate-700 max-w-lg">
+            <TabsTrigger value="themes" className="data-[state=active]:bg-slate-700 flex items-center space-x-1">
+              <Lightbulb className="w-4 h-4" />
+              <span>Themes</span>
+            </TabsTrigger>
             <TabsTrigger value="synergy" className="data-[state=active]:bg-slate-700 flex items-center space-x-1">
               <GitMerge className="w-4 h-4" />
               <span>Synergies</span>
@@ -99,9 +116,15 @@ export function CardRecommendations({ cardId, onCardClick, onAddCard }: CardReco
           </div>
         </div>
 
+        <TabsContent value="themes" className="mt-0">
+          <div className="mb-2">
+            <p className="text-sm text-slate-300">Cards that share strategic themes and deck archetypes</p>
+          </div>
+        </TabsContent>
+
         <TabsContent value="synergy" className="mt-0">
           <div className="mb-2">
-            <p className="text-sm text-slate-300">Cards that work well together in the same deck</p>
+            <p className="text-sm text-slate-300">Cards that create specific combos and interactions with this card</p>
           </div>
         </TabsContent>
         
@@ -131,13 +154,13 @@ export function CardRecommendations({ cardId, onCardClick, onAddCard }: CardReco
               {onAddCard && (
                 <Button
                   size="sm"
-                  className="absolute top-2 right-2 h-6 w-6 p-0 bg-blue-600 hover:bg-blue-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                  className="absolute top-2 right-2 h-5 w-5 p-0 bg-blue-600 hover:bg-blue-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
                   onClick={(e) => {
                     e.stopPropagation();
                     onAddCard(rec.card);
                   }}
                 >
-                  <Plus className="w-3 h-3" />
+                  <Plus className="w-2.5 h-2.5" />
                 </Button>
               )}
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">

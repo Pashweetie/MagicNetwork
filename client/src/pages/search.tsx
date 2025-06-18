@@ -56,19 +56,19 @@ export default function Search() {
 
   const totalCards = data?.pages[0]?.total_cards || 0;
 
-  const handleSearch = (query: string) => {
+  const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
     
     // Parse query and update filters
     if (query.trim()) {
-      const parsedFilters = ScryfallQueryParser.parseQuery(query);
+      const parsedFilters = ScryfallParser.parseQuery(query);
       setManualFilters(parsedFilters);
       setUseManualFilters(Object.keys(parsedFilters).length > 0);
     } else {
       setUseManualFilters(false);
       setManualFilters({});
     }
-  };
+  }, []);
 
   const handleFiltersChange = (filters: SearchFilters) => {
     setManualFilters(filters);
@@ -289,6 +289,8 @@ export default function Search() {
                           onAdd={() => deck.addCard(entry.card)}
                           onRemove={() => deck.removeCard(entry.card.id)}
                           onClick={handleCardClick}
+                          onSetCommander={deck.format.name === 'Commander' ? deck.setCommanderFromCard : undefined}
+                          isCommander={deck.commander?.id === entry.card.id}
                         />
                       ))}
                     </div>

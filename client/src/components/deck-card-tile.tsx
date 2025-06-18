@@ -40,6 +40,15 @@ export function DeckCardTile({
             src={card.image_uris.small}
             alt={card.name}
             className="w-full h-full object-cover"
+            loading="lazy"
+            onError={(e) => {
+              const img = e.target as HTMLImageElement;
+              img.style.display = 'none';
+              const parent = img.parentElement;
+              if (parent) {
+                parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-slate-400 bg-slate-800"><span class="text-xs text-center p-2">${card.name}</span></div>`;
+              }
+            }}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-slate-400">
@@ -65,7 +74,7 @@ export function DeckCardTile({
             <Button
               size="sm"
               variant="destructive"
-              className="w-7 h-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-red-600 hover:bg-red-700 border-0"
+              className="w-6 h-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-red-600 hover:bg-red-700 border-0"
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
@@ -73,14 +82,14 @@ export function DeckCardTile({
               }}
               disabled={!canRemove}
             >
-              <Minus className="w-3 h-3" />
+              <Minus className="w-2.5 h-2.5" />
             </Button>
           )}
           
           <Button
             size="sm"
             variant={quantity > 0 ? "secondary" : "default"}
-            className={`w-7 h-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity border-0 ${
+            className={`w-6 h-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity border-0 ${
               quantity > 0 ? "bg-blue-600 hover:bg-blue-700" : "bg-green-600 hover:bg-green-700"
             } ${!canAdd ? "opacity-50" : ""}`}
             onClick={(e) => {
@@ -90,7 +99,7 @@ export function DeckCardTile({
             }}
             disabled={!canAdd}
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-2.5 h-2.5" />
           </Button>
         </div>
       )}
