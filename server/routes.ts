@@ -201,6 +201,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Card recommendation feedback endpoint
+  app.post("/api/cards/:sourceId/recommendation-feedback", async (req, res) => {
+    try {
+      const { sourceId } = req.params;
+      const { recommendedCardId, feedback, reason, type } = req.body;
+      
+      const userId = 1; // Would come from auth
+      
+      await storage.recordRecommendationFeedback({
+        userId,
+        sourceCardId: sourceId,
+        recommendedCardId,
+        recommendationType: type || 'synergy',
+        feedback,
+        userComment: reason
+      });
+      
+      res.json({ message: "Feedback recorded" });
+    } catch (error) {
+      console.error('Recommendation feedback error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Deck persistence endpoints
+  app.get("/api/decks", async (req, res) => {
+    try {
+      const userId = 1; // Would come from auth
+      const decks = await storage.getUserDecks(userId);
+      res.json(decks);
+    } catch (error) {
+      console.error('Get decks error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/decks", async (req, res) => {
+    try {
+      const userId = 1; // Would come from auth
+      const deck = await storage.createDeck({
+        ...req.body,
+        userId
+      });
+      res.json(deck);
+    } catch (error) {
+      console.error('Create deck error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/decks/:id", async (req, res) => {
+    try {
+      const userId = 1; // Would come from auth
+      const deck = await storage.getDeck(parseInt(req.params.id), userId);
+      if (!deck) {
+        return res.status(404).json({ message: "Deck not found" });
+      }
+      res.json(deck);
+    } catch (error) {
+      console.error('Get deck error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/decks/:id", async (req, res) => {
+    try {
+      const userId = 1; // Would come from auth
+      const deck = await storage.updateDeck(parseInt(req.params.id), userId, req.body);
+      if (!deck) {
+        return res.status(404).json({ message: "Deck not found" });
+      }
+      res.json(deck);
+    } catch (error) {
+      console.error('Update deck error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/decks/:id", async (req, res) => {
+    try {
+      const userId = 1; // Would come from auth
+      const success = await storage.deleteDeck(parseInt(req.params.id), userId);
+      if (!success) {
+        return res.status(404).json({ message: "Deck not found" });
+      }
+      res.json({ message: "Deck deleted" });
+    } catch (error) {
+      console.error('Delete deck error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

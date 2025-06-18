@@ -237,7 +237,5 @@ export type RecommendationFeedback = typeof recommendationFeedback.$inferSelect;
 export type InsertRecommendationFeedback = z.infer<typeof insertRecommendationFeedbackSchema>;
 export type Deck = typeof decks.$inferSelect;
 export type InsertDeck = z.infer<typeof insertDeckSchema>;
-export type Deck = typeof decks.$inferSelect;
-export type InsertDeck = z.infer<typeof insertDeckSchema>;
 // export type ThemeWeight = typeof themeWeights.$inferSelect;
 // export type InsertThemeWeight = z.infer<typeof insertThemeWeightSchema>;

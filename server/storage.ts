@@ -1,6 +1,6 @@
 import { db } from "./db";
-import { cardCache, searchCache, users, savedSearches, favoriteCards, cardRecommendations, userInteractions, recommendationFeedback, cardThemes } from "@shared/schema";
-import { Card, SearchFilters, SearchResponse, User, InsertUser, SavedSearch, InsertSavedSearch, FavoriteCard, InsertFavoriteCard, CardRecommendation, InsertCardRecommendation, UserInteraction, InsertUserInteraction, InsertRecommendationFeedback } from "@shared/schema";
+import { cardCache, searchCache, users, savedSearches, favoriteCards, cardRecommendations, userInteractions, recommendationFeedback, cardThemes, decks } from "@shared/schema";
+import { Card, SearchFilters, SearchResponse, User, InsertUser, SavedSearch, InsertSavedSearch, FavoriteCard, InsertFavoriteCard, CardRecommendation, InsertCardRecommendation, UserInteraction, InsertUserInteraction, InsertRecommendationFeedback, Deck, InsertDeck } from "@shared/schema";
 import { eq, sql, and, desc, asc } from "drizzle-orm";
 import crypto from "crypto";
 import { scryfallService } from "./services/scryfall";
@@ -649,6 +649,40 @@ export class DatabaseStorage implements IStorage {
     }
 
     return functionalCards.sort((a, b) => b.score - a.score).slice(0, 12);
+  }
+
+  // Deck persistence methods
+  async createDeck(deck: InsertDeck): Promise<Deck> {
+    const [newDeck] = await db.insert(decks).values(deck).returning();
+    return newDeck;
+  }
+
+  async getUserDecks(userId: number): Promise<Deck[]> {
+    return db.select()
+      .from(decks)
+      .where(eq(decks.userId, userId))
+      .orderBy(desc(decks.updatedAt));
+  }
+
+  async getDeck(id: number, userId: number): Promise<Deck | null> {
+    const [deck] = await db.select()
+      .from(decks)
+      .where(and(eq(decks.id, id), eq(decks.userId, userId)));
+    return deck || null;
+  }
+
+  async updateDeck(id: number, userId: number, updates: Partial<InsertDeck>): Promise<Deck | null> {
+    const [deck] = await db.update(decks)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(decks.id, id), eq(decks.userId, userId)))
+      .returning();
+    return deck || null;
+  }
+
+  async deleteDeck(id: number, userId: number): Promise<boolean> {
+    const result = await db.delete(decks)
+      .where(and(eq(decks.id, id), eq(decks.userId, userId)));
+    return (result.rowCount || 0) > 0;
   }
 
   private extractKeywords(text: string): string[] {
