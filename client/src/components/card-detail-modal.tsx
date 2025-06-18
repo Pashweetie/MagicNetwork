@@ -47,10 +47,11 @@ function SynergyRecommendations({ cardId, onCardClick, onAddCard, currentFilters
 
   const handleRecommendationFeedback = async (recommendedCardId: string, feedback: 'helpful' | 'not_helpful', type: string) => {
     try {
-      await fetch(`/api/cards/${cardId}/recommendation-feedback`, {
+      await fetch(`/api/recommendation-feedback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          sourceCardId: cardId,
           recommendedCardId,
           feedback,
           recommendationType: type,

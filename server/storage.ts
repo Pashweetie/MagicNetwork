@@ -507,125 +507,272 @@ export class DatabaseStorage implements IStorage {
 
   // Find cards that synergize well (enabler-payoff relationships)
   async findSynergyCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
+    // Use AI-driven semantic analysis for synergy detection
+    return await this.findAISynergyCards(sourceCard);
+  }
+
+  private async findAISynergyCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
     const synergies: Array<{cardId: string, score: number, reason: string}> = [];
     
     // Get recommendation weights for adjustment
     const weights = await this.getRecommendationWeights();
     const synergyWeight = weights['synergy'] || 1.0;
     
-    // Get more cards for better synergy detection
+    // Get sample cards for analysis
     const sampleCards = await db
       .select()
       .from(cardCache)
       .where(sql`card_data->>'id' != ${sourceCard.id}`)
-      .limit(800);
+      .limit(500);
 
-    const sourceText = (sourceCard.oracle_text || '').toLowerCase();
-    const sourceType = sourceCard.type_line.toLowerCase();
-
+    // Prepare source card context for AI analysis
+    const sourceContext = this.prepareCardContext(sourceCard);
+    
     for (const cached of sampleCards) {
       const card = cached.cardData as Card;
       if (!card || !card.id) continue;
       
-      const cardText = (card.oracle_text || '').toLowerCase();
-      const cardType = card.type_line.toLowerCase();
-      let score = 0;
-      const reasons: string[] = [];
-
-      // ENABLER-PAYOFF RELATIONSHIPS
+      const cardContext = this.prepareCardContext(card);
       
-      // Source creates tokens -> Card benefits from tokens
-      if ((sourceText.includes('create') && sourceText.includes('token')) &&
-          (cardText.includes('sacrifice') || (cardText.includes('token') && cardText.includes('get')))) {
-        score += 35; reasons.push('token generator-consumer');
-      }
-
-      // Source mills -> Card benefits from graveyard
-      if (sourceText.includes('mill') && 
-          (cardText.includes('graveyard') || (cardText.includes('return') && cardText.includes('graveyard')))) {
-        score += 30; reasons.push('mill enabler-graveyard payoff');
-      }
-
-      // Source ramps -> Card has high mana cost
-      if ((sourceText.includes('add') && sourceText.includes('mana')) && card.cmc >= 6) {
-        score += 25; reasons.push('ramp enables expensive spell');
-      }
-
-      // Source creates artifacts -> Card has metalcraft/artifact synergy
-      if ((sourceType.includes('artifact') || sourceText.includes('artifact')) &&
-          (cardText.includes('metalcraft') || (cardText.includes('artifact') && cardText.includes('control')))) {
-        score += 30; reasons.push('artifact enabler-metalcraft payoff');
-      }
-
-      // Source has ETB -> Card bounces for reuse
-      if (sourceText.includes('enters the battlefield') &&
-          (cardText.includes('return') && cardText.includes('hand'))) {
-        score += 25; reasons.push('ETB trigger-bounce engine');
-      }
-
-      // Source draws cards -> Card benefits from hand size
-      if (sourceText.includes('draw') &&
-          (cardText.includes('hand size') || cardText.includes('cards in hand'))) {
-        score += 20; reasons.push('card draw-hand size payoff');
-      }
-
-      // Equipment + Creature synergies
-      if (sourceType.includes('equipment') && cardType.includes('creature') &&
-          (cardText.includes('equipped') || cardText.includes('hexproof') || cardText.includes('protection'))) {
-        score += 30; reasons.push('equipment-creature synergy');
-      }
-
-      // Flying synergies - cards that benefit from flying creatures
-      if (sourceText.includes('flying') && 
-          (cardText.includes('flying') || cardText.includes('airborne') || cardText.includes('can\'t block'))) {
-        score += 15; reasons.push('flying synergy');
-      }
-
-      // Initiative/Dungeon synergies
-      if ((sourceText.includes('initiative') || sourceText.includes('dungeon')) &&
-          (cardText.includes('initiative') || cardText.includes('dungeon') || cardText.includes('venture'))) {
-        score += 20; reasons.push('dungeon synergy');
-      }
-
-      // General creature synergies - same types benefit each other
-      if (sourceType.includes('creature') && cardType.includes('creature')) {
-        // Same mana cost creatures often work together
-        if (Math.abs((sourceCard.cmc || 0) - (card.cmc || 0)) <= 1) {
-          score += 8; reasons.push('similar mana cost creatures');
-        }
-        
-        // Small creatures work together (CMC <= 3)
-        if ((sourceCard.cmc || 0) <= 3 && (card.cmc || 0) <= 3) {
-          score += 5; reasons.push('small creature synergy');
-        }
-      }
-
-      // Tribal synergies (same creature type)
-      const sourceCreatureTypes = this.extractCreatureTypes(sourceCard.type_line);
-      const cardCreatureTypes = this.extractCreatureTypes(card.type_line);
-      const sharedTypes = sourceCreatureTypes.filter(type => cardCreatureTypes.includes(type));
-      if (sharedTypes.length > 0 && (sourceText.includes(sharedTypes[0]) || cardText.includes(sharedTypes[0]))) {
-        score += 20; reasons.push(`${sharedTypes[0]} tribal synergy`);
-      }
-
-      // Combo detection - cards that work together for powerful effects
-      if (this.detectComboSynergy(sourceCard, card)) {
-        score += 40; reasons.push('combo synergy');
-      }
-
-      // Apply centralized weight adjustment
-      score = score * synergyWeight;
-
-      if (score >= 5) { // Even lower threshold to debug
+      // Use AI to analyze synergy potential
+      const synergyAnalysis = await this.analyzeCardSynergy(sourceContext, cardContext);
+      
+      if (synergyAnalysis.score > 0) {
         synergies.push({
           cardId: card.id,
-          score: Math.min(score, 100),
-          reason: reasons.join(', ')
+          score: synergyAnalysis.score * synergyWeight,
+          reason: synergyAnalysis.reason
         });
       }
     }
 
     return synergies.sort((a, b) => b.score - a.score).slice(0, 15);
+  }
+
+  private prepareCardContext(card: Card): any {
+    return {
+      name: card.name,
+      manaCost: card.mana_cost,
+      cmc: card.cmc,
+      colors: card.colors,
+      colorIdentity: card.color_identity,
+      typeLine: card.type_line,
+      oracleText: card.oracle_text,
+      power: card.power,
+      toughness: card.toughness,
+      keywords: this.extractKeywords(card.oracle_text || ''),
+      mechanics: this.extractMechanics(card.oracle_text || ''),
+      effects: this.categorizeEffects(card.oracle_text || '')
+    };
+  }
+
+  private async analyzeCardSynergy(sourceContext: any, cardContext: any): Promise<{score: number, reason: string}> {
+    try {
+      // Use local AI for synergy analysis if available
+      if (this.hasLocalAI()) {
+        return await this.analyzeWithLocalAI(sourceContext, cardContext);
+      }
+      
+      // Fallback to semantic pattern analysis
+      return this.analyzeWithPatterns(sourceContext, cardContext);
+    } catch (error) {
+      console.error('Error in synergy analysis:', error);
+      return { score: 0, reason: 'analysis failed' };
+    }
+  }
+
+  private hasLocalAI(): boolean {
+    // Check if local AI model is available
+    return false; // Will implement local AI integration
+  }
+
+  private async analyzeWithLocalAI(sourceContext: any, cardContext: any): Promise<{score: number, reason: string}> {
+    // This will be implemented to use the local AI model for deep semantic analysis
+    const prompt = `Analyze synergy between these Magic cards:
+    
+Source: ${sourceContext.name} (${sourceContext.typeLine})
+Text: ${sourceContext.oracleText}
+Effects: ${sourceContext.effects.join(', ')}
+
+Target: ${cardContext.name} (${cardContext.typeLine})
+Text: ${cardContext.oracleText}
+Effects: ${cardContext.effects.join(', ')}
+
+Rate synergy 0-100 and explain briefly why they work together.
+Format: SCORE|REASON`;
+
+    // For now, fallback to pattern analysis
+    return this.analyzeWithPatterns(sourceContext, cardContext);
+  }
+
+  private analyzeWithPatterns(sourceContext: any, cardContext: any): Promise<{score: number, reason: string}> {
+    let score = 0;
+    const reasons: string[] = [];
+    
+    // Semantic effect matching
+    const sourceEffects = sourceContext.effects;
+    const cardEffects = cardContext.effects;
+    
+    // Cross-reference enabler/payoff relationships
+    const synergyPairs = [
+      { enabler: 'token_generation', payoff: 'token_benefit', score: 35, reason: 'token synergy' },
+      { enabler: 'mill', payoff: 'graveyard_value', score: 30, reason: 'mill-graveyard synergy' },
+      { enabler: 'ramp', payoff: 'high_cost', score: 25, reason: 'ramp-payoff synergy' },
+      { enabler: 'artifact_creation', payoff: 'artifact_synergy', score: 30, reason: 'artifact synergy' },
+      { enabler: 'etb_effects', payoff: 'bounce_reuse', score: 25, reason: 'ETB synergy' },
+      { enabler: 'card_draw', payoff: 'hand_size_matters', score: 20, reason: 'card advantage synergy' },
+      { enabler: 'creature_buff', payoff: 'creature_benefit', score: 15, reason: 'creature synergy' },
+      { enabler: 'flying', payoff: 'flying', score: 15, reason: 'flying synergy' },
+      { enabler: 'initiative', payoff: 'monarch_effects', score: 20, reason: 'initiative synergy' }
+    ];
+    
+    for (const pair of synergyPairs) {
+      if (sourceEffects.includes(pair.enabler) && cardEffects.includes(pair.payoff)) {
+        score += pair.score;
+        reasons.push(pair.reason);
+      }
+      // Reverse relationship
+      if (sourceEffects.includes(pair.payoff) && cardEffects.includes(pair.enabler)) {
+        score += pair.score * 0.8; // Slightly lower for reverse
+        reasons.push(`reverse ${pair.reason}`);
+      }
+    }
+    
+    // Type-based synergies
+    if (sourceContext.typeLine.includes('Creature') && cardContext.typeLine.includes('Creature')) {
+      // Similar mana costs work together
+      if (Math.abs((sourceContext.cmc || 0) - (cardContext.cmc || 0)) <= 1) {
+        score += 8;
+        reasons.push('similar cost synergy');
+      }
+      
+      // Shared creature types
+      const sourceTypes = this.extractCreatureTypes(sourceContext.typeLine);
+      const cardTypes = this.extractCreatureTypes(cardContext.typeLine);
+      const sharedTypes = sourceTypes.filter(type => cardTypes.includes(type));
+      if (sharedTypes.length > 0) {
+        score += 20;
+        reasons.push(`${sharedTypes[0]} tribal`);
+      }
+    }
+    
+    return Promise.resolve({
+      score: Math.min(score, 100),
+      reason: reasons.join(', ') || 'semantic analysis'
+    });
+  }
+
+  private categorizeEffects(oracleText: string): string[] {
+    const text = oracleText.toLowerCase();
+    const effects: string[] = [];
+    
+    // Token generation
+    if (text.includes('create') && text.includes('token')) {
+      effects.push('token_generation');
+    }
+    
+    // Token benefits
+    if ((text.includes('sacrifice') && text.includes('token')) || 
+        (text.includes('token') && (text.includes('power') || text.includes('get')))) {
+      effects.push('token_benefit');
+    }
+    
+    // Mill effects
+    if (text.includes('mill') || text.includes('library') && text.includes('graveyard')) {
+      effects.push('mill');
+    }
+    
+    // Graveyard value
+    if (text.includes('graveyard') || text.includes('return') && text.includes('graveyard')) {
+      effects.push('graveyard_value');
+    }
+    
+    // Ramp
+    if (text.includes('add') && text.includes('mana')) {
+      effects.push('ramp');
+    }
+    
+    // High cost payoffs
+    if ((oracleText.match(/\{[0-9]+\}/g) || []).some(cost => parseInt(cost.slice(1, -1)) >= 6)) {
+      effects.push('high_cost');
+    }
+    
+    // ETB effects
+    if (text.includes('enters the battlefield') || text.includes('enters,')) {
+      effects.push('etb_effects');
+    }
+    
+    // Bounce/reuse
+    if (text.includes('return') && text.includes('hand')) {
+      effects.push('bounce_reuse');
+    }
+    
+    // Card draw
+    if (text.includes('draw')) {
+      effects.push('card_draw');
+    }
+    
+    // Hand size matters
+    if (text.includes('hand size') || text.includes('cards in hand')) {
+      effects.push('hand_size_matters');
+    }
+    
+    // Flying
+    if (text.includes('flying')) {
+      effects.push('flying');
+    }
+    
+    // Initiative
+    if (text.includes('initiative')) {
+      effects.push('initiative');
+    }
+    
+    // Monarch effects
+    if (text.includes('monarch') || text.includes('initiative')) {
+      effects.push('monarch_effects');
+    }
+    
+    // Artifact creation
+    if (text.includes('artifact') && (text.includes('create') || text.includes('token'))) {
+      effects.push('artifact_creation');
+    }
+    
+    // Artifact synergy
+    if (text.includes('metalcraft') || (text.includes('artifact') && text.includes('control'))) {
+      effects.push('artifact_synergy');
+    }
+    
+    // Creature buffs
+    if (text.includes('+1/+1') || text.includes('power') || text.includes('toughness')) {
+      effects.push('creature_buff');
+    }
+    
+    // Creature benefits
+    if (text.includes('creature') && (text.includes('get') || text.includes('gain'))) {
+      effects.push('creature_benefit');
+    }
+    
+    return effects;
+  }
+
+  private extractMechanics(oracleText: string): string[] {
+    const text = oracleText.toLowerCase();
+    const mechanics: string[] = [];
+    
+    const knownMechanics = [
+      'flying', 'first strike', 'double strike', 'deathtouch', 'hexproof', 'indestructible',
+      'lifelink', 'menace', 'reach', 'trample', 'vigilance', 'haste', 'flash', 'defender',
+      'convoke', 'delve', 'emerge', 'prowess', 'crew', 'investigate', 'transform',
+      'initiative', 'venture', 'monarch', 'mill', 'scry', 'surveil'
+    ];
+    
+    for (const mechanic of knownMechanics) {
+      if (text.includes(mechanic)) {
+        mechanics.push(mechanic);
+      }
+    }
+    
+    return mechanics;
   }
 
   private extractCreatureTypes(typeLine: string): string[] {
