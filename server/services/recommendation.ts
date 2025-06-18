@@ -1,6 +1,6 @@
 import { storage } from "../storage";
 import { Card } from "@shared/schema";
-import { aiRecommendationService } from "./ai-recommendation";
+import { pureAIService } from "./pure-ai-recommendations";
 
 export class RecommendationService {
   public textGenerator: any = null;

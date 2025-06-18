@@ -525,14 +525,14 @@ export class DatabaseStorage implements IStorage {
       .where(sql`card_data->>'id' != ${sourceCard.id}`)
       .limit(400);
 
-    const { aiRecommendationService } = await import('./services/ai-recommendation');
+    const { pureAIService } = await import('./services/pure-ai-recommendations');
     
     for (const cached of sampleCards) {
       const card = cached.cardData as Card;
       if (!card || !card.id) continue;
       
-      // Use AI service to analyze synergy
-      const synergyAnalysis = await aiRecommendationService.analyzeSynergy(sourceCard, card);
+      // Use pure AI neural network to analyze synergy
+      const synergyAnalysis = await pureAIService.analyzeSynergy(sourceCard, card);
       
       if (synergyAnalysis.score > 30) { // AI threshold
         synergies.push({
