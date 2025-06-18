@@ -277,7 +277,7 @@ Rules:
         .select()
         .from(cardCache)
         .where(sql`card_data->>'id' != ${sourceCard.id}`)
-        .limit(200); // Process smaller batches for AI analysis
+        .limit(500); // Increase candidate pool
 
       const scoredCards: Array<{card: Card, score: number}> = [];
 
@@ -290,17 +290,17 @@ Rules:
 
         // Use AI to score card relevance to theme
         const aiScore = await this.scoreCardForThemeWithAI(card, theme);
-        if (aiScore > 0.6) {
+        if (aiScore > 0.4) { // Even lower threshold for more results
           scoredCards.push({ card, score: aiScore });
         }
 
-        // Process in smaller batches to avoid overwhelming AI
-        if (scoredCards.length >= 15) break;
+        // Significantly increase batch size for more theme cards
+        if (scoredCards.length >= 40) break;
       }
 
       return scoredCards
         .sort((a, b) => b.score - a.score)
-        .slice(0, 12)
+        .slice(0, 30) // Return even more cards per theme
         .map(item => item.card);
 
     } catch (error) {

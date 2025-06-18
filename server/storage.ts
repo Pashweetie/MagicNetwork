@@ -1194,14 +1194,25 @@ Example: 75|Token generator enables sacrifice payoff`;
       console.log(`📊 Found ${cardThemeMap.size} unique cards across all themes`);
       
       // Calculate synergy scores based on shared themes
+      let processedCount = 0;
+      let filteredCount = 0;
+      
       for (const [cardId, sharedThemes] of Array.from(cardThemeMap.entries())) {
         if (sharedThemes.length === 0) continue;
         
         const card = await this.getCard(cardId);
         if (!card) continue;
         
-        // Apply filters early
-        if (filters && !cardMatchesFilters(card, filters)) continue;
+        processedCount++;
+        
+        // Apply filters with detailed logging
+        if (filters) {
+          const matchesFilter = cardMatchesFilters(card, filters);
+          if (!matchesFilter) {
+            filteredCount++;
+            continue;
+          }
+        }
         
         // Calculate synergy score
         const averageConfidence = sharedThemes.reduce((sum: number, t: any) => sum + t.confidence, 0) / sharedThemes.length;
@@ -1220,8 +1231,10 @@ Example: 75|Token generator enables sacrifice payoff`;
         });
       }
       
+      console.log(`🔍 Processed ${processedCount} cards, filtered out ${filteredCount}, kept ${synergies.length}`);
+      
       // Sort by synergy score and theme count
-      return synergies
+      const finalResults = synergies
         .sort((a, b) => {
           // Primary sort: synergy score
           if (Math.abs(a.synergyScore - b.synergyScore) > 0.1) {
@@ -1230,7 +1243,10 @@ Example: 75|Token generator enables sacrifice payoff`;
           // Secondary sort: number of shared themes
           return b.sharedThemes.length - a.sharedThemes.length;
         })
-        .slice(0, 20);
+        .slice(0, 50); // Further increase result limit
+        
+      console.log(`🎯 Final synergy results: ${finalResults.length} cards after filtering and sorting`);
+      return finalResults;
         
     } catch (error) {
       console.error('Error finding cards by shared themes:', error);
