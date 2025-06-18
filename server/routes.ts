@@ -130,17 +130,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const cardColors = card.colors || [];
               const cardColorIdentity = card.color_identity || [];
               
-              if (searchFilters.includeMulticolored) {
-                // Card must contain all specified colors
-                if (!searchFilters.colors.every((color: string) => cardColors.includes(color))) {
-                  return false;
-                }
-              } else {
-                // Card must contain at least one specified color
-                if (!searchFilters.colors.some((color: string) => cardColors.includes(color))) {
-                  return false;
-                }
-              }
+              // Check if card matches color filters
+              const hasMatchingColor = searchFilters.colors.some((filterColor: string) => {
+                // Handle single letter color codes and full names
+                const colorCode = filterColor.toUpperCase();
+                const colorName = filterColor.toLowerCase();
+                
+                return cardColors.includes(colorCode) || 
+                       cardColorIdentity.includes(colorCode) ||
+                       cardColors.some(c => c.toLowerCase() === colorName) ||
+                       cardColorIdentity.some(c => c.toLowerCase() === colorName);
+              });
+              
+              if (!hasMatchingColor) return false;
             }
             
             // Filter by color identity (commander constraint)
