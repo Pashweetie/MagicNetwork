@@ -45,23 +45,35 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
       if (response.ok) {
         const result = await response.json();
         
+        // Mark theme as voted
+        setUserHasVoted(prev => ({ ...prev, [themeName]: true }));
+        
         // Show visual feedback with updated confidence
         const button = document.activeElement as HTMLButtonElement;
         if (button) {
           const originalClasses = button.className;
           button.className = originalClasses + ' bg-green-600 text-white';
+          button.disabled = true;
           
           const toast = document.createElement('div');
           toast.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
           toast.textContent = `${result.message} New confidence: ${result.newConfidence}% (${result.upvotes}↑ ${result.downvotes}↓)`;
           document.body.appendChild(toast);
           
-          setTimeout(() => {
-            window.location.reload();
-          }, 1500);
+          // Update the confidence display locally
+          const confidenceElement = document.querySelector(`[data-theme="${themeName}"] .confidence-display`);
+          if (confidenceElement) {
+            confidenceElement.textContent = `${result.newConfidence}%`;
+          }
+          
+          // Disable both vote buttons for this theme
+          const themeContainer = document.querySelector(`[data-theme="${themeName}"]`);
+          if (themeContainer) {
+            const voteButtons = themeContainer.querySelectorAll('button[title*="Vote"]');
+            voteButtons.forEach(btn => (btn as HTMLButtonElement).disabled = true);
+          }
           
           setTimeout(() => {
-            button.className = originalClasses;
             toast.remove();
           }, 2000);
         }
@@ -161,7 +173,7 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
             </div>
             <div className="flex items-center space-x-2">
               <div className="flex items-center gap-2">
-                <div className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
+                <div className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded confidence-display" data-theme={group.theme}>
                   {Math.round(group.confidence || 50)}% confidence
                 </div>
                 <div className="text-xs text-blue-300 bg-blue-900/30 px-2 py-1 rounded">
