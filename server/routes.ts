@@ -123,6 +123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log('Filtering recommendations with:', searchFilters);
           console.log('Before filtering:', recsWithCards.length, 'recommendations');
           
+          const originalLength = recsWithCards.length;
           recsWithCards = recsWithCards.filter(rec => {
             if (!rec.card) return false;
             const card = rec.card;
@@ -184,6 +185,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             return true;
           });
+          
+          console.log('After filtering:', recsWithCards.length, 'recommendations (filtered out', originalLength - recsWithCards.length, ')');
         } catch (err) {
           console.warn('Failed to parse filters:', err);
         }
