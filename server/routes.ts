@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { scryfallService } from "./services/scryfall";
+import { storage } from "./storage";
 import { searchFiltersSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -36,7 +36,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate filters
       const validatedFilters = searchFiltersSchema.parse(filters);
       
-      const result = await scryfallService.searchCards(validatedFilters, page);
+      const result = await storage.searchCards(validatedFilters, page);
       res.json(result);
     } catch (error) {
       console.error('Search error:', error);
@@ -52,7 +52,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/cards/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const card = await scryfallService.getCard(id);
+      const card = await storage.getCard(id);
       
       if (!card) {
         res.status(404).json({ message: "Card not found" });
@@ -69,7 +69,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get random card endpoint
   app.get("/api/cards/random", async (req, res) => {
     try {
-      const card = await scryfallService.getRandomCard();
+      const card = await storage.getRandomCard();
       res.json(card);
     } catch (error) {
       console.error('Random card error:', error);

@@ -236,7 +236,7 @@ export class DatabaseStorage implements IStorage {
         });
       console.log(`Cached search results: ${results.data.length} cards for query hash ${queryHash}`);
     } catch (error) {
-      console.error('Error caching search results:', error, queryHash);
+      console.error('Error caching search results:', error);
     }
   }
 
