@@ -19,14 +19,14 @@ interface CardDetailModalProps {
 }
 
 // Theme Recommendations Component
-function ThemeRecommendations({ cardId, onCardClick, currentFilters }: { cardId: string; onCardClick: (card: Card) => void; currentFilters?: any }) {
+function ThemeRecommendations({ cardId, onCardClick, onAddCard, currentFilters }: { cardId: string; onCardClick: (card: Card) => void; onAddCard?: (card: Card) => void; currentFilters?: any }) {
   return (
     <div>
       <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
         <Lightbulb className="w-5 h-5 mr-2 text-purple-400" />
         Themes
       </h3>
-      <ThemeSuggestions card={{ id: cardId } as Card} onCardClick={onCardClick} currentFilters={currentFilters} />
+      <ThemeSuggestions card={{ id: cardId } as Card} onCardClick={onCardClick} onAddCard={onAddCard} currentFilters={currentFilters} />
     </div>
   );
 }
@@ -86,11 +86,55 @@ function SynergyRecommendations({ cardId, onCardClick, onAddCard, currentFilters
           {availableCards.map((rec: any, index: number) => (
             <div key={`synergy-${rec.card.id}-${index}`} className="relative group">
               <CardTile card={rec.card} onClick={onCardClick} />
-              <div className="absolute top-1 right-1">
-                <div className="text-xs bg-yellow-500/90 text-black px-1.5 py-0.5 rounded font-medium">{rec.score}%</div>
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-1">
-                <div className="text-xs text-slate-300 text-center truncate">{rec.reason}</div>
+              
+              {/* Add to deck button */}
+              {onAddCard && (
+                <div className="absolute top-1 left-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddCard(rec.card);
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white p-1.5 rounded-md shadow-lg transition-colors"
+                    title="Add to deck"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+
+              {/* Score and Feedback - Bottom overlay */}
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-yellow-400 text-xs font-medium">
+                      {rec.score ? `${(rec.score * 100).toFixed(0)}%` : 'N/A'}
+                    </span>
+                    <span className="text-slate-300 text-xs truncate">{rec.reason}</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRecommendationFeedback(rec.card.id, 'helpful', 'synergy');
+                      }}
+                      className="text-green-400 hover:text-green-300 p-1 hover:bg-green-400/20 rounded"
+                      title="This recommendation is helpful"
+                    >
+                      <ThumbsUp className="w-3 h-3" />
+                    </button>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRecommendationFeedback(rec.card.id, 'not_helpful', 'synergy');
+                      }}
+                      className="text-red-400 hover:text-red-300 p-1 hover:bg-red-400/20 rounded"
+                      title="This recommendation is not helpful"
+                    >
+                      <ThumbsDown className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           ))}
@@ -377,7 +421,7 @@ export function CardDetailModal({ card, isOpen, onClose, onCardClick, onAddCard,
             </TabsList>
             
             <TabsContent value="themes" className="mt-6">
-              <ThemeRecommendations cardId={card.id} onCardClick={onCardClick || (() => onClose())} currentFilters={currentFilters} />
+              <ThemeRecommendations cardId={card.id} onCardClick={onCardClick || (() => onClose())} onAddCard={onAddCard} currentFilters={currentFilters} />
             </TabsContent>
             
             <TabsContent value="synergy" className="mt-6">
