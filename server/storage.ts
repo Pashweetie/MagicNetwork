@@ -529,14 +529,14 @@ export class DatabaseStorage implements IStorage {
 
       if (storedRecs.length > 0) {
         return storedRecs.map(rec => ({
-          cardId: rec.targetCardId,
+          cardId: rec.recommendedCardId,
           score: rec.score,
           reason: rec.reason || 'stored synergy'
         }));
       }
 
       // If no stored recommendations, generate basic ones
-      return await this.generateBasicSynergy(sourceCard);
+      return await this.generateBasicSynergyRecommendations(sourceCard);
     } catch (error) {
       console.error('Error finding synergy cards:', error);
       return [];
