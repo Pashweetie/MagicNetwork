@@ -129,13 +129,13 @@ Oracle Text: ${card.oracle_text || 'No text'}`;
         // Using Google Gemini
         try {
           const model = this.textGenerator.getGenerativeModel({ model: "gemini-1.5-flash" });
-          const prompt = `You are a Magic: The Gathering expert. Analyze this card and identify 2-3 strategic themes. Be concise.
+          const prompt = `Analyze this Magic card and identify 2 strategic themes with descriptive names:
 
 ${cardContext}
 
-Format your response as:
-Theme1: Description
-Theme2: Description`;
+Format:
+Dragon Tribal: Reduces dragon spell costs for tribal synergy
+Commander Value: Provides format-specific advantages`;
 
           const result = await model.generateContent(prompt);
           aiResponse = result.response.text() || '';
@@ -160,7 +160,7 @@ Theme2: Description`;
               },
               {
                 role: "user",
-                content: `Analyze this Magic card for 2-3 themes:\n\n${cardContext}\n\nFormat: Theme1: Description\nTheme2: Description`
+                content: `Analyze this Magic card for 2-3 strategic themes. Give each theme a descriptive name:\n\n${cardContext}\n\nFormat:\nDragon Tribal: Description\nMana Acceleration: Description`
               }
             ],
             max_tokens: 150,
@@ -191,26 +191,73 @@ Theme2: Description`;
   private parseAIThemeResponse(aiText: string): Array<{theme: string, description: string}> {
     const themes: Array<{theme: string, description: string}> = [];
     
-    // Parse AI response for theme patterns
-    const themeMatches = aiText.match(/([^:]+):\s*([^.]+\.?)/g);
+    console.log('Raw AI response:', aiText);
     
-    if (themeMatches) {
-      for (const match of themeMatches.slice(0, 3)) {
-        const colonIndex = match.indexOf(':');
-        if (colonIndex > 0) {
-          const themeName = match.substring(0, colonIndex).trim();
-          const description = match.substring(colonIndex + 1).trim();
-          
-          if (themeName.length > 2 && themeName.length < 40 && description.length > 5) {
-            themes.push({
-              theme: themeName,
-              description: description
-            });
+    // Parse AI response for theme patterns - look for actual content after colons
+    const lines = aiText.split('\n').filter(line => line.trim());
+    
+    for (const line of lines) {
+      // Look for pattern "Dragon Tribal: Description" or "Theme1: Dragon Tribal - Description"
+      const directMatch = line.match(/^([A-Z][a-z\s]+(?:Tribal|Strategy|Synergy|Build|Control|Aggro|Combo)):\s*(.+)/i);
+      if (directMatch) {
+        themes.push({
+          theme: directMatch[1].trim(),
+          description: directMatch[2].trim()
+        });
+        console.log(`Direct theme match: "${directMatch[1]}" - "${directMatch[2]}"`);
+        continue;
+      }
+      
+      // Look for pattern "Theme1: Actual Theme Name - Description"
+      const themeMatch = line.match(/(?:Theme\d*|Strategy|\d+\.)\s*:\s*(.+)/i);
+      if (themeMatch && themeMatch[1]) {
+        const content = themeMatch[1].trim();
+        
+        // Extract the actual theme name from the content
+        const colonSplit = content.split(':');
+        if (colonSplit.length > 1) {
+          // Format: "Dragon Tribal: Description"
+          themes.push({
+            theme: colonSplit[0].trim(),
+            description: colonSplit.slice(1).join(':').trim()
+          });
+          console.log(`Extracted theme: "${colonSplit[0].trim()}" from content`);
+        } else {
+          // Try to extract meaningful theme name from description
+          const words = content.split(/\s+/);
+          if (words.length >= 2) {
+            const themeName = words.slice(0, 2).join(' ');
+            const description = content;
+            if (themeName.length > 3 && !themeName.match(/^Theme\d+$/i)) {
+              themes.push({
+                theme: themeName,
+                description: description
+              });
+              console.log(`Inferred theme: "${themeName}" from "${content}"`);
+            }
           }
         }
       }
     }
-
+    
+    // If no themes found, try simpler parsing
+    if (themes.length === 0) {
+      const simpleMatches = aiText.match(/([A-Z][a-z\s]+(?:Strategy|Build|Synergy|Theme))/g);
+      if (simpleMatches) {
+        for (const match of simpleMatches.slice(0, 3)) {
+          themes.push({
+            theme: match.trim(),
+            description: `${match.trim()} focused gameplay`
+          });
+        }
+      }
+    }
+    
+    // If still no proper themes, generate meaningful fallback based on card
+    if (themes.length === 0) {
+      return this.getFallbackThemes(card);
+    }
+    
     return themes;
   }
 
