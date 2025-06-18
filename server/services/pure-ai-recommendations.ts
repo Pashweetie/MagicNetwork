@@ -1,96 +1,143 @@
 import { Card } from "@shared/schema";
 import { db } from "../db";
-import { cardCache } from "@shared/schema";
-import { sql } from "drizzle-orm";
+import { cardCache, cardThemes } from "@shared/schema";
+import { sql, eq } from "drizzle-orm";
 
 export class PureAIRecommendationService {
   private textGenerator: any = null;
   private isReady = false;
 
   constructor() {
-    // Skip heavy AI initialization for performance
-    this.isReady = true;
-    console.log('Optimized semantic analysis ready');
+    this.initializeAI();
   }
 
-  // Optimized AI theme detection with caching and fallbacks
-  async analyzeCardThemes(card: Card): Promise<Array<{theme: string, description: string}>> {
-    // Quick semantic analysis based on card characteristics
+  private async initializeAI() {
+    if (this.isReady) return;
+    
     try {
-      const themes = this.getSemanticThemes(card);
-      console.log(`Semantic analysis identified ${themes.length} themes for ${card.name}`);
-      return themes;
+      // Try OpenAI first if available
+      if (process.env.OPENAI_API_KEY) {
+        const { default: OpenAI } = await import('openai');
+        this.textGenerator = new OpenAI({
+          apiKey: process.env.OPENAI_API_KEY,
+        });
+        this.isReady = true;
+        console.log('OpenAI GPT ready for theme generation');
+        return;
+      }
+
+      // Fallback to local transformer
+      const { pipeline } = await import('@xenova/transformers');
+      console.log('Loading local neural network for theme analysis...');
+      this.textGenerator = await pipeline('text2text-generation', 'Xenova/flan-t5-small');
+      this.isReady = true;
+      console.log('Local neural network ready for theme analysis');
     } catch (error) {
-      console.error('Theme analysis failed:', error);
+      console.error('Failed to initialize AI:', error);
+      this.isReady = false;
+    }
+  }
+
+  // AI-powered theme generation with database caching
+  async analyzeCardThemes(card: Card): Promise<Array<{theme: string, description: string}>> {
+    if (!this.isReady) {
+      await this.initializeAI();
+      if (!this.isReady) {
+        console.log('AI not available, cannot generate themes');
+        return [];
+      }
+    }
+
+    try {
+      // Check if themes already exist in database
+      const existingThemes = await db
+        .select()
+        .from(cardThemes)
+        .where(eq(cardThemes.card_id, card.id))
+        .limit(5);
+
+      if (existingThemes.length > 0) {
+        console.log(`Using cached themes for ${card.name}`);
+        return existingThemes.map(theme => ({
+          theme: theme.theme_name,
+          description: theme.description || `${theme.theme_name} strategy`
+        }));
+      }
+
+      // Generate new themes with AI
+      const aiThemes = await this.generateThemesWithAI(card);
+      
+      // Store in database for future use
+      for (const theme of aiThemes) {
+        try {
+          await db.insert(cardThemes).values({
+            card_id: card.id,
+            theme_name: theme.theme,
+            theme_category: 'AI-Generated',
+            description: theme.description,
+            confidence: 0.8,
+            keywords: [theme.theme.toLowerCase()],
+            search_terms: [theme.theme.toLowerCase()]
+          });
+        } catch (error) {
+          // Theme might already exist, continue
+          console.log(`Theme already exists: ${theme.theme}`);
+        }
+      }
+
+      console.log(`AI generated ${aiThemes.length} themes for ${card.name}`);
+      return aiThemes;
+    } catch (error) {
+      console.error('AI theme analysis failed:', error);
       return [];
     }
   }
 
-  private getSemanticThemes(card: Card): Array<{theme: string, description: string}> {
-    const themes: Array<{theme: string, description: string}> = [];
-    const text = (card.oracle_text || '').toLowerCase();
-    const type = (card.type_line || '').toLowerCase();
-    const name = (card.name || '').toLowerCase();
+  private async generateThemesWithAI(card: Card): Promise<Array<{theme: string, description: string}>> {
+    try {
+      const cardContext = `Card: "${card.name}"
+Type: ${card.type_line}
+Mana Cost: ${card.mana_cost || 'None'}
+Oracle Text: ${card.oracle_text || 'No text'}`;
 
-    // Semantic analysis based on card function and strategic role
-    if (text.includes('token') || text.includes('create')) {
-      themes.push({
-        theme: 'Token Strategy',
-        description: 'Generate and leverage creature tokens for board presence'
-      });
-    }
+      let aiResponse = '';
 
-    if (text.includes('graveyard') || text.includes('return') || text.includes('mill')) {
-      themes.push({
-        theme: 'Graveyard Value',
-        description: 'Use graveyard as a resource for card advantage'
-      });
-    }
-
-    if (type.includes('artifact') || text.includes('artifact')) {
-      themes.push({
-        theme: 'Artifact Synergy',
-        description: 'Build around artifact interactions and synergies'
-      });
-    }
-
-    if (text.includes('damage') && (text.includes('player') || text.includes('opponent'))) {
-      themes.push({
-        theme: 'Direct Damage',
-        description: 'Deal damage directly to opponents'
-      });
-    }
-
-    if (text.includes('counter') && text.includes('spell')) {
-      themes.push({
-        theme: 'Control Magic',
-        description: 'Counter and control opponent strategies'
-      });
-    }
-
-    if (text.includes('sacrifice') || text.includes('dies')) {
-      themes.push({
-        theme: 'Sacrifice Value',
-        description: 'Convert creature deaths into advantage'
-      });
-    }
-
-    // Default strategic themes based on card type
-    if (themes.length === 0) {
-      if (type.includes('creature')) {
-        themes.push({
-          theme: 'Creature Strategy',
-          description: 'Creature-based deck strategies'
+      if (this.textGenerator.chat) {
+        // Using OpenAI GPT
+        const response = await this.textGenerator.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: "You are a Magic: The Gathering deck building expert. Analyze cards and identify 2-3 strategic deck themes they support. Be specific and strategic, avoiding generic terms. Focus on actual deck archetypes and strategies."
+            },
+            {
+              role: "user",
+              content: `Analyze this Magic card and identify 2-3 specific strategic themes it supports:\n\n${cardContext}\n\nFormat your response as:\nTheme1: Brief description\nTheme2: Brief description\nTheme3: Brief description (if applicable)`
+            }
+          ],
+          max_tokens: 200,
+          temperature: 0.3
         });
-      } else if (type.includes('instant') || type.includes('sorcery')) {
-        themes.push({
-          theme: 'Spell Strategy',
-          description: 'Spell-based deck strategies'
+
+        aiResponse = response.choices[0]?.message?.content || '';
+      } else {
+        // Using local transformer
+        const prompt = `Analyze this Magic card for strategic deck themes: ${cardContext} - List 2-3 strategic themes like "Voltron Equipment", "Token Swarm", "Reanimator", etc. Format: Theme1: Description. Theme2: Description.`;
+        
+        const response = await this.textGenerator(prompt, {
+          max_new_tokens: 100,
+          temperature: 0.4
         });
+
+        aiResponse = response[0]?.generated_text || '';
       }
-    }
 
-    return themes.slice(0, 3);
+      return this.parseAIThemeResponse(aiResponse);
+    } catch (error) {
+      console.error('AI theme generation failed:', error);
+      return [];
+    }
   }
 
   private parseAIThemeResponse(aiText: string): Array<{theme: string, description: string}> {
@@ -216,14 +263,67 @@ export class PureAIRecommendationService {
     }
   }
 
-  // Optimized synergy analysis
+  // AI-powered synergy analysis
   async analyzeSynergy(sourceCard: Card, targetCard: Card): Promise<{score: number, reason: string}> {
+    if (!this.isReady) {
+      await this.initializeAI();
+      if (!this.isReady) {
+        return { score: 0, reason: 'AI not available' };
+      }
+    }
+
     try {
-      const score = this.calculateSynergyScore(sourceCard, targetCard);
-      const reason = this.getSynergyReason(sourceCard, targetCard, score);
-      
-      return { score: Math.round(score), reason };
+      let aiResponse = '';
+      const sourceContext = `"${sourceCard.name}" (${sourceCard.type_line}): ${sourceCard.oracle_text || 'No text'}`;
+      const targetContext = `"${targetCard.name}" (${targetCard.type_line}): ${targetCard.oracle_text || 'No text'}`;
+
+      if (this.textGenerator.chat) {
+        // Using OpenAI GPT
+        const response = await this.textGenerator.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: "You are a Magic: The Gathering expert. Rate card synergy on a scale of 0-100 and explain why. Focus on mechanical interactions, strategic synergies, and deck building potential."
+            },
+            {
+              role: "user",
+              content: `Rate the synergy between these Magic cards (0-100):\n\nSource: ${sourceContext}\n\nTarget: ${targetContext}\n\nProvide: SCORE|REASON (e.g., "75|Strong artifact synergy with metalcraft triggers")`
+            }
+          ],
+          max_tokens: 100,
+          temperature: 0.2
+        });
+
+        aiResponse = response.choices[0]?.message?.content || '';
+      } else {
+        // Using local transformer
+        const prompt = `Rate synergy 0-100 between Magic cards. Source: ${sourceContext} Target: ${targetContext} - Do they work well together? Format: NUMBER|reason`;
+        
+        const response = await this.textGenerator(prompt, {
+          max_new_tokens: 50,
+          temperature: 0.3
+        });
+
+        aiResponse = response[0]?.generated_text || '';
+      }
+
+      const match = aiResponse.match(/(\d{1,3})\s*\|\s*(.+)/);
+      if (match) {
+        return {
+          score: Math.min(parseInt(match[1]) || 0, 100),
+          reason: match[2].trim()
+        };
+      }
+
+      // Fallback to pattern analysis
+      const fallbackScore = this.calculateSynergyScore(sourceCard, targetCard);
+      return {
+        score: Math.round(fallbackScore),
+        reason: this.getSynergyReason(sourceCard, targetCard, fallbackScore)
+      };
     } catch (error) {
+      console.error('AI synergy analysis failed:', error);
       return { score: 0, reason: 'analysis failed' };
     }
   }
@@ -280,14 +380,67 @@ export class PureAIRecommendationService {
     return 'Limited synergy';
   }
 
-  // Optimized functional similarity analysis
+  // AI-powered functional similarity analysis
   async analyzeFunctionalSimilarity(sourceCard: Card, targetCard: Card): Promise<{score: number, reason: string}> {
+    if (!this.isReady) {
+      await this.initializeAI();
+      if (!this.isReady) {
+        return { score: 0, reason: 'AI not available' };
+      }
+    }
+
     try {
-      const score = this.calculateSimilarityScore(sourceCard, targetCard);
-      const reason = this.getSimilarityReason(sourceCard, targetCard, score);
-      
-      return { score: Math.round(score), reason };
+      let aiResponse = '';
+      const sourceContext = `"${sourceCard.name}" (${sourceCard.type_line}): ${sourceCard.oracle_text || 'No text'}`;
+      const targetContext = `"${targetCard.name}" (${targetCard.type_line}): ${targetCard.oracle_text || 'No text'}`;
+
+      if (this.textGenerator.chat) {
+        // Using OpenAI GPT
+        const response = await this.textGenerator.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: "You are a Magic: The Gathering expert. Rate functional similarity between cards on a scale of 0-100. Focus on whether they serve similar roles in decks, have comparable effects, or fill similar strategic niches."
+            },
+            {
+              role: "user",
+              content: `Rate the functional similarity between these Magic cards (0-100):\n\nSource: ${sourceContext}\n\nTarget: ${targetContext}\n\nProvide: SCORE|REASON (e.g., "85|Both are 3-mana removal spells with similar effects")`
+            }
+          ],
+          max_tokens: 100,
+          temperature: 0.2
+        });
+
+        aiResponse = response.choices[0]?.message?.content || '';
+      } else {
+        // Using local transformer
+        const prompt = `Rate functional similarity 0-100 between Magic cards. Source: ${sourceContext} Target: ${targetContext} - Do they serve similar deck purposes? Format: NUMBER|reason`;
+        
+        const response = await this.textGenerator(prompt, {
+          max_new_tokens: 50,
+          temperature: 0.3
+        });
+
+        aiResponse = response[0]?.generated_text || '';
+      }
+
+      const match = aiResponse.match(/(\d{1,3})\s*\|\s*(.+)/);
+      if (match) {
+        return {
+          score: Math.min(parseInt(match[1]) || 0, 100),
+          reason: match[2].trim()
+        };
+      }
+
+      // Fallback to pattern analysis
+      const fallbackScore = this.calculateSimilarityScore(sourceCard, targetCard);
+      return {
+        score: Math.round(fallbackScore),
+        reason: this.getSimilarityReason(sourceCard, targetCard, fallbackScore)
+      };
     } catch (error) {
+      console.error('AI similarity analysis failed:', error);
       return { score: 0, reason: 'analysis failed' };
     }
   }
