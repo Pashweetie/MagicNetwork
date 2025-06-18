@@ -74,7 +74,7 @@ export class ScryfallService {
     }
     
     if (filters.colorIdentity && filters.colorIdentity.length > 0) {
-      parts.push(`id:${filters.colorIdentity.join('')}`);
+      parts.push(`id<=${filters.colorIdentity.join('')}`);
     }
     
     if (filters.keywords && filters.keywords.length > 0) {

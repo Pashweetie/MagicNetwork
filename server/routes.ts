@@ -84,7 +84,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/cards/:id/recommendations", async (req, res) => {
     try {
       const { id } = req.params;
-      const { type = 'synergy', limit = 10 } = req.query;
+      const { type = 'synergy', limit = 10, filters } = req.query;
       
       // Get the source card
       const sourceCard = await storage.getCard(id);
@@ -102,8 +102,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Convert to the expected format with card data
-      const recsWithCards = await Promise.all(
-        recs.slice(0, parseInt(limit as string)).map(async (rec) => {
+      let recsWithCards = await Promise.all(
+        recs.slice(0, parseInt(limit as string) * 2).map(async (rec) => { // Get more to filter from
           const card = await storage.getCard(rec.cardId);
           return {
             card,
@@ -116,7 +116,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
       
-      res.json(recsWithCards.filter(r => r.card));
+      // Filter by current search filters if provided
+      if (filters) {
+        try {
+          const searchFilters = JSON.parse(filters as string);
+          recsWithCards = recsWithCards.filter(rec => {
+            if (!rec.card) return false;
+            const card = rec.card;
+            
+            // Filter by colors
+            if (searchFilters.colors && searchFilters.colors.length > 0) {
+              const cardColors = card.colors || [];
+              if (searchFilters.includeMulticolored) {
+                // Card must contain all specified colors
+                if (!searchFilters.colors.every((color: string) => cardColors.includes(color))) {
+                  return false;
+                }
+              } else {
+                // Card must match exact colors
+                if (JSON.stringify(cardColors.sort()) !== JSON.stringify(searchFilters.colors.sort())) {
+                  return false;
+                }
+              }
+            }
+            
+            // Filter by color identity
+            if (searchFilters.colorIdentity && searchFilters.colorIdentity.length > 0) {
+              const cardIdentity = card.color_identity || [];
+              // Card's color identity must be subset of search filter
+              if (!cardIdentity.every((color: string) => searchFilters.colorIdentity.includes(color))) {
+                return false;
+              }
+            }
+            
+            // Filter by types
+            if (searchFilters.types && searchFilters.types.length > 0) {
+              const cardTypes = card.type_line.toLowerCase();
+              if (!searchFilters.types.some((type: string) => cardTypes.includes(type.toLowerCase()))) {
+                return false;
+              }
+            }
+            
+            // Filter by mana value range
+            if (searchFilters.minMv !== undefined && card.cmc < searchFilters.minMv) {
+              return false;
+            }
+            if (searchFilters.maxMv !== undefined && card.cmc > searchFilters.maxMv) {
+              return false;
+            }
+            
+            // Filter by format legality
+            if (searchFilters.format && searchFilters.format !== 'all') {
+              const legalities = card.legalities || {};
+              if (legalities[searchFilters.format] !== 'legal') {
+                return false;
+              }
+            }
+            
+            return true;
+          });
+        } catch (err) {
+          console.warn('Failed to parse filters:', err);
+        }
+      }
+      
+      res.json(recsWithCards.filter(r => r.card).slice(0, parseInt(limit as string)));
     } catch (error) {
       console.error('Recommendations error:', error);
       res.status(500).json({ message: "Internal server error" });

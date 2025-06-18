@@ -11,6 +11,7 @@ interface CardRecommendationsProps {
   cardId: string;
   onCardClick: (card: Card) => void;
   onAddCard?: (card: Card) => void;
+  currentFilters?: any;
 }
 
 interface RecommendationWithCard {
@@ -19,7 +20,7 @@ interface RecommendationWithCard {
   reason: string;
 }
 
-export function CardRecommendations({ cardId, onCardClick, onAddCard }: CardRecommendationsProps) {
+export function CardRecommendations({ cardId, onCardClick, onAddCard, currentFilters }: CardRecommendationsProps) {
   const [activeTab, setActiveTab] = useState<'synergy' | 'functional_similarity' | 'themes'>('themes');
   
   const { data: recommendations, isLoading, error } = useQuery({
@@ -40,7 +41,8 @@ export function CardRecommendations({ cardId, onCardClick, onAddCard }: CardReco
               }))
             );
         } else {
-          const response = await fetch(`/api/cards/${cardId}/recommendations?type=${activeTab}&limit=8`);
+          const filterParams = currentFilters ? `&filters=${encodeURIComponent(JSON.stringify(currentFilters))}` : '';
+          const response = await fetch(`/api/cards/${cardId}/recommendations?type=${activeTab}&limit=8${filterParams}`);
           if (!response.ok) throw new Error('Failed to fetch recommendations');
           return response.json();
         }
