@@ -1,6 +1,6 @@
-import { Card, SearchFilters, SearchResponse, User, InsertUser, SavedSearch, InsertSavedSearch, FavoriteCard, InsertFavoriteCard, CardCacheEntry, InsertCardCache, SearchCacheEntry, InsertSearchCache, CardRecommendation, InsertCardRecommendation, UserInteraction, InsertUserInteraction } from "@shared/schema";
+import { Card, SearchFilters, SearchResponse, User, InsertUser, SavedSearch, InsertSavedSearch, FavoriteCard, InsertFavoriteCard, CardCacheEntry, InsertCardCache, SearchCacheEntry, InsertSearchCache, CardRecommendation, InsertCardRecommendation, UserInteraction, InsertUserInteraction, RecommendationFeedback, InsertRecommendationFeedback } from "@shared/schema";
 import { db } from "./db";
-import { users, savedSearches, favoriteCards, cardCache, searchCache, cardRecommendations, userInteractions } from "@shared/schema";
+import { users, savedSearches, favoriteCards, cardCache, searchCache, cardRecommendations, userInteractions, recommendationFeedback } from "@shared/schema";
 import { eq, desc, sql, and, inArray } from "drizzle-orm";
 import { scryfallService } from "./services/scryfall";
 import crypto from "crypto";
@@ -343,36 +343,65 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Recommendation system
-  async getCardRecommendations(cardId: string, limit: number = 10): Promise<CardRecommendation[]> {
-    return await db
-      .select()
-      .from(cardRecommendations)
-      .where(eq(cardRecommendations.sourceCardId, cardId))
-      .orderBy(desc(cardRecommendations.score))
-      .limit(limit);
+  async getCardRecommendations(cardId: string, type: 'synergy' | 'functional_similarity', limit: number = 10): Promise<CardRecommendation[]> {
+    try {
+      const recommendations = await db
+        .select()
+        .from(cardRecommendations)
+        .where(and(
+          eq(cardRecommendations.sourceCardId, cardId),
+          eq(cardRecommendations.recommendationType, type)
+        ))
+        .orderBy(desc(cardRecommendations.score))
+        .limit(limit);
+
+      return recommendations;
+    } catch (error) {
+      console.error('Error getting card recommendations:', error);
+      return [];
+    }
   }
 
   async generateRecommendationsForCard(cardId: string): Promise<void> {
     try {
+      // Get the source card
       const sourceCard = await this.getCachedCard(cardId);
       if (!sourceCard) return;
 
-      // Find similar cards based on multiple criteria
-      const recommendations = await this.findSimilarCards(sourceCard);
-      
-      // Store recommendations in database
-      for (const rec of recommendations) {
+      // Generate both types of recommendations
+      const synergyCards = await this.findSynergyCards(sourceCard);
+      const functionalCards = await this.findFunctionallySimarCards(sourceCard);
+
+      // Store synergy recommendations
+      for (const rec of synergyCards) {
         try {
           await db.insert(cardRecommendations).values({
             sourceCardId: cardId,
             recommendedCardId: rec.cardId,
+            recommendationType: 'synergy',
             score: rec.score,
             reason: rec.reason,
           });
         } catch (error: any) {
-          // Ignore duplicate key errors
           if (error.code !== '23505') {
-            console.error('Error storing recommendation:', error);
+            console.error('Error storing synergy recommendation:', error);
+          }
+        }
+      }
+
+      // Store functional similarity recommendations
+      for (const rec of functionalCards) {
+        try {
+          await db.insert(cardRecommendations).values({
+            sourceCardId: cardId,
+            recommendedCardId: rec.cardId,
+            recommendationType: 'functional_similarity',
+            score: rec.score,
+            reason: rec.reason,
+          });
+        } catch (error: any) {
+          if (error.code !== '23505') {
+            console.error('Error storing functional recommendation:', error);
           }
         }
       }
@@ -568,6 +597,194 @@ export class DatabaseStorage implements IStorage {
     if (daysSince <= 7) return 0.8;
     if (daysSince <= 30) return 0.6;
     return 0.3;
+  }
+
+  // Find cards that synergize well (work together in same deck)
+  private async findSynergyCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
+    const synergies: Array<{cardId: string, score: number, reason: string}> = [];
+    
+    // Get sample of cards to analyze
+    const sampleCards = await db
+      .select()
+      .from(cardCache)
+      .where(sql`card_data->>'id' != ${sourceCard.id}`)
+      .limit(300);
+
+    for (const cached of sampleCards) {
+      const card = cached.cardData;
+      let score = 0;
+      const reasons: string[] = [];
+
+      // Synergy analysis based on oracle text interactions
+      if (sourceCard.oracle_text && card.oracle_text) {
+        const sourceText = sourceCard.oracle_text.toLowerCase();
+        const cardText = card.oracle_text.toLowerCase();
+
+        // Enabler-Payoff relationships
+        if (sourceText.includes('token') && cardText.includes('sacrifice')) {
+          score += 25; reasons.push('token sacrifice synergy');
+        }
+        if (sourceText.includes('enters the battlefield') && cardText.includes('bounce')) {
+          score += 20; reasons.push('ETB bounce synergy');
+        }
+        if (sourceText.includes('artifact') && cardText.includes('artifact') && cardText.includes('cost')) {
+          score += 25; reasons.push('artifact cost reduction');
+        }
+        if (sourceText.includes('graveyard') && cardText.includes('mill')) {
+          score += 20; reasons.push('graveyard filling');
+        }
+        if (sourceText.includes('draw') && cardText.includes('discard')) {
+          score += 15; reasons.push('draw-discard engine');
+        }
+        if (sourceText.includes('whenever') && cardText.includes('trigger')) {
+          score += 15; reasons.push('trigger synergy');
+        }
+
+        // Combo pieces
+        if (sourceText.includes('untap') && cardText.includes('tap')) {
+          score += 30; reasons.push('untap combo');
+        }
+        if (sourceText.includes('infinite') || cardText.includes('infinite')) {
+          score += 35; reasons.push('infinite combo');
+        }
+      }
+
+      // Type-based synergies
+      if (sourceCard.type_line.includes('Creature') && card.type_line.includes('Equipment')) {
+        score += 15; reasons.push('creature equipment synergy');
+      }
+      if (sourceCard.type_line.includes('Artifact') && card.type_line.includes('Artifact')) {
+        score += 10; reasons.push('artifact synergy');
+      }
+
+      if (score >= 15) {
+        synergies.push({
+          cardId: card.id,
+          score: Math.min(score, 100),
+          reason: reasons.join(', ')
+        });
+      }
+    }
+
+    return synergies.sort((a, b) => b.score - a.score).slice(0, 15);
+  }
+
+  // Find functionally similar cards (alternatives/substitutes)
+  private async findFunctionallySimarCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
+    const functionalCards: Array<{cardId: string, score: number, reason: string}> = [];
+    
+    // Get sample of cards to analyze
+    const sampleCards = await db
+      .select()
+      .from(cardCache)
+      .where(sql`card_data->>'id' != ${sourceCard.id}`)
+      .limit(300);
+
+    for (const cached of sampleCards) {
+      const card = cached.cardData;
+      let score = 0;
+      const reasons: string[] = [];
+
+      // Functional similarity based on effects
+      if (sourceCard.oracle_text && card.oracle_text) {
+        const sourceText = sourceCard.oracle_text.toLowerCase();
+        const cardText = card.oracle_text.toLowerCase();
+
+        // Similar effects with high precision
+        const effectPatterns = [
+          { pattern: 'counter target spell', weight: 40, reason: 'counterspell' },
+          { pattern: 'destroy target creature', weight: 35, reason: 'creature removal' },
+          { pattern: 'draw', weight: 25, reason: 'card draw' },
+          { pattern: 'search your library', weight: 30, reason: 'tutoring' },
+          { pattern: 'deals damage', weight: 20, reason: 'direct damage' },
+          { pattern: 'gain life', weight: 15, reason: 'life gain' },
+          { pattern: 'add mana', weight: 25, reason: 'mana acceleration' },
+          { pattern: 'return.*to hand', weight: 20, reason: 'bounce effect' },
+          { pattern: 'exile.*card', weight: 20, reason: 'exile effect' }
+        ];
+
+        for (const { pattern, weight, reason } of effectPatterns) {
+          const regex = new RegExp(pattern);
+          if (regex.test(sourceText) && regex.test(cardText)) {
+            score += weight;
+            reasons.push(reason);
+          }
+        }
+
+        // Mana cost similarity for functional alternatives
+        const manaDiff = Math.abs(sourceCard.cmc - card.cmc);
+        if (manaDiff <= 1 && score > 0) {
+          score += 10;
+          reasons.push('similar cost');
+        }
+      }
+
+      // Type similarity
+      const sourceMainType = sourceCard.type_line.split(' ')[0];
+      const cardMainType = card.type_line.split(' ')[0];
+      if (sourceMainType === cardMainType && score > 0) {
+        score += 15;
+        reasons.push('same type');
+      }
+
+      if (score >= 20) {
+        functionalCards.push({
+          cardId: card.id,
+          score: Math.min(score, 100),
+          reason: reasons.join(', ')
+        });
+      }
+    }
+
+    return functionalCards.sort((a, b) => b.score - a.score).slice(0, 15);
+  }
+
+  async recordRecommendationFeedback(feedback: InsertRecommendationFeedback): Promise<void> {
+    try {
+      await db.insert(recommendationFeedback).values(feedback);
+    } catch (error) {
+      console.error('Error recording recommendation feedback:', error);
+    }
+  }
+
+  async getRecommendationWeights(): Promise<{[key: string]: number}> {
+    try {
+      // Analyze feedback to adjust weights
+      const feedbackData = await db
+        .select()
+        .from(recommendationFeedback);
+
+      const weights: {[key: string]: number} = {
+        'oracle_text_match': 1.0,
+        'type_match': 0.8,
+        'synergy_bonus': 1.2,
+        'mana_cost_similarity': 0.3
+      };
+
+      // Adjust weights based on feedback
+      const helpfulCount = feedbackData.filter(f => f.feedback === 'helpful').length;
+      const totalCount = feedbackData.length;
+      
+      if (totalCount > 10) {
+        const helpfulRatio = helpfulCount / totalCount;
+        if (helpfulRatio < 0.6) {
+          // If less than 60% helpful, adjust weights
+          weights.oracle_text_match *= 1.2;
+          weights.synergy_bonus *= 1.1;
+          weights.mana_cost_similarity *= 0.8;
+        }
+      }
+
+      return weights;
+    } catch (error) {
+      console.error('Error getting recommendation weights:', error);
+      return {
+        'oracle_text_match': 1.0,
+        'type_match': 0.8,
+        'synergy_bonus': 1.2,
+        'mana_cost_similarity': 0.3
+      };
+    }
   }
 }
 
