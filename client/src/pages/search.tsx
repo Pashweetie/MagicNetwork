@@ -404,6 +404,9 @@ export default function Search() {
         card={selectedCard}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
+        onCardClick={handleCardClick}
+        onAddCard={deck.addCard}
+        currentFilters={activeFilters}
       />
     </div>
   );
