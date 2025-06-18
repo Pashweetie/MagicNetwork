@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { X, Lightbulb, GitMerge, Copy, AlertCircle } from "lucide-react";
+import { Lightbulb, GitMerge, Copy, AlertCircle } from "lucide-react";
 import { ThemeSuggestions } from "./theme-suggestions";
 import { Card } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
@@ -188,9 +188,12 @@ export function CardDetailModal({ card, isOpen, onClose }: CardDetailModalProps)
   const getCardImage = () => {
     if (card.image_uris?.large) {
       return card.image_uris.large;
-    }
-    if (card.card_faces?.[0]?.image_uris?.large) {
+    } else if (card.card_faces?.[0]?.image_uris?.large) {
       return card.card_faces[0].image_uris.large;
+    } else if (card.image_uris?.normal) {
+      return card.image_uris.normal;
+    } else if (card.card_faces?.[0]?.image_uris?.normal) {
+      return card.card_faces[0].image_uris.normal;
     }
     return null;
   };
@@ -217,123 +220,100 @@ export function CardDetailModal({ card, isOpen, onClose }: CardDetailModalProps)
               />
             ) : (
               <div className="bg-slate-600 rounded-lg w-full aspect-[3/4] flex items-center justify-center">
-                <span className="text-slate-400">No Image Available</span>
+                <span className="text-slate-400">No image available</span>
               </div>
             )}
           </div>
 
           {/* Card Details */}
           <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold text-white mb-2">Details</h3>
-              <div className="space-y-2 text-sm">
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Type:</span>
+                <span className="text-white">{card.type_line}</span>
+              </div>
+              {card.mana_cost && (
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Type:</span>
-                  <span className="text-white">{card.type_line}</span>
+                  <span className="text-slate-400">Mana Cost:</span>
+                  <span className="text-white font-mono">{card.mana_cost}</span>
                 </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-slate-400">CMC:</span>
+                <span className="text-white">{card.cmc}</span>
+              </div>
+              {card.power !== undefined && card.toughness !== undefined && (
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Mana Value:</span>
-                  <span className="text-white">{card.cmc}</span>
+                  <span className="text-slate-400">P/T:</span>
+                  <span className="text-white">{card.power}/{card.toughness}</span>
                 </div>
-                {card.mana_cost && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Mana Cost:</span>
-                    <span className="text-white font-mono">{card.mana_cost}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Rarity:</span>
-                  <Badge variant="secondary" className="capitalize">
-                    {card.rarity}
-                  </Badge>
+              )}
+              <div className="flex justify-between">
+                <span className="text-slate-400">Rarity:</span>
+                <Badge variant="outline" className="capitalize">
+                  {card.rarity}
+                </Badge>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Set:</span>
+                <span className="text-white">{card.set_name} ({card.set.toUpperCase()})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Colors:</span>
+                <div className="flex space-x-1">
+                  {colors.length > 0 ? (
+                    colors.map((color, index) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {color}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-slate-500">Colorless</span>
+                  )}
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Set:</span>
-                  <span className="text-white">{card.set_name} ({card.set.toUpperCase()})</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Colors:</span>
-                  <div className="flex space-x-1">
-                    {colors.length > 0 ? (
-                      colors.map((color, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {color}
-                        </Badge>
-                      ))
-                    ) : (
-                      <span className="text-slate-500">Colorless</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Price:</span>
-                  <span className="text-white font-semibold">{price}</span>
-                </div>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Price:</span>
+                <span className="text-white font-semibold">{price}</span>
               </div>
             </div>
-
-            {/* Oracle Text */}
-            {card.oracle_text && (
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-2">Oracle Text</h3>
-                <div className="bg-slate-800 rounded-lg p-3 text-sm text-slate-200 whitespace-pre-wrap">
-                  {card.oracle_text}
-                </div>
-              </div>
-            )}
-
-            {/* Card Faces (for double-faced cards) */}
-            {card.card_faces && card.card_faces.length > 1 && (
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-2">Card Faces</h3>
-                <div className="space-y-3">
-                  {card.card_faces.map((face, index) => (
-                    <div key={index} className="bg-slate-800 rounded-lg p-3">
-                      <h4 className="font-medium text-white mb-1">{face.name}</h4>
-                      <p className="text-xs text-slate-400 mb-2">{face.type_line}</p>
-                      {face.mana_cost && (
-                        <p className="text-xs text-slate-300 mb-2 font-mono">{face.mana_cost}</p>
-                      )}
-                      {face.oracle_text && (
-                        <p className="text-sm text-slate-200 whitespace-pre-wrap">{face.oracle_text}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Format Legalities */}
-            {card.legalities && (
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-2">Format Legality</h3>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  {Object.entries(card.legalities).map(([format, legality]) => (
-                    <div key={format} className="flex justify-between">
-                      <span className="text-slate-400 capitalize">{format}:</span>
-                      <Badge 
-                        variant={legality === 'legal' ? 'default' : 'destructive'}
-                        className="text-xs"
-                      >
-                        {legality}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
+        {/* Oracle Text */}
+        {card.oracle_text && (
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-2">Oracle Text</h3>
+            <div className="bg-slate-800 rounded-lg p-3 text-sm text-slate-200 whitespace-pre-wrap">
+              {card.oracle_text}
+            </div>
+          </div>
+        )}
+
+        {/* Format Legalities */}
+        {card.legalities && (
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-2">Format Legality</h3>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {Object.entries(card.legalities).map(([format, legality]) => (
+                <div key={format} className="flex justify-between">
+                  <span className="text-slate-400 capitalize">{format}:</span>
+                  <Badge 
+                    variant={legality === 'legal' ? 'default' : 'destructive'}
+                    className="text-xs"
+                  >
+                    {legality}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Three Recommendation Categories */}
         <div className="space-y-8 mt-6">
-          {/* Themes */}
           <ThemeRecommendations cardId={card.id} onCardClick={onClose} />
-          
-          {/* Synergy Cards */}
           <SynergyRecommendations cardId={card.id} onCardClick={onClose} />
-          
-          {/* Similar Cards */}
           <SimilarRecommendations cardId={card.id} onCardClick={onClose} />
         </div>
       </DialogContent>
