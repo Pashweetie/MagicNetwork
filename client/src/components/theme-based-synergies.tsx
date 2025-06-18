@@ -155,16 +155,65 @@ export function ThemeBasedSynergies({ cardId, onCardClick, onAddCard, currentFil
               )}
             </div>
 
-            {/* Hover info */}
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+            {/* Hover info with actions */}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/70 transition-all duration-300 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100">
               <div className="text-center text-white p-4">
                 <p className="text-sm font-medium mb-3">{synergy.reason}</p>
-                <div className="flex flex-wrap gap-2 justify-center">
+                <div className="flex flex-wrap gap-2 justify-center mb-4">
                   {synergy.sharedThemes.map((theme, idx) => (
                     <span key={idx} className="text-sm bg-purple-500/90 px-3 py-1 rounded-md border border-purple-400/30">
                       {theme.theme}
                     </span>
                   ))}
+                </div>
+                
+                {/* Action buttons */}
+                <div className="flex items-center justify-center gap-3">
+                  {onAddCard && (
+                    <Button
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddCard(synergy.card);
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-4"
+                    >
+                      Add to Deck
+                    </Button>
+                  )}
+                  
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleFeedback(synergy.card.id, true);
+                      }}
+                      className={`h-8 w-8 p-0 ${
+                        feedback[synergy.card.id] === 'helpful' 
+                          ? 'text-green-400 bg-green-400/20' 
+                          : 'text-slate-400 hover:text-green-400'
+                      }`}
+                    >
+                      <ThumbsUp className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleFeedback(synergy.card.id, false);
+                      }}
+                      className={`h-8 w-8 p-0 ${
+                        feedback[synergy.card.id] === 'not_helpful' 
+                          ? 'text-red-400 bg-red-400/20' 
+                          : 'text-slate-400 hover:text-red-400'
+                      }`}
+                    >
+                      <ThumbsDown className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
