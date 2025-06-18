@@ -96,9 +96,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let recs: Array<{cardId: string, score: number, reason: string}> = [];
       
       if (type === 'synergy') {
-        recs = await (storage as any).findSynergyCards(sourceCard);
+        recs = await storage.findSynergyCards(sourceCard);
       } else if (type === 'functional_similarity') {
-        recs = await (storage as any).findFunctionallySimilarCards(sourceCard);
+        recs = await storage.findFunctionallySimilarCards(sourceCard);
       }
       
       // Convert to the expected format with card data
@@ -125,9 +125,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (!rec.card) return false;
             const card = rec.card;
             
-            // Filter by colors
+            // Filter by colors (including color identity)
             if (searchFilters.colors && searchFilters.colors.length > 0) {
               const cardColors = card.colors || [];
+              const cardColorIdentity = card.color_identity || [];
               
               if (searchFilters.includeMulticolored) {
                 // Card must contain all specified colors

@@ -197,6 +197,7 @@ export const insertUserInteractionSchema = createInsertSchema(userInteractions).
 
 export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, createdAt: true, lastUpdated: true });
 export const insertRecommendationFeedbackSchema = createInsertSchema(recommendationFeedback).omit({ id: true, createdAt: true });
+export const insertRecommendationWeightSchema = createInsertSchema(recommendationWeights).omit({ id: true, lastUpdated: true });
 // Deck persistence schema
 export const decks = pgTable('decks', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
@@ -235,6 +236,8 @@ export type CardTheme = typeof cardThemes.$inferSelect;
 export type InsertCardTheme = z.infer<typeof insertCardThemeSchema>;
 export type RecommendationFeedback = typeof recommendationFeedback.$inferSelect;
 export type InsertRecommendationFeedback = z.infer<typeof insertRecommendationFeedbackSchema>;
+export type RecommendationWeight = typeof recommendationWeights.$inferSelect;
+export type InsertRecommendationWeight = z.infer<typeof insertRecommendationWeightSchema>;
 export type Deck = typeof decks.$inferSelect;
 export type InsertDeck = z.infer<typeof insertDeckSchema>;
 // export type ThemeWeight = typeof themeWeights.$inferSelect;

@@ -506,21 +506,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Find cards that synergize well (enabler-payoff relationships)
-  private async findSynergyCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
+  async findSynergyCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
     const synergies: Array<{cardId: string, score: number, reason: string}> = [];
+    
+    // Get recommendation weights for adjustment
+    const weights = await this.getRecommendationWeights();
+    const synergyWeight = weights['synergy'] || 1.0;
     
     // Get more cards for better synergy detection
     const sampleCards = await db
       .select()
       .from(cardCache)
       .where(sql`card_data->>'id' != ${sourceCard.id}`)
-      .limit(500);
+      .limit(800);
 
     const sourceText = (sourceCard.oracle_text || '').toLowerCase();
     const sourceType = sourceCard.type_line.toLowerCase();
 
     for (const cached of sampleCards) {
-      const card = cached.cardData;
+      const card = cached.cardData as Card;
+      if (!card || !card.id) continue;
+      
       const cardText = (card.oracle_text || '').toLowerCase();
       const cardType = card.type_line.toLowerCase();
       let score = 0;
@@ -530,13 +536,13 @@ export class DatabaseStorage implements IStorage {
       
       // Source creates tokens -> Card benefits from tokens
       if ((sourceText.includes('create') && sourceText.includes('token')) &&
-          (cardText.includes('sacrifice') || cardText.includes('token') && cardText.includes('get'))) {
+          (cardText.includes('sacrifice') || (cardText.includes('token') && cardText.includes('get')))) {
         score += 35; reasons.push('token generator-consumer');
       }
 
       // Source mills -> Card benefits from graveyard
       if (sourceText.includes('mill') && 
-          (cardText.includes('graveyard') || cardText.includes('return') && cardText.includes('graveyard'))) {
+          (cardText.includes('graveyard') || (cardText.includes('return') && cardText.includes('graveyard')))) {
         score += 30; reasons.push('mill enabler-graveyard payoff');
       }
 
@@ -547,7 +553,7 @@ export class DatabaseStorage implements IStorage {
 
       // Source creates artifacts -> Card has metalcraft/artifact synergy
       if ((sourceType.includes('artifact') || sourceText.includes('artifact')) &&
-          (cardText.includes('metalcraft') || cardText.includes('artifact') && cardText.includes('control'))) {
+          (cardText.includes('metalcraft') || (cardText.includes('artifact') && cardText.includes('control')))) {
         score += 30; reasons.push('artifact enabler-metalcraft payoff');
       }
 
@@ -582,7 +588,10 @@ export class DatabaseStorage implements IStorage {
         score += 40; reasons.push('combo synergy');
       }
 
-      if (score >= 20) {
+      // Apply centralized weight adjustment
+      score = score * synergyWeight;
+
+      if (score >= 15) {
         synergies.push({
           cardId: card.id,
           score: Math.min(score, 100),
@@ -591,7 +600,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    return synergies.sort((a, b) => b.score - a.score).slice(0, 12);
+    return synergies.sort((a, b) => b.score - a.score).slice(0, 15);
   }
 
   private extractCreatureTypes(typeLine: string): string[] {
