@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { pgTable, text, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, boolean, timestamp, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 
 export const cardSchema = z.object({
@@ -93,11 +93,34 @@ export const savedSearches = pgTable('saved_searches', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+export const cardCache = pgTable('card_cache', {
+  id: text('id').primaryKey(), // Scryfall card ID
+  cardData: jsonb('card_data').$type<Card>().notNull(),
+  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+  searchCount: integer('search_count').default(0).notNull(),
+}, (table) => ({
+  lastUpdatedIdx: index('card_cache_last_updated_idx').on(table.lastUpdated),
+  searchCountIdx: index('card_cache_search_count_idx').on(table.searchCount),
+}));
+
+export const searchCache = pgTable('search_cache', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  queryHash: text('query_hash').notNull().unique(),
+  filters: jsonb('filters').$type<SearchFilters>().notNull(),
+  resultData: jsonb('result_data').$type<SearchResponse>().notNull(),
+  page: integer('page').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  lastAccessed: timestamp('last_accessed').defaultNow().notNull(),
+  accessCount: integer('access_count').default(1).notNull(),
+}, (table) => ({
+  lastAccessedIdx: index('search_cache_last_accessed_idx').on(table.lastAccessed),
+  accessCountIdx: index('search_cache_access_count_idx').on(table.accessCount),
+}));
+
 export const favoriteCards = pgTable('favorite_cards', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
   userId: integer('user_id').references(() => users.id).notNull(),
-  cardId: text('card_id').notNull(),
-  cardData: jsonb('card_data').$type<Card>().notNull(),
+  cardId: text('card_id').references(() => cardCache.id).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -105,6 +128,8 @@ export const favoriteCards = pgTable('favorite_cards', {
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertSavedSearchSchema = createInsertSchema(savedSearches).omit({ id: true, createdAt: true });
 export const insertFavoriteCardSchema = createInsertSchema(favoriteCards).omit({ id: true, createdAt: true });
+export const insertCardCacheSchema = createInsertSchema(cardCache).omit({ lastUpdated: true, searchCount: true });
+export const insertSearchCacheSchema = createInsertSchema(searchCache).omit({ id: true, createdAt: true, lastAccessed: true, accessCount: true });
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -112,3 +137,7 @@ export type SavedSearch = typeof savedSearches.$inferSelect;
 export type InsertSavedSearch = z.infer<typeof insertSavedSearchSchema>;
 export type FavoriteCard = typeof favoriteCards.$inferSelect;
 export type InsertFavoriteCard = z.infer<typeof insertFavoriteCardSchema>;
+export type CardCacheEntry = typeof cardCache.$inferSelect;
+export type InsertCardCache = z.infer<typeof insertCardCacheSchema>;
+export type SearchCacheEntry = typeof searchCache.$inferSelect;
+export type InsertSearchCache = z.infer<typeof insertSearchCacheSchema>;

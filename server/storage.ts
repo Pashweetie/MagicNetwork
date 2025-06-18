@@ -1,7 +1,9 @@
-import { Card, SearchFilters, SearchResponse, User, InsertUser, SavedSearch, InsertSavedSearch, FavoriteCard, InsertFavoriteCard } from "@shared/schema";
+import { Card, SearchFilters, SearchResponse, User, InsertUser, SavedSearch, InsertSavedSearch, FavoriteCard, InsertFavoriteCard, CardCacheEntry, InsertCardCache, SearchCacheEntry, InsertSearchCache } from "@shared/schema";
 import { db } from "./db";
-import { users, savedSearches, favoriteCards } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { users, savedSearches, favoriteCards, cardCache, searchCache } from "@shared/schema";
+import { eq, desc, sql } from "drizzle-orm";
+import { scryfallService } from "./services/scryfall";
+import crypto from "crypto";
 
 export interface IStorage {
   // Card search methods
@@ -23,54 +25,82 @@ export interface IStorage {
   getFavoriteCards(userId: number): Promise<FavoriteCard[]>;
   addFavoriteCard(favorite: InsertFavoriteCard): Promise<FavoriteCard>;
   removeFavoriteCard(cardId: string, userId: number): Promise<boolean>;
+  
+  // Cache management
+  cacheCard(card: Card): Promise<void>;
+  getCachedCard(id: string): Promise<Card | null>;
+  cacheSearchResults(filters: SearchFilters, page: number, results: SearchResponse): Promise<void>;
+  getCachedSearchResults(filters: SearchFilters, page: number): Promise<SearchResponse | null>;
+  cleanupOldCache(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
-  // Cache for storing recent search results
-  private searchCache: Map<string, { result: SearchResponse; timestamp: number }> = new Map();
-  private cardCache: Map<string, { card: Card; timestamp: number }> = new Map();
-  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  private readonly CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours for card cache
+  private readonly SEARCH_CACHE_TTL = 60 * 60 * 1000; // 1 hour for search cache
 
-  private getCacheKey(filters: SearchFilters, page: number): string {
-    return JSON.stringify({ filters, page });
-  }
-
-  private isExpired(timestamp: number): boolean {
-    return Date.now() - timestamp > this.CACHE_TTL;
+  private generateQueryHash(filters: SearchFilters, page: number): string {
+    const queryString = JSON.stringify({ filters, page });
+    return crypto.createHash('md5').update(queryString).digest('hex');
   }
 
   async searchCards(filters: SearchFilters, page: number = 1): Promise<SearchResponse> {
-    const cacheKey = this.getCacheKey(filters, page);
-    const cached = this.searchCache.get(cacheKey);
-    
-    if (cached && !this.isExpired(cached.timestamp)) {
-      return cached.result;
+    // Try to get from cache first
+    const cachedResult = await this.getCachedSearchResults(filters, page);
+    if (cachedResult) {
+      return cachedResult;
     }
 
-    // For now, return empty results since we're using Scryfall service
-    // In future, this could cache popular searches in the database
-    const result: SearchResponse = {
-      data: [],
-      has_more: false,
-      total_cards: 0,
-    };
+    // Fetch from Scryfall API
+    const result = await scryfallService.searchCards(filters, page);
+    
+    // Cache the results and individual cards
+    await this.cacheSearchResults(filters, page, result);
+    
+    // Cache individual cards from the results
+    for (const card of result.data) {
+      await this.cacheCard(card);
+    }
 
-    this.searchCache.set(cacheKey, { result, timestamp: Date.now() });
     return result;
   }
 
   async getCard(id: string): Promise<Card | null> {
-    const cached = this.cardCache.get(id);
-    
-    if (cached && !this.isExpired(cached.timestamp)) {
-      return cached.card;
+    // Try cache first
+    const cachedCard = await this.getCachedCard(id);
+    if (cachedCard) {
+      // Update search count
+      await db
+        .update(cardCache)
+        .set({ searchCount: sql`${cardCache.searchCount} + 1` })
+        .where(eq(cardCache.id, id));
+      return cachedCard;
     }
 
-    return null;
+    // Fetch from Scryfall API
+    const card = await scryfallService.getCard(id);
+    if (card) {
+      await this.cacheCard(card);
+    }
+    
+    return card;
   }
 
   async getRandomCard(): Promise<Card> {
-    throw new Error("Random card not implemented in database storage");
+    // Get a random cached card first to reduce API calls
+    const [randomCached] = await db
+      .select()
+      .from(cardCache)
+      .orderBy(sql`RANDOM()`)
+      .limit(1);
+    
+    if (randomCached && Math.random() > 0.3) { // 70% chance to use cached
+      return randomCached.cardData;
+    }
+
+    // Otherwise fetch from API
+    const card = await scryfallService.getRandomCard();
+    await this.cacheCard(card);
+    return card;
   }
 
   // User methods
@@ -136,6 +166,129 @@ export class DatabaseStorage implements IStorage {
       .delete(favoriteCards)
       .where(eq(favoriteCards.cardId, cardId) && eq(favoriteCards.userId, userId));
     return (result.rowCount || 0) > 0;
+  }
+
+  // Cache management methods
+  async cacheCard(card: Card): Promise<void> {
+    try {
+      await db
+        .insert(cardCache)
+        .values({
+          id: card.id,
+          cardData: card,
+        })
+        .onConflictDoUpdate({
+          target: cardCache.id,
+          set: {
+            cardData: card,
+            lastUpdated: sql`NOW()`,
+            searchCount: sql`${cardCache.searchCount} + 1`,
+          }
+        });
+    } catch (error) {
+      console.error('Error caching card:', error);
+    }
+  }
+
+  async getCachedCard(id: string): Promise<Card | null> {
+    try {
+      const [cached] = await db
+        .select()
+        .from(cardCache)
+        .where(eq(cardCache.id, id));
+      
+      if (!cached) return null;
+
+      // Check if cache is expired
+      const isExpired = Date.now() - cached.lastUpdated.getTime() > this.CACHE_TTL;
+      if (isExpired) {
+        // Don't delete, just fetch fresh data
+        return null;
+      }
+
+      return cached.cardData;
+    } catch (error) {
+      console.error('Error getting cached card:', error);
+      return null;
+    }
+  }
+
+  async cacheSearchResults(filters: SearchFilters, page: number, results: SearchResponse): Promise<void> {
+    try {
+      const queryHash = this.generateQueryHash(filters, page);
+      
+      await db
+        .insert(searchCache)
+        .values({
+          queryHash,
+          filters,
+          resultData: results,
+          page,
+        })
+        .onConflictDoUpdate({
+          target: searchCache.queryHash,
+          set: {
+            resultData: results,
+            lastAccessed: sql`NOW()`,
+            accessCount: sql`${searchCache.accessCount} + 1`,
+          }
+        });
+    } catch (error) {
+      console.error('Error caching search results:', error);
+    }
+  }
+
+  async getCachedSearchResults(filters: SearchFilters, page: number): Promise<SearchResponse | null> {
+    try {
+      const queryHash = this.generateQueryHash(filters, page);
+      
+      const [cached] = await db
+        .select()
+        .from(searchCache)
+        .where(eq(searchCache.queryHash, queryHash));
+      
+      if (!cached) return null;
+
+      // Check if cache is expired
+      const isExpired = Date.now() - cached.lastAccessed.getTime() > this.SEARCH_CACHE_TTL;
+      if (isExpired) {
+        return null;
+      }
+
+      // Update access time
+      await db
+        .update(searchCache)
+        .set({ 
+          lastAccessed: sql`NOW()`,
+          accessCount: sql`${searchCache.accessCount} + 1`
+        })
+        .where(eq(searchCache.queryHash, queryHash));
+
+      return cached.resultData;
+    } catch (error) {
+      console.error('Error getting cached search results:', error);
+      return null;
+    }
+  }
+
+  async cleanupOldCache(): Promise<void> {
+    try {
+      const cutoffDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+      
+      // Clean up old search cache (keep frequently accessed ones longer)
+      await db
+        .delete(searchCache)
+        .where(sql`${searchCache.lastAccessed} < ${cutoffDate} AND ${searchCache.accessCount} < 5`);
+      
+      // Clean up old card cache (keep frequently searched ones)
+      await db
+        .delete(cardCache)
+        .where(sql`${cardCache.lastUpdated} < ${cutoffDate} AND ${cardCache.searchCount} < 3`);
+      
+      console.log('Cache cleanup completed');
+    } catch (error) {
+      console.error('Error during cache cleanup:', error);
+    }
   }
 }
 
