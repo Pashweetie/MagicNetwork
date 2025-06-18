@@ -304,8 +304,8 @@ export class ScryfallQueryParser {
     // Oracle text search - split words and create AND logic
     if (filters.oracleText && filters.oracleText.trim()) {
       const words = filters.oracleText.trim().split(/\s+/);
-      const oracleQuery = words.map(word => `o:${word}`).join(' ');
-      parts.push(oracleQuery);
+      const oracleQueries = words.map(word => `o:${word}`);
+      parts.push(...oracleQueries);
     }
 
     // Set search
