@@ -99,9 +99,9 @@ export function ThemeSuggestions({ card, onCardClick }: ThemeSuggestionsProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Sparkles className="w-5 h-5 text-blue-400" />
-          <h3 className="text-lg font-semibold text-white">Smart Theme Suggestions</h3>
+          <h3 className="text-lg font-semibold text-white">AI Synergies</h3>
           <div className="text-xs text-green-300 bg-green-900/30 px-2 py-1 rounded">
-            AI Powered
+            AI Generated
           </div>
         </div>
         <div className="text-sm text-slate-400">
