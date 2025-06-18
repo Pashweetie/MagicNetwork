@@ -42,12 +42,12 @@ export default function Search() {
     // Apply format filtering
     const formatFilters: string[] = [];
     
-    // Add format-specific filters
+    // Add format-specific filters (only for non-casual formats)
     if (deck.format.name !== 'Casual') {
       formatFilters.push(`legal:${deck.format.name.toLowerCase()}`);
     }
 
-    // Apply commander color identity filtering
+    // Apply commander color identity filtering only if commander is selected
     if (deck.format.name === 'Commander' && deck.commander) {
       const commanderColors = deck.commander.color_identity || [];
       
