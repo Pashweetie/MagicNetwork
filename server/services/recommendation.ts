@@ -103,7 +103,7 @@ export class RecommendationService {
           }
         }
         
-        console.log(`Found ${cards.length} cards for theme "${theme.theme}" with ${confidence * 100}% confidence`);
+        console.log(`Found ${cards.length} cards for theme "${theme.theme}" with ${confidence}% confidence`);
         
         themeGroups.push({
           theme: theme.theme,
@@ -114,6 +114,7 @@ export class RecommendationService {
       }
       
       console.log(`Returning ${themeGroups.length} theme groups with cards and confidence`);
+      console.log('Theme groups:', themeGroups.map(g => ({ theme: g.theme, confidence: g.confidence, cardCount: g.cards.length })));
       return themeGroups;
       
     } catch (error) {
