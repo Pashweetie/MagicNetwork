@@ -4,8 +4,8 @@ import { Card } from "@shared/schema";
 import { Loader2, GitMerge, ThumbsUp, ThumbsDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CardDisplay } from "./card-display";
-import { apiRequest } from "@/lib/queryClient";
+import { CardTile } from "./card-tile";
+import { queryClient } from "@/lib/queryClient";
 
 interface ThemeBasedSynergiesProps {
   cardId: string;
@@ -47,14 +47,21 @@ export function ThemeBasedSynergies({ cardId, onCardClick, onAddCard, currentFil
 
   const handleFeedback = async (recommendedCardId: string, helpful: boolean) => {
     try {
-      await apiRequest(`/api/cards/${cardId}/recommendation-feedback`, {
+      const response = await fetch(`/api/cards/${cardId}/recommendation-feedback`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           recommendedCardId,
           type: 'theme_synergy',
           helpful: helpful ? 'helpful' : 'not_helpful'
         })
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to record feedback');
+      }
       
       setFeedback(prev => ({
         ...prev,
@@ -103,11 +110,12 @@ export function ThemeBasedSynergies({ cardId, onCardClick, onAddCard, currentFil
         >
           <div className="flex items-start space-x-4">
             <div className="flex-shrink-0">
-              <CardDisplay
-                card={synergy.card}
-                onClick={() => onCardClick(synergy.card)}
-                size="small"
-              />
+              <div className="w-20 h-28">
+                <CardTile
+                  card={synergy.card}
+                  onClick={() => onCardClick(synergy.card)}
+                />
+              </div>
             </div>
             
             <div className="flex-grow min-w-0">
