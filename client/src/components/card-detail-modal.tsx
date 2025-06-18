@@ -161,25 +161,35 @@ export function CardDetailModal({ card, isOpen, onClose, onCardClick }: CardDeta
   const colors = card.colors || card.color_identity || [];
   const price = card.prices?.usd ? `$${card.prices.usd}` : 'N/A';
 
+  const modalStyles = {
+    container: "max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-700",
+    title: "text-white text-xl",
+    grid: "grid grid-cols-1 lg:grid-cols-2 gap-6",
+    imageContainer: "flex justify-center",
+    image: "rounded-lg shadow-lg max-w-full h-auto",
+    imagePlaceholder: "bg-slate-600 rounded-lg w-full aspect-[3/4] flex items-center justify-center",
+    imagePlaceholderText: "text-slate-400"
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-700">
+      <DialogContent className={modalStyles.container}>
         <DialogHeader>
-          <DialogTitle className="text-white text-xl">{card.name}</DialogTitle>
+          <DialogTitle className={modalStyles.title}>{card.name}</DialogTitle>
         </DialogHeader>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className={modalStyles.grid}>
           {/* Card Image */}
-          <div className="flex justify-center">
+          <div className={modalStyles.imageContainer}>
             {cardImage ? (
               <img
                 src={cardImage}
                 alt={card.name}
-                className="rounded-lg shadow-lg max-w-full h-auto"
+                className={modalStyles.image}
               />
             ) : (
-              <div className="bg-slate-600 rounded-lg w-full aspect-[3/4] flex items-center justify-center">
-                <span className="text-slate-400">No image available</span>
+              <div className={modalStyles.imagePlaceholder}>
+                <span className={modalStyles.imagePlaceholderText}>No image available</span>
               </div>
             )}
           </div>

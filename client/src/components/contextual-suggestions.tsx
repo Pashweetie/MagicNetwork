@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card } from "@shared/schema";
 import { useState } from "react";
 import { CardDetailModal } from "./card-detail-modal";
-import { cardStyles, layoutStyles } from "../styles";
+import { cardStyles } from "../styles/card.styles";
 
 interface ContextualSuggestionsProps {
   limit?: number;
