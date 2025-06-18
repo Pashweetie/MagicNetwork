@@ -574,6 +574,24 @@ Provide: SCORE|REASON (e.g., "85|Both are 3-mana removal spells with similar eff
   private cardMatchesFilters(card: Card, filters: any): boolean {
     if (!filters) return true;
 
+    // Parse query-based filters (like "id<=BG")
+    if (filters.query && typeof filters.query === 'string') {
+      // Extract color identity constraint from query like "id<=BG"
+      const colorIdentityMatch = filters.query.match(/id<=([WUBRG]+)/);
+      if (colorIdentityMatch) {
+        const allowedColors = colorIdentityMatch[1].split('');
+        const cardColorIdentity = card.color_identity || [];
+        
+        const isValidIdentity = cardColorIdentity.every((color: string) => 
+          allowedColors.includes(color)
+        );
+        
+        if (!isValidIdentity) {
+          return false;
+        }
+      }
+    }
+
     // Color identity filtering (for commander format)
     if (filters.colorIdentity && filters.colorIdentity.length > 0) {
       const cardColorIdentity = card.color_identity || [];
