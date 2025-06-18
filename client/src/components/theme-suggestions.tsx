@@ -29,6 +29,22 @@ export function ThemeSuggestions({ card, onCardClick }: ThemeSuggestionsProps) {
     },
   });
 
+  const handleThemeFeedback = async (themeName: string, feedback: 'helpful' | 'not_helpful') => {
+    try {
+      await fetch(`/api/cards/${card.id}/theme-feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          themeName,
+          feedback,
+          reason: feedback === 'not_helpful' ? 'Theme does not match card strategy' : null
+        })
+      });
+    } catch (error) {
+      console.error('Failed to submit feedback:', error);
+    }
+  };
+
   const getThemeIcon = (theme: string) => {
     const themeLower = theme.toLowerCase();
     if (themeLower.includes('stax') || themeLower.includes('control')) {

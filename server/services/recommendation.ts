@@ -536,19 +536,16 @@ export class RecommendationService {
       console.log(`Added Dungeon & Initiative theme for ${card.name}`);
     }
 
-    // EQUIPMENT VOLTRON - Only for creatures that benefit from being buffed OR equipment itself
-    const isGoodVoltronTarget = (
-      typeLine.includes('legendary') || // Commanders
-      oracleText.includes('hexproof') || oracleText.includes('protection') ||
-      oracleText.includes('unblockable') || oracleText.includes('trample') ||
-      oracleText.includes('double strike') || oracleText.includes('equipped') ||
-      typeLine.includes('equipment') || typeLine.includes('aura')
+    // EQUIPMENT VOLTRON - Only for actual equipment/aura cards or creatures that explicitly benefit from equipment
+    const isActualVoltronCard = (
+      typeLine.includes('equipment') || typeLine.includes('aura') ||
+      oracleText.includes('equipped creature') || oracleText.includes('enchanted creature') ||
+      oracleText.includes('attach') || oracleText.includes('equip') ||
+      oracleText.includes('hexproof') || oracleText.includes('protection from') ||
+      (typeLine.includes('legendary') && (oracleText.includes('equipment') || oracleText.includes('aura')))
     );
     
-    if (isGoodVoltronTarget && this.matchesTheme(cardName, oracleText, [
-      'equipment', 'attach', 'equipped creature gets', 'equip', 'aura', 'enchant creature',
-      'target creature gets', 'hexproof', 'protection', 'unblockable'
-    ])) {
+    if (isActualVoltronCard) {
       themes.push({
         name: 'Voltron Equipment',
         description: 'Build up one powerful creature with equipment and auras',

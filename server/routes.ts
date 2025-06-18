@@ -187,11 +187,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await storage.recordRecommendationFeedback({
         userId,
-        cardId: id,
+        sourceCardId: id,
+        recommendedCardId: id, // For theme feedback, source and recommended are the same
         recommendationType: 'theme',
-        themeName,
         feedback,
-        reason
+        userComment: reason
       });
       
       res.json({ message: "Feedback recorded" });

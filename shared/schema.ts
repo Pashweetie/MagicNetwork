@@ -197,7 +197,7 @@ export const insertUserInteractionSchema = createInsertSchema(userInteractions).
 
 export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, createdAt: true, lastUpdated: true });
 export const insertRecommendationFeedbackSchema = createInsertSchema(recommendationFeedback).omit({ id: true, createdAt: true });
-export const insertThemeWeightSchema = createInsertSchema(themeWeights).omit({ id: true, createdAt: true, updatedAt: true });
+// export const insertThemeWeightSchema = createInsertSchema(themeWeights).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -218,5 +218,5 @@ export type CardTheme = typeof cardThemes.$inferSelect;
 export type InsertCardTheme = z.infer<typeof insertCardThemeSchema>;
 export type RecommendationFeedback = typeof recommendationFeedback.$inferSelect;
 export type InsertRecommendationFeedback = z.infer<typeof insertRecommendationFeedbackSchema>;
-export type ThemeWeight = typeof themeWeights.$inferSelect;
-export type InsertThemeWeight = z.infer<typeof insertThemeWeightSchema>;
+// export type ThemeWeight = typeof themeWeights.$inferSelect;
+// export type InsertThemeWeight = z.infer<typeof insertThemeWeightSchema>;
