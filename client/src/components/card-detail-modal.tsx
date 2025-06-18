@@ -34,7 +34,7 @@ function ThemeRecommendations({ cardId, onCardClick, currentFilters }: { cardId:
 // Synergy Recommendations Component
 function SynergyRecommendations({ cardId, onCardClick, onAddCard, currentFilters }: { cardId: string; onCardClick: (card: Card) => void; onAddCard?: (card: Card) => void; currentFilters?: any }) {
   const { data: recommendations, isLoading, error } = useQuery({
-    queryKey: ['/api/cards', cardId, 'recommendations', 'synergy'],
+    queryKey: ['/api/cards', cardId, 'recommendations', 'synergy', currentFilters],
     queryFn: async () => {
       const filterParams = currentFilters ? `&filters=${encodeURIComponent(JSON.stringify(currentFilters))}` : '';
       const response = await fetch(`/api/cards/${cardId}/recommendations?type=synergy&limit=15${filterParams}`);
@@ -108,7 +108,7 @@ function SynergyRecommendations({ cardId, onCardClick, onAddCard, currentFilters
 // Similar Recommendations Component
 function SimilarRecommendations({ cardId, onCardClick, onAddCard, currentFilters }: { cardId: string; onCardClick: (card: Card) => void; onAddCard?: (card: Card) => void; currentFilters?: any }) {
   const { data: recommendations, isLoading, error } = useQuery({
-    queryKey: ['/api/cards', cardId, 'recommendations', 'functional_similarity'],
+    queryKey: ['/api/cards', cardId, 'recommendations', 'functional_similarity', currentFilters],
     queryFn: async () => {
       const filterParams = currentFilters ? `&filters=${encodeURIComponent(JSON.stringify(currentFilters))}` : '';
       const response = await fetch(`/api/cards/${cardId}/recommendations?type=functional_similarity&limit=15${filterParams}`);
