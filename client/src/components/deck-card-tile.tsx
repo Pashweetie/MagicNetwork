@@ -1,7 +1,7 @@
 import { Card } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Minus } from "lucide-react";
+import { Plus, Minus, Crown } from "lucide-react";
 
 interface DeckCardTileProps {
   card: Card;
@@ -10,6 +10,8 @@ interface DeckCardTileProps {
   onAdd: () => void;
   onRemove: () => void;
   onClick: (card: Card) => void;
+  onSetCommander?: (card: Card) => void;
+  isCommander?: boolean;
   showControls?: boolean;
 }
 
@@ -20,6 +22,8 @@ export function DeckCardTile({
   onAdd, 
   onRemove, 
   onClick,
+  onSetCommander,
+  isCommander = false,
   showControls = true 
 }: DeckCardTileProps) {
   const canAdd = quantity < maxCopies;

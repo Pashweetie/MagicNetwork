@@ -5,11 +5,12 @@ import { CardTile } from "./card-tile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ThumbsUp, ThumbsDown, X, Lightbulb, GitMerge, Copy } from "lucide-react";
+import { ThumbsUp, ThumbsDown, X, Lightbulb, GitMerge, Copy, Plus } from "lucide-react";
 
 interface CardRecommendationsProps {
   cardId: string;
   onCardClick: (card: Card) => void;
+  onAddCard?: (card: Card) => void;
 }
 
 interface RecommendationWithCard {
@@ -18,7 +19,7 @@ interface RecommendationWithCard {
   reason: string;
 }
 
-export function CardRecommendations({ cardId, onCardClick }: CardRecommendationsProps) {
+export function CardRecommendations({ cardId, onCardClick, onAddCard }: CardRecommendationsProps) {
   const [activeTab, setActiveTab] = useState<'synergy' | 'functional_similarity'>('synergy');
   
   const { data: recommendations, isLoading, error } = useQuery({
@@ -117,12 +118,28 @@ export function CardRecommendations({ cardId, onCardClick }: CardRecommendations
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {recommendations.map((rec: any) => (
-            <div key={rec.card.id} className="relative group">
+          {recommendations
+            .filter((rec: any, index: number, self: any[]) => 
+              self.findIndex((r: any) => r.card.id === rec.card.id) === index
+            )
+            .map((rec: any, index: number) => (
+            <div key={`${rec.card.id}-${activeTab}-${index}`} className="relative group">
               <CardTile
                 card={rec.card}
                 onClick={onCardClick}
               />
+              {onAddCard && (
+                <Button
+                  size="sm"
+                  className="absolute top-2 right-2 h-6 w-6 p-0 bg-blue-600 hover:bg-blue-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddCard(rec.card);
+                  }}
+                >
+                  <Plus className="w-3 h-3" />
+                </Button>
+              )}
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <div className="text-xs text-white">
                   <div className="flex items-center justify-between mb-1">

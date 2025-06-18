@@ -151,8 +151,30 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
   const canAddCard = useCallback((card: Card): boolean => {
     const currentQuantity = getCardQuantity(card.id);
     const maxAllowed = getMaxCopies(card);
+    
+    // Check color identity constraints for Commander format
+    if (format.name === 'Commander' && commander) {
+      const commanderColors = commander.color_identity || [];
+      const cardColors = card.color_identity || [];
+      
+      if (!cardColors.every(color => commanderColors.includes(color))) {
+        return false;
+      }
+    }
+    
     return currentQuantity < maxAllowed;
-  }, [getCardQuantity, getMaxCopies]);
+  }, [getCardQuantity, getMaxCopies, format, commander]);
+
+  const setCommanderFromCard = useCallback((card: Card) => {
+    if (card.type_line?.toLowerCase().includes('legendary') && 
+        card.type_line?.toLowerCase().includes('creature')) {
+      if (commander?.id === card.id) {
+        setCommander(null); // Remove if already commander
+      } else {
+        setCommander(card); // Set as new commander
+      }
+    }
+  }, [commander]);
 
   const totalCards = deckEntries.reduce((sum, entry) => sum + entry.quantity, 0);
   const uniqueCards = deckEntries.length;

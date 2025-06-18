@@ -165,36 +165,21 @@ export default function Search() {
                   <span>Deck ({deck.totalCards})</span>
                 </Button>
                 
-                {/* Commander Selection */}
-                <Select value={deck.commander?.id || "none"} onValueChange={(commanderId) => {
-                  if (commanderId === "none") {
-                    deck.setCommander(null);
-                  } else {
-                    const commander = allCards.find(card => card.id === commanderId);
-                    if (commander) {
-                      deck.setCommander(commander);
-                    }
-                  }
-                }}>
-                  <SelectTrigger className="w-48 bg-slate-800 border-slate-600">
-                    <SelectValue placeholder="Choose Commander" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-600">
-                    <SelectItem value="none">No Commander</SelectItem>
-                    {allCards
-                      .filter(card => 
-                        card.type_line?.toLowerCase().includes('legendary') && 
-                        card.type_line?.toLowerCase().includes('creature')
-                      )
-                      .slice(0, 20)
-                      .map(card => (
-                        <SelectItem key={card.id} value={card.id}>
-                          {card.name}
-                        </SelectItem>
-                      ))
-                    }
-                  </SelectContent>
-                </Select>
+                {/* Commander Display */}
+                {deck.commander && (
+                  <div className="flex items-center space-x-2 px-3 py-2 bg-yellow-900/30 border border-yellow-600/50 rounded-lg">
+                    <Crown className="w-4 h-4 text-yellow-400" />
+                    <span className="text-sm text-yellow-200">Commander: {deck.commander.name}</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-5 w-5 p-0 text-yellow-400 hover:text-yellow-300"
+                      onClick={() => deck.setCommander(null)}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                )}
               </div>
               
               <div className="flex items-center space-x-2">
@@ -334,6 +319,8 @@ export default function Search() {
                     onAdd={() => deck.addCard(card)}
                     onRemove={() => deck.removeCard(card.id)}
                     onClick={handleCardClick}
+                    onSetCommander={deck.format.name === 'Commander' ? deck.setCommanderFromCard : undefined}
+                    isCommander={deck.commander?.id === card.id}
                   />
                 ))}
               </div>
