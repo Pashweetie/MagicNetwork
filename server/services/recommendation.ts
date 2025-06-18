@@ -3,18 +3,30 @@ import { Card, cardThemes, InsertCardTheme } from "@shared/schema";
 import { db } from "../db";
 import { cardCache } from "@shared/schema";
 import { desc, sql, eq } from "drizzle-orm";
-import { Ollama } from 'ollama';
+import { pipeline } from '@xenova/transformers';
 
 export class RecommendationService {
-  private ollama: Ollama | null = null;
-
+  private textGenerator: any = null;
+  private isInitializing = false;
+  
   constructor() {
-    // Initialize Ollama (runs locally, no API key needed)
+    this.initializeLocalAI();
+  }
+
+  private async initializeLocalAI() {
+    if (this.isInitializing) return;
+    this.isInitializing = true;
+    
     try {
-      this.ollama = new Ollama({ host: 'http://localhost:11434' });
+      console.log('Initializing local AI model...');
+      // Use a lightweight text generation model that runs locally
+      this.textGenerator = await pipeline('text2text-generation', 'Xenova/flan-t5-small');
+      console.log('Local AI model loaded successfully');
     } catch (error) {
-      console.log('Ollama not available, using fallback themes');
+      console.error('Failed to load local AI model:', error);
+      console.log('Falling back to enhanced pattern matching');
     }
+    this.isInitializing = false;
   }
   
   // Generate recommendations for a specific card
@@ -97,8 +109,8 @@ export class RecommendationService {
 
       const card = sourceCard as Card;
 
-      // Generate themes using AI analysis
-      const detectedThemes = await this.analyzeCardWithAI(card);
+      // Generate themes using local AI analysis
+      const detectedThemes = await this.analyzeCardWithLocalAI(card);
       
       const results: Array<{theme: string, description: string, cards: Card[]}> = [];
 
@@ -121,60 +133,200 @@ export class RecommendationService {
     }
   }
 
-  private async analyzeCardWithAI(card: Card): Promise<Array<{name: string, description: string, keywords: string[], searchTerms: string[]}>> {
-    if (!this.ollama) {
-      return this.getFallbackThemes(card);
-    }
-
-    try {
-      const prompt = `Analyze this Magic: The Gathering card and identify 3-5 strategic deck themes it belongs to or enables.
-
-Card Name: ${card.name}
-Type: ${card.type_line}
-Mana Cost: ${card.mana_cost || 'N/A'}
-Oracle Text: ${card.oracle_text || 'N/A'}
-
-Focus on identifying specific strategic themes this card supports. Consider:
-- What deck archetypes want this card? (Aggro, Control, Combo, Midrange, Stax, Prison, etc.)
-- What mechanical strategies does it enable? (Artifacts, Graveyard, Tokens, +1/+1 Counters, etc.)
-- What specific themes or synergies? (Theft/Control Magic, Mill, Burn, Lifegain, Sacrifice, etc.)
-- What tribal strategies does it support?
-
-For each theme, provide:
-1. A concise theme name (2-4 words)
-2. A brief description explaining why this card fits
-3. Keywords that other cards in this theme might have
-4. Search terms to find related cards in the database
-
-Be specific and strategic - focus on how this card actually gets used in competitive play.
-
-Respond in JSON format:
-{
-  "themes": [
-    {
-      "name": "Theft & Control Magic",
-      "description": "Taking control of opponent's permanents and resources",
-      "keywords": ["steal", "control", "gain control", "exchange"],
-      "searchTerms": ["gain control", "take control", "steal", "exchange control", "control target"]
-    }
-  ]
-}`;
-
-      const response = await this.ollama.chat({
-        model: 'llama3.2',
-        messages: [{ role: 'user', content: prompt }],
-      });
-
+  private async analyzeCardWithLocalAI(card: Card): Promise<Array<{name: string, description: string, keywords: string[], searchTerms: string[]}>> {
+    // First try local AI if available
+    if (this.textGenerator) {
       try {
-        const parsed = JSON.parse(response.message.content);
-        return parsed.themes || [];
-      } catch (parseError) {
-        console.error('Error parsing Ollama response:', parseError);
-        return this.getFallbackThemes(card);
+        const aiThemes = await this.generateThemesWithAI(card);
+        if (aiThemes.length > 0) {
+          return aiThemes;
+        }
+      } catch (error) {
+        console.error('Local AI analysis failed:', error);
       }
+    }
+    
+    // Fallback to enhanced pattern matching
+    return this.analyzeCardIntelligently(card);
+  }
+
+  private async generateThemesWithAI(card: Card): Promise<Array<{name: string, description: string, keywords: string[], searchTerms: string[]}>> {
+    const prompt = `Analyze this Magic card for deck themes. Card: ${card.name}, Type: ${card.type_line}, Text: ${card.oracle_text || 'No text'}. List 3 strategic themes this card enables (like Theft, Stax, Tokens, Reanimator, etc.) with keywords to find similar cards.`;
+    
+    try {
+      const result = await this.textGenerator(prompt, {
+        max_length: 200,
+        temperature: 0.7,
+      });
+      
+      // Parse AI response and extract themes
+      const aiText = result[0]?.generated_text || '';
+      return this.parseAIThemes(aiText, card);
     } catch (error) {
-      console.error('Error generating Ollama themes:', error);
-      return this.getFallbackThemes(card);
+      console.error('AI theme generation failed:', error);
+      return [];
+    }
+  }
+
+  private parseAIThemes(aiText: string, card: Card): Array<{name: string, description: string, keywords: string[], searchTerms: string[]}> {
+    const themes = [];
+    const text = aiText.toLowerCase();
+    
+    // Extract common strategic themes from AI response
+    const themePatterns = {
+      'Theft & Control Magic': ['theft', 'steal', 'control', 'gain control'],
+      'Stax & Prison': ['stax', 'prison', 'tax', 'restriction', 'lock'],
+      'Token Generation': ['token', 'create', 'generate', 'swarm'],
+      'Reanimator': ['reanimate', 'graveyard', 'return', 'resurrect'],
+      'Combo Enabler': ['combo', 'infinite', 'engine', 'catalyst'],
+      'Artifact Synergy': ['artifact', 'equipment', 'construct'],
+      'Aristocrats': ['sacrifice', 'dies', 'death', 'aristocrat'],
+      'Burn Strategy': ['damage', 'burn', 'direct'],
+      'Card Draw': ['draw', 'card advantage', 'cards'],
+      'Ramp Strategy': ['ramp', 'mana', 'acceleration']
+    };
+
+    for (const [themeName, keywords] of Object.entries(themePatterns)) {
+      if (keywords.some(keyword => text.includes(keyword))) {
+        themes.push({
+          name: themeName,
+          description: `${themeName} strategy utilizing ${card.name}`,
+          keywords: keywords,
+          searchTerms: keywords
+        });
+      }
+    }
+
+    return themes.slice(0, 3);
+  }
+
+  private analyzeCardIntelligently(card: Card): Array<{name: string, description: string, keywords: string[], searchTerms: string[]}> {
+    const themes = [];
+    const cardName = (card.name || '').toLowerCase();
+    const oracleText = (card.oracle_text || '').toLowerCase();
+    const typeLine = (card.type_line || '').toLowerCase();
+    const manaCost = card.mana_cost || '';
+
+    // Enhanced pattern matching with contextual analysis
+    
+    // THEFT & CONTROL MAGIC - Enhanced detection
+    if (this.matchesTheme(cardName, oracleText, [
+      'abduction', 'steal', 'mind control', 'confiscate', 'control magic',
+      'gain control', 'take control', 'exchange control', 'threaten',
+      'act of treason', 'claims to fame'
+    ])) {
+      themes.push({
+        name: 'Theft & Control Magic',
+        description: 'Taking control of opponent permanents and resources',
+        keywords: ['steal', 'control', 'gain control', 'exchange', 'threaten'],
+        searchTerms: ['gain control', 'take control', 'steal', 'exchange control', 'control target']
+      });
+    }
+
+    // STAX & PRISON - Enhanced detection
+    if (this.matchesTheme(cardName, oracleText, [
+      'winter orb', 'static orb', 'tangle wire', 'smokestack', 'trinisphere',
+      'sphere of resistance', 'thorn of amethyst', 'thalia', 'vryn wingmare',
+      'can\'t attack', 'can\'t block', 'can\'t activate', 'can\'t untap',
+      'additional cost', 'costs more', 'tax'
+    ])) {
+      themes.push({
+        name: 'Stax & Prison',
+        description: 'Resource denial and restricting opponent actions',
+        keywords: ['tax', 'additional cost', 'can\'t', 'sphere', 'orb'],
+        searchTerms: ['additional cost', 'can\'t attack', 'can\'t activate', 'costs more', 'tax']
+      });
+    }
+
+    // ARISTOCRATS & SACRIFICE - Enhanced detection
+    if (this.matchesTheme(cardName, oracleText, [
+      'blood artist', 'zulaport cutthroat', 'falkenrath aristocrat', 'viscera seer',
+      'sacrifice', 'when dies', 'whenever dies', 'death trigger', 'aristocrats',
+      'each opponent loses life', 'whenever a creature dies'
+    ])) {
+      themes.push({
+        name: 'Aristocrats & Sacrifice',
+        description: 'Converting creature deaths into value and damage',
+        keywords: ['sacrifice', 'dies', 'death', 'aristocrat', 'blood'],
+        searchTerms: ['sacrifice', 'when dies', 'whenever dies', 'death trigger', 'loses life']
+      });
+    }
+
+    // REANIMATOR - Enhanced detection
+    if (this.matchesTheme(cardName, oracleText, [
+      'reanimate', 'animate dead', 'necromancy', 'exhume', 'living death',
+      'return from graveyard', 'return target creature', 'unearth', 'persist',
+      'undying', 'flashback', 'disturb'
+    ])) {
+      themes.push({
+        name: 'Reanimator',
+        description: 'Cheating expensive creatures from graveyard to battlefield',
+        keywords: ['reanimate', 'return', 'graveyard', 'unearth', 'persist'],
+        searchTerms: ['return from graveyard', 'return target creature', 'reanimate', 'unearth']
+      });
+    }
+
+    // COMBO ENABLER - Enhanced detection
+    if (this.matchesTheme(cardName, oracleText, [
+      'infinite', 'untap all', 'storm', 'cascade', 'flash', 'show and tell',
+      'sneak attack', 'enter the infinite', 'dramatic reversal', 'isochron scepter',
+      'paradox engine', 'kiki-jiki', 'splinter twin', 'deceiver exarch'
+    ])) {
+      themes.push({
+        name: 'Combo Enabler',
+        description: 'Cards that enable infinite combos or explosive turns',
+        keywords: ['infinite', 'untap', 'storm', 'flash', 'cascade'],
+        searchTerms: ['infinite', 'untap all', 'storm', 'cascade', 'flash']
+      });
+    }
+
+    // Continue with other enhanced theme detections...
+    this.addAdditionalThemes(themes, cardName, oracleText, typeLine, manaCost);
+
+    return themes.slice(0, 5); // Return top 5 themes
+  }
+
+  private matchesTheme(cardName: string, oracleText: string, patterns: string[]): boolean {
+    const searchText = `${cardName} ${oracleText}`.toLowerCase();
+    return patterns.some(pattern => searchText.includes(pattern.toLowerCase()));
+  }
+
+  private addAdditionalThemes(themes: any[], cardName: string, oracleText: string, typeLine: string, manaCost: string): void {
+    // TOKEN STRATEGIES
+    if (this.matchesTheme(cardName, oracleText, [
+      'token', 'create', 'populate', 'convoke', 'go wide', 'doubling season'
+    ])) {
+      themes.push({
+        name: 'Token Strategies',
+        description: 'Creating and leveraging creature tokens',
+        keywords: ['token', 'create', 'populate', 'convoke'],
+        searchTerms: ['create token', 'token creature', 'populate']
+      });
+    }
+
+    // VOLTRON EQUIPMENT
+    if (this.matchesTheme(cardName, oracleText, [
+      'equipment', 'attach', 'equipped creature', 'aura', 'enchant creature',
+      'voltron', 'sword of', 'jitte', 'batterskull'
+    ])) {
+      themes.push({
+        name: 'Voltron Equipment',
+        description: 'Building up one powerful creature with equipment/auras',
+        keywords: ['equipment', 'aura', 'attach', 'enchant'],
+        searchTerms: ['equipment', 'attach', 'enchant creature', 'equipped creature']
+      });
+    }
+
+    // STORM COMBO
+    if (this.matchesTheme(cardName, oracleText, [
+      'storm', 'ritual', 'mana', 'add mana', 'fast mana', 'tendrils of agony'
+    ])) {
+      themes.push({
+        name: 'Storm Combo',
+        description: 'Chaining spells for explosive storm finishes',
+        keywords: ['storm', 'ritual', 'mana', 'chain'],
+        searchTerms: ['storm', 'add mana', 'ritual', 'fast mana']
+      });
     }
   }
 
@@ -458,7 +610,7 @@ Respond in JSON format:
   }
 
   async analyzeAndStoreCardThemes(card: Card): Promise<any[]> {
-    const themes = await this.analyzeCardWithAI(card);
+    const themes = await this.analyzeCardWithLocalAI(card);
     const storedThemes = [];
 
     for (const theme of themes) {
