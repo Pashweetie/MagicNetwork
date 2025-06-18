@@ -108,9 +108,8 @@ export const cardCache = pgTable('card_cache', {
 export const searchCache = pgTable('search_cache', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
   queryHash: text('query_hash').notNull().unique(),
-  filters: jsonb('filters').$type<SearchFilters>().notNull(),
-  resultData: jsonb('result_data').$type<SearchResponse>().notNull(),
-  page: integer('page').notNull(),
+  query: text('query').notNull(),
+  results: jsonb('results').$type<SearchResponse>().notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   lastAccessed: timestamp('last_accessed').defaultNow().notNull(),
   accessCount: integer('access_count').default(1).notNull(),
