@@ -11,6 +11,8 @@ export const cardSchema = z.object({
   oracle_text: z.string().optional(),
   colors: z.array(z.string()).optional(),
   color_identity: z.array(z.string()).optional(),
+  power: z.string().optional(),
+  toughness: z.string().optional(),
   rarity: z.enum(['common', 'uncommon', 'rare', 'mythic']),
   set: z.string(),
   set_name: z.string(),

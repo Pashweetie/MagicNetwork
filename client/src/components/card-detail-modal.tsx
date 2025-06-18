@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Card } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { CardRecommendations } from "./card-recommendations";
 
 interface CardDetailModalProps {
   card: Card | null;
@@ -150,6 +151,17 @@ export function CardDetailModal({ card, isOpen, onClose }: CardDetailModalProps)
               </div>
             )}
           </div>
+        </div>
+
+        {/* Recommendations Section */}
+        <div className="px-6 pb-6">
+          <CardRecommendations 
+            cardId={card.id} 
+            onCardClick={(newCard) => {
+              // For now just close the modal, could open new card instead
+              onClose();
+            }}
+          />
         </div>
       </DialogContent>
     </Dialog>

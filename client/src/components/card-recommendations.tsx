@@ -21,7 +21,7 @@ interface RecommendationWithCard {
 export function CardRecommendations({ cardId, onCardClick }: CardRecommendationsProps) {
   const { data: recommendations, isLoading, error } = useQuery({
     queryKey: ['/api/cards', cardId, 'recommendations'],
-    queryFn: () => apiRequest<RecommendationWithCard[]>(`/api/cards/${cardId}/recommendations?limit=8`),
+    queryFn: () => apiRequest(`/api/cards/${cardId}/recommendations?limit=8`),
     enabled: !!cardId,
   });
 
@@ -41,7 +41,7 @@ export function CardRecommendations({ cardId, onCardClick }: CardRecommendations
     );
   }
 
-  if (error || !recommendations || recommendations.length === 0) {
+  if (error || !recommendations || !Array.isArray(recommendations) || recommendations.length === 0) {
     return (
       <div className="space-y-4">
         <div className="flex items-center space-x-2">
@@ -68,7 +68,7 @@ export function CardRecommendations({ cardId, onCardClick }: CardRecommendations
       </div>
       
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-        {recommendations.map((rec) => (
+        {recommendations.map((rec: any) => (
           <div key={rec.card.id} className="relative group">
             <CardTile
               card={rec.card}
