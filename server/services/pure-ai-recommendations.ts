@@ -276,7 +276,7 @@ Value Engine: Generates card advantage over time`;
         if (!card?.id) continue;
 
         // Apply filters early
-        if (filters && !this.cardMatchesFilters(card, filters)) continue;
+        if (filters && !cardMatchesFilters(card, filters)) continue;
 
         // Use AI to score card relevance to theme
         const aiScore = await this.scoreCardForThemeWithAI(card, theme);
@@ -571,64 +571,7 @@ Provide: SCORE|REASON (e.g., "85|Both are 3-mana removal spells with similar eff
     };
   }
 
-  private cardMatchesFilters(card: Card, filters: any): boolean {
-    if (!filters) return true;
 
-    // Parse query-based filters (like "id<=BG")
-    if (filters.query && typeof filters.query === 'string') {
-      // Extract color identity constraint from query like "id<=BG"
-      const colorIdentityMatch = filters.query.match(/id<=([WUBRG]+)/);
-      if (colorIdentityMatch) {
-        const allowedColors = colorIdentityMatch[1].split('');
-        const cardColorIdentity = card.color_identity || [];
-        
-        const isValidIdentity = cardColorIdentity.every((color: string) => 
-          allowedColors.includes(color)
-        );
-        
-        if (!isValidIdentity) {
-          return false;
-        }
-      }
-    }
-
-    // Color identity filtering (for commander format)
-    if (filters.colorIdentity && filters.colorIdentity.length > 0) {
-      const cardColorIdentity = card.color_identity || [];
-      // Card's color identity must be subset of commander's identity
-      const isValidIdentity = cardColorIdentity.every((color: string) => 
-        filters.colorIdentity.includes(color)
-      );
-      if (!isValidIdentity) {
-        return false;
-      }
-    }
-
-    // Color filtering (different from color identity)
-    if (filters.colors && filters.colors.length > 0) {
-      const cardColors = card.colors || [];
-      const hasMatchingColor = filters.colors.some((filterColor: string) => 
-        cardColors.includes(filterColor)
-      );
-      if (!hasMatchingColor && cardColors.length > 0) return false;
-    }
-
-    // Type filtering
-    if (filters.type) {
-      if (!card.type_line.toLowerCase().includes(filters.type.toLowerCase())) return false;
-    }
-
-    // CMC filtering
-    if (filters.cmc !== undefined) {
-      if (card.cmc !== filters.cmc) return false;
-    }
-
-    // CMC range filtering
-    if (filters.cmcMin !== undefined && card.cmc < filters.cmcMin) return false;
-    if (filters.cmcMax !== undefined && card.cmc > filters.cmcMax) return false;
-
-    return true;
-  }
 }
 
 export const pureAIService = new PureAIRecommendationService();

@@ -8,6 +8,7 @@ import { searchFiltersSchema, cardCache } from "@shared/schema";
 import { db } from "./db";
 import { desc } from "drizzle-orm";
 import { z } from "zod";
+import { cardMatchesFilters } from "./utils/card-filters";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Search cards endpoint
@@ -122,67 +123,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (filters) {
         try {
           const searchFilters = JSON.parse(filters as string);
-              const originalLength = recsWithCards.length;
           recsWithCards = recsWithCards.filter(rec => {
             if (!rec.card) return false;
-            const card = rec.card;
-            
-            // Filter by colors (including color identity)
-            if (searchFilters.colors && searchFilters.colors.length > 0) {
-              const cardColors = card.colors || [];
-              const cardColorIdentity = card.color_identity || [];
-              
-              // Check if card matches color filters
-              const hasMatchingColor = searchFilters.colors.some((filterColor: string) => {
-                // Handle single letter color codes and full names
-                const colorCode = filterColor.toUpperCase();
-                const colorName = filterColor.toLowerCase();
-                
-                return cardColors.includes(colorCode) || 
-                       cardColorIdentity.includes(colorCode) ||
-                       cardColors.some(c => c.toLowerCase() === colorName) ||
-                       cardColorIdentity.some(c => c.toLowerCase() === colorName);
-              });
-              
-              if (!hasMatchingColor) return false;
-            }
-            
-            // Filter by color identity (commander constraint)
-            if (searchFilters.colorIdentity && searchFilters.colorIdentity.length > 0) {
-              const cardIdentity = card.color_identity || [];
-              // Card's color identity must be subset of allowed colors (commander colors)
-              if (!cardIdentity.every((color: string) => searchFilters.colorIdentity.includes(color))) {
-                return false;
-              }
-            }
-            
-            // Filter by types
-            if (searchFilters.types && searchFilters.types.length > 0) {
-              const cardTypes = card.type_line.toLowerCase();
-              if (!searchFilters.types.some((type: string) => cardTypes.includes(type.toLowerCase()))) {
-                return false;
-              }
-            }
-            
-            // Filter by mana value range
-            if (searchFilters.minMv !== undefined && card.cmc < searchFilters.minMv) {
-              return false;
-            }
-            if (searchFilters.maxMv !== undefined && card.cmc > searchFilters.maxMv) {
-              return false;
-            }
-            
-            // Filter by format legality
-            if (searchFilters.format && searchFilters.format !== 'all') {
-              const legalities = card.legalities || {};
-              if (legalities[searchFilters.format] !== 'legal') {
-                return false;
-              }
-            }
-            
-            return true;
+            return cardMatchesFilters(rec.card, searchFilters);
           });
-          
         } catch (err) {
           console.warn('Failed to parse filters:', err);
         }

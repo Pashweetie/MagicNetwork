@@ -131,60 +131,7 @@ export class RecommendationService {
     }
   }
 
-  private cardMatchesFilters(card: Card, filters?: any): boolean {
-    if (!filters) return true;
-    
-    try {
-      // Parse query-based filters (like "id<=BG")
-      if (filters.query && typeof filters.query === 'string') {
-        // Extract color identity constraint from query like "id<=BG"
-        const colorIdentityMatch = filters.query.match(/id<=([WUBRG]+)/);
-        if (colorIdentityMatch) {
-          const allowedColors = colorIdentityMatch[1].split('');
-          const cardColorIdentity = card.color_identity || [];
-          
-          const isValidIdentity = cardColorIdentity.every((color: string) => 
-            allowedColors.includes(color)
-          );
-          
-          if (!isValidIdentity) {
-            return false;
-          }
-        }
-      }
 
-      // Color identity filtering (for commander format)
-      if (filters.colorIdentity && filters.colorIdentity.length > 0) {
-        const cardColorIdentity = card.color_identity || [];
-        // Card's color identity must be subset of commander's identity
-        const isValidIdentity = cardColorIdentity.every((color: string) => 
-          filters.colorIdentity.includes(color)
-        );
-        if (!isValidIdentity) {
-          return false;
-        }
-      }
-
-      // Regular color filtering
-      if (filters.colors && filters.colors.length > 0) {
-        const cardColors = card.colors || [];
-        const hasRequiredColors = filters.colors.every((color: string) => 
-          cardColors.includes(color)
-        );
-        if (!hasRequiredColors) return false;
-      }
-      
-      if (filters.cmc_min !== undefined && card.cmc < filters.cmc_min) return false;
-      if (filters.cmc_max !== undefined && card.cmc > filters.cmc_max) return false;
-      
-      if (filters.type && !card.type_line.toLowerCase().includes(filters.type.toLowerCase())) return false;
-      
-      return true;
-    } catch (error) {
-      console.error('Filter matching error:', error);
-      return true;
-    }
-  }
 
   // Generate recommendations for popular cards in batches
   async generateRecommendationsForPopularCards(limit: number = 50): Promise<void> {
