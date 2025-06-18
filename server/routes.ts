@@ -120,6 +120,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (filters) {
         try {
           const searchFilters = JSON.parse(filters as string);
+          console.log('Filtering recommendations with:', searchFilters);
+          console.log('Before filtering:', recsWithCards.length, 'recommendations');
+          
           recsWithCards = recsWithCards.filter(rec => {
             if (!rec.card) return false;
             const card = rec.card;
@@ -127,14 +130,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Filter by colors
             if (searchFilters.colors && searchFilters.colors.length > 0) {
               const cardColors = card.colors || [];
+              console.log('Checking card:', card.name, 'colors:', cardColors, 'vs filter:', searchFilters.colors);
+              
               if (searchFilters.includeMulticolored) {
                 // Card must contain all specified colors
-                if (!searchFilters.colors.every((color: string) => cardColors.includes(color))) {
+                const hasAllColors = searchFilters.colors.every((color: string) => cardColors.includes(color));
+                console.log('includeMulticolored=true, hasAllColors:', hasAllColors);
+                if (!hasAllColors) {
                   return false;
                 }
               } else {
-                // Card must contain at least one specified color (allow colorless cards if no colors specified)
-                if (!searchFilters.colors.some((color: string) => cardColors.includes(color))) {
+                // Card must contain at least one specified color
+                const hasAnyColor = searchFilters.colors.some((color: string) => cardColors.includes(color));
+                console.log('includeMulticolored=false, hasAnyColor:', hasAnyColor);
+                if (!hasAnyColor) {
                   return false;
                 }
               }

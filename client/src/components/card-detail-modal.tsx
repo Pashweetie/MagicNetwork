@@ -37,9 +37,12 @@ function SynergyRecommendations({ cardId, onCardClick, onAddCard, currentFilters
     queryKey: ['/api/cards', cardId, 'recommendations', 'synergy', currentFilters],
     queryFn: async () => {
       const filterParams = currentFilters ? `&filters=${encodeURIComponent(JSON.stringify(currentFilters))}` : '';
+      console.log('Synergy: Fetching with filters:', currentFilters, 'URL:', `/api/cards/${cardId}/recommendations?type=synergy&limit=15${filterParams}`);
       const response = await fetch(`/api/cards/${cardId}/recommendations?type=synergy&limit=15${filterParams}`);
       if (!response.ok) throw new Error('Failed to fetch synergy recommendations');
-      return response.json();
+      const data = await response.json();
+      console.log('Synergy: Got', data.length, 'recommendations');
+      return data;
     },
     enabled: !!cardId,
   });
@@ -155,9 +158,12 @@ function SimilarRecommendations({ cardId, onCardClick, onAddCard, currentFilters
     queryKey: ['/api/cards', cardId, 'recommendations', 'functional_similarity', currentFilters],
     queryFn: async () => {
       const filterParams = currentFilters ? `&filters=${encodeURIComponent(JSON.stringify(currentFilters))}` : '';
+      console.log('Similar: Fetching with filters:', currentFilters, 'URL:', `/api/cards/${cardId}/recommendations?type=functional_similarity&limit=15${filterParams}`);
       const response = await fetch(`/api/cards/${cardId}/recommendations?type=functional_similarity&limit=15${filterParams}`);
       if (!response.ok) throw new Error('Failed to fetch similar recommendations');
-      return response.json();
+      const data = await response.json();
+      console.log('Similar: Got', data.length, 'recommendations');
+      return data;
     },
     enabled: !!cardId,
   });

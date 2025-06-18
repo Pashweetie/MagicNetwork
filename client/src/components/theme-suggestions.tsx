@@ -168,9 +168,50 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
                   card={themeCard}
                   onClick={onCardClick}
                 />
+                
+                {/* Add to deck button */}
+                {onAddCard && (
+                  <div className="absolute top-1 left-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddCard(themeCard);
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white p-1.5 rounded-md shadow-lg transition-colors"
+                      title="Add to deck"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="text-xs text-white truncate">
-                    {themeCard.name}
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-white truncate flex-1">
+                      {themeCard.name}
+                    </div>
+                    <div className="flex items-center space-x-1 ml-2">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleThemeFeedback(group.theme, 'helpful');
+                        }}
+                        className="text-green-400 hover:text-green-300 p-1 hover:bg-green-400/20 rounded"
+                        title="This recommendation is helpful"
+                      >
+                        <ThumbsUp className="w-3 h-3" />
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleThemeFeedback(group.theme, 'not_helpful');
+                        }}
+                        className="text-red-400 hover:text-red-300 p-1 hover:bg-red-400/20 rounded"
+                        title="This recommendation is not helpful"
+                      >
+                        <ThumbsDown className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
