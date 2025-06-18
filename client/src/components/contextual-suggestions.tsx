@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card } from "@shared/schema";
 import { useState } from "react";
 import { CardDetailModal } from "./card-detail-modal";
+import { cardStyles, layoutStyles } from "../styles";
 
 interface ContextualSuggestionsProps {
   limit?: number;
@@ -34,9 +35,9 @@ export function ContextualSuggestions({ limit = 20 }: ContextualSuggestionsProps
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-white">Suggested for You</h3>
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+      <div className={cardStyles.suggestions.container}>
+        <h3 className={cardStyles.suggestions.title}>Suggested for You</h3>
+        <div className={cardStyles.suggestions.grid}>
           {Array.from({ length: 12 }).map((_, i) => (
             <div key={i} className="aspect-[5/7] bg-slate-700 rounded animate-pulse"></div>
           ))}
@@ -47,9 +48,9 @@ export function ContextualSuggestions({ limit = 20 }: ContextualSuggestionsProps
 
   if (!suggestions || (suggestions as Card[]).length === 0) {
     return (
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-white">Suggested for You</h3>
-        <div className="text-slate-400 text-center py-8">
+      <div className={cardStyles.suggestions.container}>
+        <h3 className={cardStyles.suggestions.title}>Suggested for You</h3>
+        <div className={cardStyles.suggestions.emptyState}>
           No personalized suggestions yet. Browse and interact with cards to get personalized recommendations.
         </div>
       </div>
@@ -57,17 +58,17 @@ export function ContextualSuggestions({ limit = 20 }: ContextualSuggestionsProps
   }
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-white">Suggested for You</h3>
-      <p className="text-sm text-slate-400">
+    <div className={cardStyles.suggestions.container}>
+      <h3 className={cardStyles.suggestions.title}>Suggested for You</h3>
+      <p className={cardStyles.suggestions.subtitle}>
         Based on your card viewing patterns and preferences
       </p>
       
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+      <div className={cardStyles.suggestions.grid}>
         {(suggestions as Card[]).map((card: Card, index: number) => (
           <div 
             key={`contextual-${card.id}-${index}`}
-            className="relative group cursor-pointer hover:scale-105 transition-transform"
+            className={cardStyles.tile.container}
             onClick={() => handleCardClick(card)}
           >
             <div className="aspect-[5/7] bg-slate-700 rounded overflow-hidden">
@@ -79,17 +80,16 @@ export function ContextualSuggestions({ limit = 20 }: ContextualSuggestionsProps
                   loading="lazy"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-slate-600 text-slate-300 text-xs text-center p-2">
-                  {card.name}
+                <div className={cardStyles.tile.placeholder}>
+                  <span className={cardStyles.tile.placeholderText}>{card.name}</span>
                 </div>
               )}
             </div>
             
-            {/* Hover overlay with card info */}
-            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-75 transition-opacity rounded flex items-end p-2 opacity-0 group-hover:opacity-100">
-              <div className="text-white text-xs">
-                <div className="font-bold">{card.name}</div>
-                <div className="text-slate-300">{card.mana_cost}</div>
+            <div className={cardStyles.tile.overlay}>
+              <div className={cardStyles.tile.overlayContent}>
+                <div className={cardStyles.tile.overlayTitle}>{card.name}</div>
+                <div className={cardStyles.tile.overlayMeta}>{card.mana_cost}</div>
               </div>
             </div>
           </div>
