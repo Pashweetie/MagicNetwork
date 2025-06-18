@@ -507,7 +507,7 @@ export class DatabaseStorage implements IStorage {
 
   // Find cards that synergize well (enabler-payoff relationships)
   async findSynergyCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
-    // Use AI-driven semantic analysis for synergy detection
+    // Use AI service for synergy detection
     return await this.findAISynergyCards(sourceCard);
   }
 
@@ -518,26 +518,23 @@ export class DatabaseStorage implements IStorage {
     const weights = await this.getRecommendationWeights();
     const synergyWeight = weights['synergy'] || 1.0;
     
-    // Get sample cards for analysis
+    // Get sample cards for AI analysis
     const sampleCards = await db
       .select()
       .from(cardCache)
       .where(sql`card_data->>'id' != ${sourceCard.id}`)
-      .limit(500);
+      .limit(400);
 
-    // Prepare source card context for AI analysis
-    const sourceContext = this.prepareCardContext(sourceCard);
+    const { aiRecommendationService } = await import('./services/ai-recommendation');
     
     for (const cached of sampleCards) {
       const card = cached.cardData as Card;
       if (!card || !card.id) continue;
       
-      const cardContext = this.prepareCardContext(card);
+      // Use AI service to analyze synergy
+      const synergyAnalysis = await aiRecommendationService.analyzeSynergy(sourceCard, card);
       
-      // Use AI to analyze synergy potential
-      const synergyAnalysis = await this.analyzeCardSynergy(sourceContext, cardContext);
-      
-      if (synergyAnalysis.score > 0) {
+      if (synergyAnalysis.score > 30) { // AI threshold
         synergies.push({
           cardId: card.id,
           score: synergyAnalysis.score * synergyWeight,
@@ -611,8 +608,7 @@ Example: 75|Token generator enables sacrifice payoff`;
       if (recommendationService.textGenerator) {
         const response = await recommendationService.textGenerator(prompt, {
           max_new_tokens: 50,
-          temperature: 0.2,
-          do_sample: true
+          temperature: 0.2
         });
 
         const aiText = response[0]?.generated_text || '';

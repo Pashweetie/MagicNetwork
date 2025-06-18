@@ -1,32 +1,21 @@
 import { storage } from "../storage";
-import { Card, cardThemes, InsertCardTheme, userInteractions } from "@shared/schema";
-import { db } from "../db";
-import { cardCache } from "@shared/schema";
-import { desc, sql, eq, and, inArray, gte } from "drizzle-orm";
-import { pipeline } from '@xenova/transformers';
+import { Card } from "@shared/schema";
+import { aiRecommendationService } from "./ai-recommendation";
 
 export class RecommendationService {
-  private textGenerator: any = null;
-  private isInitializing = false;
-  
+  public textGenerator: any = null;
+
   constructor() {
-    this.initializeLocalAI();
+    this.initializeAI();
   }
 
-  private async initializeLocalAI() {
-    if (this.isInitializing) return;
-    this.isInitializing = true;
-    
+  private async initializeAI() {
     try {
-      console.log('Initializing local AI model...');
-      // Use a lightweight text generation model that runs locally
+      const { pipeline } = await import('@xenova/transformers');
       this.textGenerator = await pipeline('text2text-generation', 'Xenova/flan-t5-small');
-      console.log('Local AI model loaded successfully');
     } catch (error) {
-      console.error('Failed to load local AI model:', error);
-      console.log('Falling back to enhanced pattern matching');
+      console.error('Failed to load AI model:', error);
     }
-    this.isInitializing = false;
   }
   
   // Generate recommendations for a specific card

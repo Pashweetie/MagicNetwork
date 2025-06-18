@@ -197,7 +197,7 @@ export const insertUserInteractionSchema = createInsertSchema(userInteractions).
 
 export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, createdAt: true, lastUpdated: true });
 export const insertRecommendationFeedbackSchema = createInsertSchema(recommendationFeedback).omit({ id: true, createdAt: true });
-// Clean up duplicate line
+export const insertRecommendationFeedbackSchema = createInsertSchema(recommendationFeedback).omit({ id: true, createdAt: true });
 // Deck persistence schema
 export const decks = pgTable('decks', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
