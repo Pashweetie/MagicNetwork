@@ -22,9 +22,10 @@ interface ThemeGroup {
 
 export function ThemeSuggestions({ card, onCardClick, currentFilters }: ThemeSuggestionsProps) {
   const { data: themeGroups, isLoading, error } = useQuery({
-    queryKey: ['/api/cards', card.id, 'theme-suggestions'],
+    queryKey: ['/api/cards', card.id, 'theme-suggestions', currentFilters],
     queryFn: async () => {
-      const response = await fetch(`/api/cards/${card.id}/theme-suggestions`);
+      const filterParams = currentFilters ? `?filters=${encodeURIComponent(JSON.stringify(currentFilters))}` : '';
+      const response = await fetch(`/api/cards/${card.id}/theme-suggestions${filterParams}`);
       if (!response.ok) throw new Error('Failed to fetch theme suggestions');
       return response.json();
     },

@@ -306,14 +306,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCardRecommendations(cardId: string, type: 'synergy' | 'functional_similarity', limit: number = 10, filters?: any): Promise<CardRecommendation[]> {
-    return db.select()
+    // Get recommendations from database with cards joined
+    const recommendations = await db.select()
       .from(cardRecommendations)
+      .innerJoin(cardCache, eq(cardRecommendations.recommendedCardId, cardCache.id))
       .where(and(
         eq(cardRecommendations.sourceCardId, cardId),
         eq(cardRecommendations.recommendationType, type)
       ))
       .orderBy(desc(cardRecommendations.score))
-      .limit(limit);
+      .limit(limit * 3); // Get more to filter from
+
+    let result = recommendations.map(row => ({
+      ...row.card_recommendations,
+      card: row.card_cache.data as Card
+    }));
+
+    // Apply filters if provided
+    if (filters) {
+      result = this.applyRecommendationFilters(result, filters);
+    }
+
+    return result.slice(0, limit);
   }
 
   async generateRecommendationsForCard(cardId: string): Promise<void> {
@@ -776,6 +790,39 @@ export class DatabaseStorage implements IStorage {
         'mana_cost_similarity': 0.3
       };
     }
+  }
+  private applyRecommendationFilters(recommendations: Array<CardRecommendation & {card: Card}>, filters: any): Array<CardRecommendation & {card: Card}> {
+    return recommendations.filter(rec => {
+      const card = rec.card;
+      
+      // Color identity filter (most important for commander)
+      if (filters.colorIdentity && filters.colorIdentity.length > 0) {
+        const allowedColors = new Set(filters.colorIdentity);
+        const cardColors = card.color_identity || [];
+        
+        // Every color in the card must be allowed by the commander
+        for (const color of cardColors) {
+          if (!allowedColors.has(color)) {
+            return false;
+          }
+        }
+      }
+      
+      // Regular color filter
+      if (filters.colors && filters.colors.length > 0) {
+        const cardColors = card.colors || [];
+        const hasMatchingColor = filters.colors.some((color: string) => cardColors.includes(color));
+        if (!hasMatchingColor && cardColors.length > 0) return false;
+      }
+      
+      // Format legality filter
+      if (filters.format && card.legalities) {
+        const formatLegality = card.legalities[filters.format.toLowerCase()];
+        if (formatLegality !== 'legal') return false;
+      }
+      
+      return true;
+    });
   }
 }
 

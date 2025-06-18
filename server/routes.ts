@@ -140,10 +140,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             }
             
-            // Filter by color identity
+            // Filter by color identity (commander constraint)
             if (searchFilters.colorIdentity && searchFilters.colorIdentity.length > 0) {
               const cardIdentity = card.color_identity || [];
-              // Card's color identity must be subset of search filter
+              // Card's color identity must be subset of allowed colors (commander colors)
               if (!cardIdentity.every((color: string) => searchFilters.colorIdentity.includes(color))) {
                 return false;
               }
@@ -244,8 +244,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/cards/:id/theme-suggestions", async (req, res) => {
     try {
       const { id } = req.params;
+      const { filters } = req.query;
       
-      const themeGroups = await recommendationService.getThemeSuggestions(id);
+      let filterObj = null;
+      if (filters && typeof filters === 'string') {
+        try {
+          filterObj = JSON.parse(filters);
+        } catch (e) {
+          console.warn('Invalid filters JSON:', filters);
+        }
+      }
+      
+      const themeGroups = await recommendationService.getThemeSuggestions(id, filterObj);
       res.json(themeGroups);
     } catch (error) {
       console.error('Theme suggestions error:', error);
