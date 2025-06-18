@@ -79,23 +79,6 @@ export default function Search() {
     setSearchQuery(queryText);
   }, []);
 
-  const handleFiltersChange = useCallback((filters: SearchFilters) => {
-    setManualFilters(filters);
-    setUseManualFilters(Object.keys(filters).length > 0);
-    
-    // Update search query to show filters
-    const queryText = ScryfallParser.filtersToQuery(filters);
-    setSearchQuery(queryText);
-    
-    // Update search bar with filter text
-    if (Object.keys(filters).length > 0) {
-      const queryText = ScryfallQueryParser.buildQuery(filters);
-      setSearchQuery(queryText);
-    } else {
-      setSearchQuery("");
-    }
-  };
-
   const handleCardClick = (card: Card) => {
     setSelectedCard(card);
     setIsModalOpen(true);
