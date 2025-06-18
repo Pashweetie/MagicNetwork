@@ -18,7 +18,7 @@ export class RecommendationService {
     // Get the actual card data for each recommendation
     const cardData = await Promise.all(
       recommendations.map(async (rec) => {
-        const card = await storage.getCachedCard(rec.cardId);
+        const card = await storage.getCachedCard(rec.recommendedCardId);
         return {
           ...rec,
           card
@@ -55,7 +55,8 @@ export class RecommendationService {
       LIMIT ${limit}
     `);
 
-    for (const cardResult of (popularCards as any).rows || []) {
+    const rows = (popularCards as any).rows || [];
+    for (const cardResult of rows) {
       try {
         console.log(`Generating recommendations for popular card: ${cardResult.id}`);
         await this.generateCardRecommendations(cardResult.id);
@@ -69,11 +70,21 @@ export class RecommendationService {
 
   async getThemeSuggestions(cardId: string): Promise<Array<{theme: string, description: string, cards: Card[]}>> {
     try {
-      // Get the source card
-      const [sourceCard] = await db.execute(sql`SELECT * FROM card_cache WHERE id = ${cardId}`);
-      if (!sourceCard) return [];
+      // Get the source card using direct query
+      const result = await db.execute(sql`SELECT * FROM card_cache WHERE id = ${cardId} LIMIT 1`);
+      
+      // Handle different result formats
+      let sourceCard;
+      if ((result as any).rows && (result as any).rows.length > 0) {
+        sourceCard = (result as any).rows[0];
+      } else if (Array.isArray(result) && result.length > 0) {
+        sourceCard = result[0];
+      } else {
+        console.log('No card found for ID:', cardId);
+        return [];
+      }
 
-      const card = sourceCard as any as Card;
+      const card = sourceCard as Card;
 
       // Generate themes using local pattern analysis
       const detectedThemes = this.analyzeCardThemesLocally(card);
@@ -312,7 +323,15 @@ export class RecommendationService {
             LIMIT 20
           `);
           
-          for (const card of (cards as any).rows || []) {
+          // Handle different result formats
+          let cardRows = [];
+          if ((cards as any).rows) {
+            cardRows = (cards as any).rows;
+          } else if (Array.isArray(cards)) {
+            cardRows = cards;
+          }
+          
+          for (const card of cardRows) {
             const score = this.calculateThemeRelevance(card, theme);
             if (score > 0.3) {
               matchingCards.push({ card: card as Card, score });
