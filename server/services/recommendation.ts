@@ -1,5 +1,5 @@
 import { storage } from "../storage";
-import { Card, cardThemes, InsertCardTheme, userInteractions, userPreferences, contextualSuggestions, InsertUserPreference, InsertContextualSuggestion } from "@shared/schema";
+import { Card, cardThemes, InsertCardTheme, userInteractions, userPreferences, adaptiveRecommendations, InsertUserPreference, InsertAdaptiveRecommendation } from "@shared/schema";
 import { db } from "../db";
 import { cardCache } from "@shared/schema";
 import { desc, sql, eq, and, inArray, gte } from "drizzle-orm";
@@ -80,16 +80,16 @@ export class RecommendationService {
       // Get fresh suggestions
       const suggestions = await db
         .select()
-        .from(contextualSuggestions)
+        .from(adaptiveRecommendations)
         .where(and(
-          eq(contextualSuggestions.userId, userId),
-          gte(contextualSuggestions.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000)) // Last 24 hours
+          eq(adaptiveRecommendations.userId, userId),
+          gte(adaptiveRecommendations.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000)) // Last 24 hours
         ))
-        .orderBy(desc(contextualSuggestions.score))
+        .orderBy(desc(adaptiveRecommendations.score))
         .limit(limit);
 
       // Get card data for suggestions
-      const cardIds = suggestions.map(s => s.cardId);
+      const cardIds = suggestions.map(s => s.recommendedCardId);
       if (cardIds.length === 0) return [];
 
       const cards = await db
@@ -189,8 +189,8 @@ export class RecommendationService {
   private async generateContextualSuggestions(userId: number): Promise<void> {
     try {
       // Clear old suggestions
-      await db.delete(contextualSuggestions)
-        .where(eq(contextualSuggestions.userId, userId));
+      await db.delete(adaptiveRecommendations)
+        .where(eq(adaptiveRecommendations.userId, userId));
 
       // Get user preferences
       const preferences = await db
@@ -207,7 +207,7 @@ export class RecommendationService {
       const knownCardIds = new Set(interactedCards.map(i => i.cardId));
 
       // Generate suggestions based on preferences
-      const suggestions: InsertContextualSuggestion[] = [];
+      const suggestions: InsertAdaptiveRecommendation[] = [];
 
       // Get sample of cards to score
       const candidateCards = await db
@@ -261,11 +261,13 @@ export class RecommendationService {
         if (score > 0.2) {
           suggestions.push({
             userId,
-            cardId: card.id,
-            suggestionType: 'preference_match',
+            cardId: 'contextual', // Placeholder for contextual suggestions
+            recommendedCardId: card.id,
+            contextType: 'preference_match',
+            contextData: { preferences: preferences.map(p => p.preferenceType) },
             score,
-            reasoning: reasons.join(', '),
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+            reason: reasons.join(', '),
+            adaptationFactors: { userPreferences: true }
           });
         }
       }
@@ -276,7 +278,7 @@ export class RecommendationService {
           .sort((a, b) => b.score - a.score)
           .slice(0, 50);
 
-        await db.insert(contextualSuggestions).values(topSuggestions);
+        await db.insert(adaptiveRecommendations).values(topSuggestions);
       }
 
     } catch (error) {

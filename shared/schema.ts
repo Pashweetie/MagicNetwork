@@ -153,6 +153,56 @@ export const userInteractions = pgTable('user_interactions', {
   userIdx: index('user_interactions_user_idx').on(table.userId),
 }));
 
+export const userPreferences = pgTable('user_preferences', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull(),
+  preferenceType: text('preference_type').notNull(), // 'archetype', 'color', 'strategy', 'card_type'
+  preferenceValue: text('preference_value').notNull(), // 'aggro', 'blue', 'combo', 'creature'
+  weight: real('weight').default(1.0).notNull(), // How strong this preference is
+  learnedFromInteractions: integer('learned_from_interactions').default(0).notNull(),
+  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+}, (table) => ({
+  userPrefIdx: index('user_preferences_user_idx').on(table.userId),
+  typePrefIdx: index('user_preferences_type_idx').on(table.preferenceType),
+}));
+
+export const contextualSuggestions = pgTable('contextual_suggestions', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull(),
+  cardId: text('card_id').notNull(),
+  suggestionType: text('suggestion_type').notNull(), // 'trending', 'similar_taste', 'deck_completion', etc.
+  score: real('score').notNull(),
+  reasoning: text('reasoning'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at'),
+}, (table) => ({
+  userSuggIdx: index('contextual_suggestions_user_idx').on(table.userId),
+  scoreIdx: index('contextual_suggestions_score_idx').on(table.score),
+}));
+
+export const userPreferences = pgTable('user_preferences', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull(),
+  preferenceType: text('preference_type').notNull(), // 'archetype', 'color', 'strategy', 'card_type'
+  preferenceValue: text('preference_value').notNull(), // 'aggro', 'blue', 'combo', 'creature'
+  weight: real('weight').default(1.0).notNull(), // How strong this preference is
+  learnedFromInteractions: integer('learned_from_interactions').default(0).notNull(),
+  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+});
+
+export const adaptiveRecommendations = pgTable('adaptive_recommendations', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull(),
+  cardId: text('card_id').notNull(),
+  recommendedCardId: text('recommended_card_id').notNull(),
+  contextType: text('context_type').notNull(), // 'search_context', 'deck_context', 'theme_context'
+  contextData: jsonb('context_data'), // Search terms, deck composition, current themes
+  score: real('score').notNull(),
+  reason: text('reason').notNull(),
+  adaptationFactors: jsonb('adaptation_factors'), // What influenced this recommendation
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // New table to store card themes
 export const cardThemes = pgTable('card_themes', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
@@ -193,7 +243,7 @@ export const insertSearchCacheSchema = createInsertSchema(searchCache).omit({ id
 export const insertCardRecommendationSchema = createInsertSchema(cardRecommendations).omit({ id: true, createdAt: true });
 export const insertUserInteractionSchema = createInsertSchema(userInteractions).omit({ id: true, createdAt: true });
 export const insertUserPreferenceSchema = createInsertSchema(userPreferences).omit({ id: true, lastUpdated: true });
-export const insertContextualSuggestionSchema = createInsertSchema(contextualSuggestions).omit({ id: true, createdAt: true });
+export const insertAdaptiveRecommendationSchema = createInsertSchema(adaptiveRecommendations).omit({ id: true, createdAt: true });
 export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, createdAt: true, lastUpdated: true });
 export const insertRecommendationFeedbackSchema = createInsertSchema(recommendationFeedback).omit({ id: true, createdAt: true });
 
@@ -213,8 +263,8 @@ export type UserInteraction = typeof userInteractions.$inferSelect;
 export type InsertUserInteraction = z.infer<typeof insertUserInteractionSchema>;
 export type UserPreference = typeof userPreferences.$inferSelect;
 export type InsertUserPreference = z.infer<typeof insertUserPreferenceSchema>;
-export type ContextualSuggestion = typeof contextualSuggestions.$inferSelect;
-export type InsertContextualSuggestion = z.infer<typeof insertContextualSuggestionSchema>;
+export type AdaptiveRecommendation = typeof adaptiveRecommendations.$inferSelect;
+export type InsertAdaptiveRecommendation = z.infer<typeof insertAdaptiveRecommendationSchema>;
 export type CardTheme = typeof cardThemes.$inferSelect;
 export type InsertCardTheme = z.infer<typeof insertCardThemeSchema>;
 export type RecommendationFeedback = typeof recommendationFeedback.$inferSelect;
