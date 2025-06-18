@@ -41,6 +41,23 @@ function SynergyRecommendations({ cardId, onCardClick }: { cardId: string; onCar
     enabled: !!cardId,
   });
 
+  const handleRecommendationFeedback = async (recommendedCardId: string, feedback: 'helpful' | 'not_helpful', type: string) => {
+    try {
+      await fetch(`/api/cards/${cardId}/recommendation-feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recommendedCardId,
+          feedback,
+          type,
+          reason: feedback === 'not_helpful' ? 'Card does not synergize well' : 'Good synergy recommendation'
+        })
+      });
+    } catch (error) {
+      console.error('Failed to submit feedback:', error);
+    }
+  };
+
   // Filter recommendations - no deck filtering here, just show all results
   const availableCards = recommendations || [];
 
@@ -96,6 +113,23 @@ function SimilarRecommendations({ cardId, onCardClick }: { cardId: string; onCar
     },
     enabled: !!cardId,
   });
+
+  const handleRecommendationFeedback = async (recommendedCardId: string, feedback: 'helpful' | 'not_helpful', type: string) => {
+    try {
+      await fetch(`/api/cards/${cardId}/recommendation-feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recommendedCardId,
+          feedback,
+          type,
+          reason: feedback === 'not_helpful' ? 'Card is not functionally similar' : 'Good functional replacement'
+        })
+      });
+    } catch (error) {
+      console.error('Failed to submit feedback:', error);
+    }
+  };
 
   // Filter recommendations - no deck filtering here, just show all results
   const availableCards = recommendations || [];

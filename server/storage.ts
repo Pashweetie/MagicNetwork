@@ -336,8 +336,8 @@ export class DatabaseStorage implements IStorage {
       }));
 
       // Generate functional similarity recommendations
-      const similarCards = await this.findFunctionallySimarCards(sourceCard);
-      const similarRecommendations = similarCards.map(rec => ({
+      const similarCards = await this.findFunctionallySimilarCards(sourceCard);
+      const similarRecommendations = similarCards.map((rec: any) => ({
         sourceCardId: sourceCard.id,
         recommendedCardId: rec.cardId,
         recommendationType: 'functional_similarity' as const,
@@ -360,7 +360,7 @@ export class DatabaseStorage implements IStorage {
 
   private async findSimilarCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
     // This method is kept for compatibility but delegates to the more specific methods
-    return this.findFunctionallySimarCards(sourceCard);
+    return this.findFunctionallySimilarCards(sourceCard);
   }
 
   async getPersonalizedRecommendations(userId: number, limit: number = 20): Promise<Card[]> {
@@ -548,107 +548,146 @@ export class DatabaseStorage implements IStorage {
 
   // Find functionally similar cards (alternatives/substitutes with similar effects)
   private async findFunctionallySimilarCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
-    const functionalCards: Array<{cardId: string, score: number, reason: string}> = [];
+    const similar: Array<{cardId: string, score: number, reason: string}> = [];
     
-    // Get sample of cards to analyze
+    console.log(`Finding functionally similar cards to ${sourceCard.name}`);
+    
+    // Get more cards for better similar card detection
     const sampleCards = await db
       .select()
       .from(cardCache)
       .where(sql`card_data->>'id' != ${sourceCard.id}`)
-      .limit(400);
+      .limit(1000);
 
     const sourceText = (sourceCard.oracle_text || '').toLowerCase();
     const sourceType = sourceCard.type_line.toLowerCase();
+    const sourceCMC = sourceCard.cmc || 0;
+    const sourceColors = sourceCard.color_identity || [];
+
+    console.log(`Source card: ${sourceCard.name} (${sourceType}, CMC: ${sourceCMC})`);
 
     for (const cached of sampleCards) {
       const card = cached.cardData;
       const cardText = (card.oracle_text || '').toLowerCase();
       const cardType = card.type_line.toLowerCase();
+      const cardCMC = card.cmc || 0;
+      const cardColors = card.color_identity || [];
       let score = 0;
       const reasons: string[] = [];
 
-      // FUNCTIONAL SIMILARITY (cards that do similar things)
+      // FUNCTIONAL REPLACEMENT - same role in deck
       
-      // Same primary function patterns
-      const functionPatterns = [
-        { source: 'counter target spell', target: 'counter target spell', weight: 45, reason: 'counterspell' },
-        { source: 'destroy target creature', target: 'destroy target creature', weight: 40, reason: 'creature removal' },
-        { source: 'draw.*card', target: 'draw.*card', weight: 35, reason: 'card draw' },
-        { source: 'deal.*damage', target: 'deal.*damage', weight: 30, reason: 'direct damage' },
-        { source: 'gain.*life', target: 'gain.*life', weight: 25, reason: 'lifegain' },
-        { source: 'search.*library', target: 'search.*library', weight: 35, reason: 'tutoring' },
-        { source: 'return.*graveyard', target: 'return.*graveyard', weight: 40, reason: 'recursion' },
-        { source: 'exile target', target: 'exile target', weight: 35, reason: 'exile removal' }
-      ];
-
-      for (const pattern of functionPatterns) {
-        if (sourceText.match(pattern.source) && cardText.match(pattern.target)) {
-          score += pattern.weight;
-          reasons.push(pattern.reason);
-          break; // Only count one primary function
-        }
-      }
-
-      // Mana cost similarity (key for functional replacements)
-      const cmcDiff = Math.abs(sourceCard.cmc - card.cmc);
-      if (cmcDiff <= 1) {
-        score += 20; reasons.push('similar cost');
-      } else if (cmcDiff <= 2) {
-        score += 10; reasons.push('comparable cost');
-      }
-
-      // Type similarity (creatures vs creatures, etc)
-      const sourceMainType = sourceType.split(' ')[0];
-      const cardMainType = cardType.split(' ')[0];
-      if (sourceMainType === cardMainType) {
-        score += 15; reasons.push('same type');
+      // 1. SIMILAR TYPE AND ROLE
+      if (cardType === sourceType) {
+        score += 30;
+        reasons.push('same type');
+      } else if (sourceType.includes('creature') && cardType.includes('creature')) {
+        // Both creatures, check for similar roles
+        const creatureTypes = ['human', 'beast', 'spirit', 'zombie', 'goblin', 'elf'];
+        const sourceCreatureType = creatureTypes.find(type => sourceType.includes(type));
+        const cardCreatureType = creatureTypes.find(type => cardType.includes(type));
         
-        // For creatures, compare stats
-        if (sourceMainType === 'creature' && sourceCard.power && card.power) {
-          const powerDiff = Math.abs(parseInt(sourceCard.power) - parseInt(card.power));
-          const toughnessDiff = Math.abs(parseInt(sourceCard.toughness || '0') - parseInt(card.toughness || '0'));
-          
-          if (powerDiff <= 1 && toughnessDiff <= 1) {
-            score += 20; reasons.push('similar stats');
-          }
+        if (sourceCreatureType && cardCreatureType && sourceCreatureType === cardCreatureType) {
+          score += 20;
+          reasons.push(`both ${sourceCreatureType}s`);
+        } else {
+          score += 10;
+          reasons.push('both creatures');
         }
       }
 
-      // Color identity similarity
-      const sourceColors = sourceCard.color_identity || [];
-      const cardColors = card.color_identity || [];
+      // 2. SIMILAR MANA COST (functional replacements should cost similar)
+      const costDiff = Math.abs(sourceCMC - cardCMC);
+      if (costDiff === 0) {
+        score += 25;
+        reasons.push('same mana cost');
+      } else if (costDiff === 1) {
+        score += 15;
+        reasons.push('similar mana cost');
+      } else if (costDiff === 2) {
+        score += 8;
+      }
+
+      // 3. COLOR OVERLAP (functional replacements often share colors)
       const colorOverlap = sourceColors.filter(c => cardColors.includes(c)).length;
-      const totalColors = Math.max(sourceColors.length, cardColors.length);
+      const totalColors = new Set([...sourceColors, ...cardColors]).size;
       
-      if (totalColors > 0) {
-        const colorSimilarity = colorOverlap / totalColors;
-        if (colorSimilarity >= 0.8) {
-          score += 15; reasons.push('same colors');
-        } else if (colorSimilarity >= 0.5) {
-          score += 8; reasons.push('similar colors');
+      if (sourceColors.length === cardColors.length && colorOverlap === sourceColors.length) {
+        score += 20;
+        reasons.push('same colors');
+      } else if (colorOverlap > 0) {
+        score += colorOverlap * 8;
+        reasons.push('shared colors');
+      }
+
+      // 4. SIMILAR EFFECTS - key for functional similarity
+      const effectAnalysis = this.analyzeSimilarEffects(sourceText, cardText);
+      score += effectAnalysis.score;
+      if (effectAnalysis.reasons.length > 0) {
+        reasons.push(...effectAnalysis.reasons);
+      }
+
+      // 5. POWER/TOUGHNESS similarity for creatures
+      if (sourceType.includes('creature') && cardType.includes('creature')) {
+        const sourcePower = parseInt(sourceCard.power || '0');
+        const sourceToughness = parseInt(sourceCard.toughness || '0');
+        const cardPower = parseInt(card.power || '0');
+        const cardToughness = parseInt(card.toughness || '0');
+        
+        const powerDiff = Math.abs(sourcePower - cardPower);
+        const toughnessDiff = Math.abs(sourceToughness - cardToughness);
+        
+        if (powerDiff <= 1 && toughnessDiff <= 1) {
+          score += 15;
+          reasons.push('similar stats');
         }
       }
 
-      // Keyword similarity
-      const sourceKeywords = this.extractKeywords(sourceText);
-      const cardKeywords = this.extractKeywords(cardText);
-      const sharedKeywords = sourceKeywords.filter(k => cardKeywords.includes(k));
-      
-      if (sharedKeywords.length > 0) {
-        score += sharedKeywords.length * 8;
-        reasons.push(`shared abilities: ${sharedKeywords.join(', ')}`);
-      }
-
-      if (score >= 25) {
-        functionalCards.push({
+      // Only include cards that are actually functionally similar
+      if (score >= 35 && reasons.length >= 2) {
+        similar.push({
           cardId: card.id,
-          score: Math.min(score, 100),
-          reason: reasons.join(', ')
+          score,
+          reason: reasons.slice(0, 3).join(', ')
         });
       }
     }
 
-    return functionalCards.sort((a, b) => b.score - a.score).slice(0, 12);
+    const results = similar.sort((a, b) => b.score - a.score).slice(0, 15);
+    console.log(`Found ${results.length} functionally similar cards`);
+    return results;
+  }
+
+  private analyzeSimilarEffects(sourceText: string, cardText: string): {score: number, reasons: string[]} {
+    let score = 0;
+    const reasons: string[] = [];
+
+    // Define effect patterns that indicate functional similarity
+    const effectPatterns = [
+      { pattern: /draw.*card/g, name: 'card draw', weight: 15 },
+      { pattern: /gain.*life/g, name: 'lifegain', weight: 12 },
+      { pattern: /deal.*damage/g, name: 'direct damage', weight: 15 },
+      { pattern: /destroy.*target/g, name: 'removal', weight: 18 },
+      { pattern: /exile.*target/g, name: 'exile removal', weight: 18 },
+      { pattern: /return.*hand/g, name: 'bounce', weight: 15 },
+      { pattern: /search.*library/g, name: 'tutoring', weight: 20 },
+      { pattern: /create.*token/g, name: 'token creation', weight: 16 },
+      { pattern: /when.*enters/g, name: 'ETB trigger', weight: 14 },
+      { pattern: /whenever.*dies/g, name: 'death trigger', weight: 14 },
+      { pattern: /flash/g, name: 'flash', weight: 10 },
+      { pattern: /flying/g, name: 'flying', weight: 8 },
+      { pattern: /trample/g, name: 'trample', weight: 8 },
+      { pattern: /vigilance/g, name: 'vigilance', weight: 8 }
+    ];
+
+    for (const { pattern, name, weight } of effectPatterns) {
+      if (pattern.test(sourceText) && pattern.test(cardText)) {
+        score += weight;
+        reasons.push(name);
+      }
+    }
+
+    return { score, reasons: reasons.slice(0, 2) }; // Limit to most important effects
   }
 
   // Deck persistence methods
