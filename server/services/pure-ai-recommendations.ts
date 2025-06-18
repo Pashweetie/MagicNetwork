@@ -88,20 +88,16 @@ export class PureAIRecommendationService {
       // Store in database for future use
       for (const theme of aiThemes) {
         try {
-          // Ensure we're storing the actual theme name, not "Theme1"
-          if (theme.theme && !theme.theme.match(/^Theme\d+$/i)) {
-            await db.insert(cardThemes).values({
-              card_id: card.id,
-              theme_name: theme.theme,
-              theme_category: 'AI-Generated',
-              description: theme.description,
-              confidence: 0.8,
-              keywords: [theme.theme.toLowerCase()]
-            });
-            console.log(`Stored new theme: "${theme.theme}" for ${card.name}`);
-          } else {
-            console.log(`Skipping generic theme name: ${theme.theme}`);
-          }
+          // Store all themes - parsing should now extract proper names
+          await db.insert(cardThemes).values({
+            card_id: card.id,
+            theme_name: theme.theme,
+            theme_category: 'AI-Generated',
+            description: theme.description,
+            confidence: 0.8,
+            keywords: [theme.theme.toLowerCase()]
+          });
+          console.log(`Stored theme: "${theme.theme}" for ${card.name}`);
         } catch (error) {
           // Theme might already exist, continue
           console.log(`Theme already exists: ${theme.theme}`);
@@ -181,7 +177,9 @@ Commander Value: Provides format-specific advantages`;
         return this.getFallbackThemes(card);
       }
 
-      return this.parseAIThemeResponse(aiResponse);
+      const parsedThemes = this.parseAIThemeResponse(aiResponse);
+      console.log('Final parsed themes:', parsedThemes);
+      return parsedThemes;
     } catch (error) {
       console.error('AI theme generation failed:', error);
       return [];
@@ -193,49 +191,52 @@ Commander Value: Provides format-specific advantages`;
     
     console.log('Raw AI response:', aiText);
     
-    // Parse AI response for theme patterns - look for actual content after colons
+    // Split by lines and process each line
     const lines = aiText.split('\n').filter(line => line.trim());
     
     for (const line of lines) {
-      // Look for pattern "Dragon Tribal: Description" or "Theme1: Dragon Tribal - Description"
-      const directMatch = line.match(/^([A-Z][a-z\s]+(?:Tribal|Strategy|Synergy|Build|Control|Aggro|Combo)):\s*(.+)/i);
-      if (directMatch) {
-        themes.push({
-          theme: directMatch[1].trim(),
-          description: directMatch[2].trim()
-        });
-        console.log(`Direct theme match: "${directMatch[1]}" - "${directMatch[2]}"`);
-        continue;
-      }
+      console.log('Processing line:', line);
       
-      // Look for pattern "Theme1: Actual Theme Name - Description"
-      const themeMatch = line.match(/(?:Theme\d*|Strategy|\d+\.)\s*:\s*(.+)/i);
-      if (themeMatch && themeMatch[1]) {
-        const content = themeMatch[1].trim();
+      // Look for any colon-separated content
+      if (line.includes(':')) {
+        const [prefix, ...contentParts] = line.split(':');
+        const content = contentParts.join(':').trim();
         
-        // Extract the actual theme name from the content
-        const colonSplit = content.split(':');
-        if (colonSplit.length > 1) {
-          // Format: "Dragon Tribal: Description"
-          themes.push({
-            theme: colonSplit[0].trim(),
-            description: colonSplit.slice(1).join(':').trim()
-          });
-          console.log(`Extracted theme: "${colonSplit[0].trim()}" from content`);
-        } else {
-          // Try to extract meaningful theme name from description
-          const words = content.split(/\s+/);
-          if (words.length >= 2) {
-            const themeName = words.slice(0, 2).join(' ');
-            const description = content;
-            if (themeName.length > 3 && !themeName.match(/^Theme\d+$/i)) {
-              themes.push({
-                theme: themeName,
-                description: description
-              });
-              console.log(`Inferred theme: "${themeName}" from "${content}"`);
+        if (content && content.length > 10) {
+          // Extract theme name from the content - look for the pattern before the colon
+          let themeName = '';
+          
+          // Check if content starts with a theme name pattern
+          const themeMatch = content.match(/^([A-Z][a-zA-Z\s\/]+(?:Tribal|Strategy|Synergy|Build|Control|Aggro|Combo|Value|Support|Ramp))/i);
+          if (themeMatch) {
+            themeName = themeMatch[1].trim();
+          } else {
+            // Look for specific patterns in the content
+            if (content.toLowerCase().includes('dragon tribal')) themeName = 'Dragon Tribal';
+            else if (content.toLowerCase().includes('commander ramp')) themeName = 'Commander Ramp';
+            else if (content.toLowerCase().includes('commander') && content.toLowerCase().includes('value')) themeName = 'Commander Value';
+            else if (content.toLowerCase().includes('tribal synergy')) themeName = 'Tribal Synergy';
+            else if (content.toLowerCase().includes('mana') && content.toLowerCase().includes('strategy')) themeName = 'Mana Strategy';
+            else if (content.toLowerCase().includes('dragon')) themeName = 'Dragon Strategy';
+            else if (content.toLowerCase().includes('commander')) themeName = 'Commander Strategy';
+            else if (content.toLowerCase().includes('tribal')) themeName = 'Tribal Strategy';
+            else {
+              // Extract first two meaningful words as theme name
+              const words = content.split(/\s+/).filter(w => w.length > 2 && !['the', 'card', 'this', 'that'].includes(w.toLowerCase()));
+              if (words.length >= 2) {
+                themeName = words.slice(0, 2).join(' ').replace(/[^a-zA-Z\s]/g, '');
+              } else {
+                themeName = 'Strategy';
+              }
             }
           }
+          
+          themes.push({
+            theme: themeName,
+            description: content
+          });
+          
+          console.log(`Extracted: "${themeName}" from content: "${content}"`);
         }
       }
     }
