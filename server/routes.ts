@@ -480,6 +480,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Theme-based synergy endpoint
+  app.get("/api/cards/:cardId/theme-synergies", async (req, res) => {
+    try {
+      const { cardId } = req.params;
+      const { filters } = req.query;
+      
+      console.log(`🔍 Getting theme synergies for card: ${cardId}`);
+      
+      // Get the source card
+      const sourceCard = await storage.getCard(cardId);
+      if (!sourceCard) {
+        return res.status(404).json({ message: "Card not found" });
+      }
+      
+      // Parse filters
+      let parsedFilters = null;
+      if (filters) {
+        try {
+          parsedFilters = JSON.parse(filters as string);
+        } catch (err) {
+          console.warn('Failed to parse filters:', err);
+        }
+      }
+      
+      // Get themes for source card
+      const sourceThemes = await recommendationService.getThemeSuggestions(cardId, parsedFilters);
+      if (!sourceThemes || sourceThemes.length === 0) {
+        console.log('❌ No source themes found for synergy analysis');
+        return res.json([]);
+      }
+      
+      console.log(`📋 Found ${sourceThemes.length} source themes for synergy analysis`);
+      
+      // Find cards that share themes
+      const synergies = await storage.findCardsBySharedThemes(sourceCard, sourceThemes, parsedFilters);
+      
+      console.log(`🎯 Returning ${synergies.length} synergy cards`);
+      res.json(synergies);
+    } catch (error) {
+      console.error('Theme synergies error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // On-demand theme card loading
   app.get('/api/cards/:cardId/theme/:themeName/cards', async (req, res) => {
     try {
