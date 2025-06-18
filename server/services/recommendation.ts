@@ -172,11 +172,11 @@ export class RecommendationService {
           userId,
           preferenceType: type,
           preferenceValue: value,
-          strength: normalizedScore
+          weight: normalizedScore
         }).onConflictDoUpdate({
           target: [userPreferences.userId, userPreferences.preferenceType, userPreferences.preferenceValue],
           set: {
-            strength: sql`GREATEST(${userPreferences.strength}, ${normalizedScore})`,
+            weight: sql`GREATEST(${userPreferences.weight}, ${normalizedScore})`,
             lastUpdated: new Date()
           }
         });
@@ -232,7 +232,7 @@ export class RecommendationService {
           for (const color of cardColors) {
             const pref = colorPrefs.find(p => p.preferenceValue === color);
             if (pref) {
-              score += pref.strength * 0.3;
+              score += pref.weight * 0.3;
               reasons.push(`matches ${color} preference`);
             }
           }
@@ -243,7 +243,7 @@ export class RecommendationService {
         const mainType = card.type_line.split(' ')[0];
         const typePref = typePrefs.find(p => p.preferenceValue === mainType);
         if (typePref) {
-          score += typePref.strength * 0.4;
+          score += typePref.weight * 0.4;
           reasons.push(`matches ${mainType} preference`);
         }
 
@@ -253,7 +253,7 @@ export class RecommendationService {
         for (const archetype of cardArchetypes) {
           const pref = archetypePrefs.find(p => p.preferenceValue === archetype);
           if (pref) {
-            score += pref.strength * 0.3;
+            score += pref.weight * 0.3;
             reasons.push(`fits ${archetype} archetype`);
           }
         }
@@ -856,9 +856,9 @@ export class RecommendationService {
             SELECT * FROM card_cache 
             WHERE id != ${sourceCard.id}
             AND (
-              LOWER(oracle_text) LIKE ${`%${searchTerm}%`}
-              OR LOWER(name) LIKE ${`%${searchTerm}%`}
-              OR LOWER(type_line) LIKE ${`%${searchTerm}%`}
+              LOWER(card_data->>'oracle_text') LIKE ${`%${searchTerm}%`}
+              OR LOWER(card_data->>'name') LIKE ${`%${searchTerm}%`}
+              OR LOWER(card_data->>'type_line') LIKE ${`%${searchTerm}%`}
             )
             LIMIT 20
           `);

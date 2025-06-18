@@ -181,7 +181,7 @@ export const contextualSuggestions = pgTable('contextual_suggestions', {
 }));
 
 export const userPreferences = pgTable('user_preferences', {
-  id: serial('id').primaryKey(),
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
   userId: integer('user_id').notNull(),
   preferenceType: text('preference_type').notNull(), // 'archetype', 'color', 'strategy', 'card_type'
   preferenceValue: text('preference_value').notNull(), // 'aggro', 'blue', 'combo', 'creature'
@@ -191,7 +191,7 @@ export const userPreferences = pgTable('user_preferences', {
 });
 
 export const adaptiveRecommendations = pgTable('adaptive_recommendations', {
-  id: serial('id').primaryKey(),
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
   userId: integer('user_id').notNull(),
   cardId: text('card_id').notNull(),
   recommendedCardId: text('recommended_card_id').notNull(),
