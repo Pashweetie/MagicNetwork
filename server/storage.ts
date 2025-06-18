@@ -365,7 +365,7 @@ export class DatabaseStorage implements IStorage {
             score: rec.score,
             reason: rec.reason,
           });
-        } catch (error) {
+        } catch (error: any) {
           // Ignore duplicate key errors
           if (error.code !== '23505') {
             console.error('Error storing recommendation:', error);
@@ -422,8 +422,8 @@ export class DatabaseStorage implements IStorage {
       // Oracle text keyword similarity
       if (sourceCard.oracle_text && card.oracle_text) {
         const keywords = ['flying', 'trample', 'haste', 'vigilance', 'deathtouch', 'lifelink', 'first strike', 'double strike', 'hexproof', 'indestructible'];
-        const sourceKeywords = keywords.filter(k => sourceCard.oracle_text.toLowerCase().includes(k));
-        const cardKeywords = keywords.filter(k => card.oracle_text.toLowerCase().includes(k));
+        const sourceKeywords = keywords.filter(k => sourceCard.oracle_text!.toLowerCase().includes(k));
+        const cardKeywords = keywords.filter(k => card.oracle_text!.toLowerCase().includes(k));
         const keywordOverlap = sourceKeywords.filter(k => cardKeywords.includes(k)).length;
         if (keywordOverlap > 0) {
           score += keywordOverlap * 8;

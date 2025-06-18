@@ -1,5 +1,8 @@
 import { storage } from "../storage";
 import { Card } from "@shared/schema";
+import { db } from "../db";
+import { cardCache } from "@shared/schema";
+import { desc } from "drizzle-orm";
 
 export class RecommendationService {
   
@@ -54,10 +57,10 @@ export class RecommendationService {
     console.log('Generating recommendations for popular cards...');
     
     // Get most searched cards
-    const popularCards = await storage.db
-      .select({ id: storage.cardCache.id })
-      .from(storage.cardCache)
-      .orderBy(storage.desc(storage.cardCache.searchCount))
+    const popularCards = await db
+      .select({ id: cardCache.id })
+      .from(cardCache)
+      .orderBy(desc(cardCache.searchCount))
       .limit(limit);
 
     for (const card of popularCards) {
