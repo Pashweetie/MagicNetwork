@@ -1,15 +1,19 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Lightbulb, GitMerge, Copy, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Lightbulb, GitMerge, Copy, AlertCircle, Plus } from "lucide-react";
 import { ThemeSuggestions } from "./theme-suggestions";
+import { CardTile } from "./card-tile";
 import { Card } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
+import { useDeck } from "@/hooks/use-deck";
 
 interface CardDetailModalProps {
   card: Card | null;
   isOpen: boolean;
   onClose: () => void;
+  onCardClick?: (card: Card) => void;
 }
 
 // Theme Recommendations Component
@@ -26,22 +30,42 @@ function ThemeRecommendations({ cardId, onCardClick }: { cardId: string; onCardC
 }
 
 // Synergy Recommendations Component
-function SynergyRecommendations({ cardId, onCardClick }: { cardId: string; onCardClick: () => void }) {
+function SynergyRecommendations({ cardId, onCardClick, onAddCard }: { cardId: string; onCardClick: (card: Card) => void; onAddCard?: (card: Card) => void }) {
+  const deck = useDeck();
   const { data: recommendations, isLoading, error } = useQuery({
     queryKey: ['/api/cards', cardId, 'recommendations', 'synergy'],
     queryFn: async () => {
-      const response = await fetch(`/api/cards/${cardId}/recommendations?type=synergy&limit=6`);
+      const response = await fetch(`/api/cards/${cardId}/recommendations?type=synergy&limit=12`);
       if (!response.ok) throw new Error('Failed to fetch synergy recommendations');
       return response.json();
     },
     enabled: !!cardId,
   });
 
+  // Filter recommendations to exclude cards at max capacity
+  const availableCards = recommendations?.filter((rec: any) => {
+    if (!deck.canAddCard(rec.card)) return false;
+    
+    // Apply format restrictions
+    if (deck.format.name === 'Commander' && deck.commander) {
+      const commanderColors = deck.commander.color_identity || [];
+      const cardColors = rec.card.color_identity || [];
+      
+      // Check if card fits commander color identity
+      if (cardColors.some((color: string) => !commanderColors.includes(color))) {
+        return false;
+      }
+    }
+    
+    return true;
+  }) || [];
+
   return (
     <div>
       <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
         <GitMerge className="w-5 h-5 mr-2 text-yellow-400" />
         Synergy Cards
+        <span className="text-sm text-slate-400 ml-2">({availableCards.length} available)</span>
       </h3>
       {isLoading ? (
         <div className="text-center py-8 text-slate-400">
@@ -53,43 +77,26 @@ function SynergyRecommendations({ cardId, onCardClick }: { cardId: string; onCar
           <AlertCircle className="w-8 h-8 mx-auto mb-2" />
           Failed to load synergy cards
         </div>
-      ) : recommendations?.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {recommendations.map((rec: any) => (
-            <div
-              key={rec.card.id}
-              className="bg-slate-800 rounded-lg p-3 border border-slate-700 hover:border-yellow-400/50 transition-colors cursor-pointer group"
-              onClick={() => onCardClick()}
-            >
-              <div className="flex items-start space-x-3">
-                <div className="w-12 h-16 bg-slate-700 rounded overflow-hidden flex-shrink-0">
-                  {rec.card.image_uris?.small ? (
-                    <img
-                      src={rec.card.image_uris.small}
-                      alt={rec.card.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-xs text-slate-400">
-                      {rec.card.name.substring(0, 2)}
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-white truncate group-hover:text-yellow-400 transition-colors">
-                    {rec.card.name}
-                  </h4>
-                  <p className="text-xs text-slate-400 mb-1">
-                    {rec.card.type_line}
-                  </p>
-                  <span className="text-xs text-yellow-400 font-medium">
-                    {rec.score}% match
-                  </span>
-                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                    {rec.reason}
-                  </p>
-                </div>
+      ) : availableCards.length > 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {availableCards.map((rec: any) => (
+            <div key={rec.card.id} className="relative group">
+              <CardTile card={rec.card} onClick={onCardClick} />
+              {onAddCard && (
+                <Button
+                  size="sm"
+                  className="absolute top-2 right-2 w-8 h-8 p-0 bg-green-600 hover:bg-green-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddCard(rec.card);
+                  }}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              )}
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                <div className="text-xs text-yellow-400 font-medium">{rec.score}% match</div>
+                <div className="text-xs text-slate-300 truncate">{rec.reason}</div>
               </div>
             </div>
           ))}
@@ -97,7 +104,7 @@ function SynergyRecommendations({ cardId, onCardClick }: { cardId: string; onCar
       ) : (
         <div className="text-center py-8 text-slate-400">
           <GitMerge className="w-8 h-8 mx-auto mb-2 opacity-50" />
-          No synergy cards found
+          No available synergy cards found
         </div>
       )}
     </div>
@@ -105,22 +112,42 @@ function SynergyRecommendations({ cardId, onCardClick }: { cardId: string; onCar
 }
 
 // Similar Recommendations Component
-function SimilarRecommendations({ cardId, onCardClick }: { cardId: string; onCardClick: () => void }) {
+function SimilarRecommendations({ cardId, onCardClick, onAddCard }: { cardId: string; onCardClick: (card: Card) => void; onAddCard?: (card: Card) => void }) {
+  const deck = useDeck();
   const { data: recommendations, isLoading, error } = useQuery({
     queryKey: ['/api/cards', cardId, 'recommendations', 'functional_similarity'],
     queryFn: async () => {
-      const response = await fetch(`/api/cards/${cardId}/recommendations?type=functional_similarity&limit=6`);
+      const response = await fetch(`/api/cards/${cardId}/recommendations?type=functional_similarity&limit=12`);
       if (!response.ok) throw new Error('Failed to fetch similar recommendations');
       return response.json();
     },
     enabled: !!cardId,
   });
 
+  // Filter recommendations to exclude cards at max capacity
+  const availableCards = recommendations?.filter((rec: any) => {
+    if (!deck.canAddCard(rec.card)) return false;
+    
+    // Apply format restrictions
+    if (deck.format.name === 'Commander' && deck.commander) {
+      const commanderColors = deck.commander.color_identity || [];
+      const cardColors = rec.card.color_identity || [];
+      
+      // Check if card fits commander color identity
+      if (cardColors.some((color: string) => !commanderColors.includes(color))) {
+        return false;
+      }
+    }
+    
+    return true;
+  }) || [];
+
   return (
     <div>
       <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
         <Copy className="w-5 h-5 mr-2 text-blue-400" />
         Similar Cards
+        <span className="text-sm text-slate-400 ml-2">({availableCards.length} available)</span>
       </h3>
       {isLoading ? (
         <div className="text-center py-8 text-slate-400">
@@ -132,43 +159,26 @@ function SimilarRecommendations({ cardId, onCardClick }: { cardId: string; onCar
           <AlertCircle className="w-8 h-8 mx-auto mb-2" />
           Failed to load similar cards
         </div>
-      ) : recommendations?.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {recommendations.map((rec: any) => (
-            <div
-              key={rec.card.id}
-              className="bg-slate-800 rounded-lg p-3 border border-slate-700 hover:border-blue-400/50 transition-colors cursor-pointer group"
-              onClick={() => onCardClick()}
-            >
-              <div className="flex items-start space-x-3">
-                <div className="w-12 h-16 bg-slate-700 rounded overflow-hidden flex-shrink-0">
-                  {rec.card.image_uris?.small ? (
-                    <img
-                      src={rec.card.image_uris.small}
-                      alt={rec.card.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-xs text-slate-400">
-                      {rec.card.name.substring(0, 2)}
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-white truncate group-hover:text-blue-400 transition-colors">
-                    {rec.card.name}
-                  </h4>
-                  <p className="text-xs text-slate-400 mb-1">
-                    {rec.card.type_line}
-                  </p>
-                  <span className="text-xs text-blue-400 font-medium">
-                    {rec.score}% match
-                  </span>
-                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                    {rec.reason}
-                  </p>
-                </div>
+      ) : availableCards.length > 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {availableCards.map((rec: any) => (
+            <div key={rec.card.id} className="relative group">
+              <CardTile card={rec.card} onClick={onCardClick} />
+              {onAddCard && (
+                <Button
+                  size="sm"
+                  className="absolute top-2 right-2 w-8 h-8 p-0 bg-green-600 hover:bg-green-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddCard(rec.card);
+                  }}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              )}
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                <div className="text-xs text-blue-400 font-medium">{rec.score}% match</div>
+                <div className="text-xs text-slate-300 truncate">{rec.reason}</div>
               </div>
             </div>
           ))}
@@ -176,14 +186,14 @@ function SimilarRecommendations({ cardId, onCardClick }: { cardId: string; onCar
       ) : (
         <div className="text-center py-8 text-slate-400">
           <Copy className="w-8 h-8 mx-auto mb-2 opacity-50" />
-          No similar cards found
+          No available similar cards found
         </div>
       )}
     </div>
   );
 }
 
-export function CardDetailModal({ card, isOpen, onClose }: CardDetailModalProps) {
+export function CardDetailModal({ card, isOpen, onClose, onCardClick }: CardDetailModalProps) {
   if (!card) return null;
 
   const getCardImage = () => {
@@ -330,15 +340,29 @@ export function CardDetailModal({ card, isOpen, onClose }: CardDetailModalProps)
             </TabsList>
             
             <TabsContent value="themes" className="mt-6">
-              <ThemeRecommendations cardId={card.id} onCardClick={onClose} />
+              <ThemeRecommendations cardId={card.id} onCardClick={onCardClick || (() => onClose())} />
             </TabsContent>
             
             <TabsContent value="synergy" className="mt-6">
-              <SynergyRecommendations cardId={card.id} onCardClick={onClose} />
+              <SynergyRecommendations 
+                cardId={card.id} 
+                onCardClick={onCardClick || (() => onClose())}
+                onAddCard={(addCard) => {
+                  const deck = useDeck();
+                  deck.addCard(addCard);
+                }}
+              />
             </TabsContent>
             
             <TabsContent value="similar" className="mt-6">
-              <SimilarRecommendations cardId={card.id} onCardClick={onClose} />
+              <SimilarRecommendations 
+                cardId={card.id} 
+                onCardClick={onCardClick || (() => onClose())}
+                onAddCard={(addCard) => {
+                  const deck = useDeck();
+                  deck.addCard(addCard);
+                }}
+              />
             </TabsContent>
           </Tabs>
         </div>
