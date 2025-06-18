@@ -103,7 +103,7 @@ export class DatabaseStorage implements IStorage {
   async createSavedSearch(search: InsertSavedSearch): Promise<SavedSearch> {
     const [savedSearch] = await db
       .insert(savedSearches)
-      .values(search)
+      .values(search as any)
       .returning();
     return savedSearch;
   }
@@ -112,7 +112,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(savedSearches)
       .where(eq(savedSearches.id, id) && eq(savedSearches.userId, userId));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Favorite cards
@@ -126,7 +126,7 @@ export class DatabaseStorage implements IStorage {
   async addFavoriteCard(favorite: InsertFavoriteCard): Promise<FavoriteCard> {
     const [favoriteCard] = await db
       .insert(favoriteCards)
-      .values(favorite)
+      .values(favorite as any)
       .returning();
     return favoriteCard;
   }
@@ -135,7 +135,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(favoriteCards)
       .where(eq(favoriteCards.cardId, cardId) && eq(favoriteCards.userId, userId));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 }
 
