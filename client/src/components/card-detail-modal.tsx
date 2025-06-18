@@ -37,11 +37,9 @@ function SynergyRecommendations({ cardId, onCardClick, onAddCard, currentFilters
     queryKey: ['/api/cards', cardId, 'recommendations', 'synergy', currentFilters],
     queryFn: async () => {
       const filterParams = currentFilters ? `&filters=${encodeURIComponent(JSON.stringify(currentFilters))}` : '';
-      console.log('Synergy: Fetching with filters:', currentFilters, 'URL:', `/api/cards/${cardId}/recommendations?type=synergy&limit=15${filterParams}`);
       const response = await fetch(`/api/cards/${cardId}/recommendations?type=synergy&limit=15${filterParams}`);
       if (!response.ok) throw new Error('Failed to fetch synergy recommendations');
       const data = await response.json();
-      console.log('Synergy: Got', data.length, 'recommendations');
       return data;
     },
     enabled: !!cardId,
@@ -49,8 +47,7 @@ function SynergyRecommendations({ cardId, onCardClick, onAddCard, currentFilters
 
   const handleRecommendationFeedback = async (recommendedCardId: string, feedback: 'helpful' | 'not_helpful', type: string) => {
     try {
-      console.log('Submitting synergy feedback:', { recommendedCardId, feedback, type });
-      const response = await fetch(`/api/cards/${cardId}/recommendation-feedback`, {
+      await fetch(`/api/cards/${cardId}/recommendation-feedback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -60,11 +57,6 @@ function SynergyRecommendations({ cardId, onCardClick, onAddCard, currentFilters
           userId: 1
         })
       });
-      if (response.ok) {
-        console.log('Synergy feedback submitted successfully');
-      } else {
-        console.error('Synergy feedback submission failed:', await response.text());
-      }
     } catch (error) {
       console.error('Failed to submit synergy feedback:', error);
     }
@@ -164,11 +156,9 @@ function SimilarRecommendations({ cardId, onCardClick, onAddCard, currentFilters
     queryKey: ['/api/cards', cardId, 'recommendations', 'functional_similarity', currentFilters],
     queryFn: async () => {
       const filterParams = currentFilters ? `&filters=${encodeURIComponent(JSON.stringify(currentFilters))}` : '';
-      console.log('Similar: Fetching with filters:', currentFilters, 'URL:', `/api/cards/${cardId}/recommendations?type=functional_similarity&limit=15${filterParams}`);
       const response = await fetch(`/api/cards/${cardId}/recommendations?type=functional_similarity&limit=15${filterParams}`);
       if (!response.ok) throw new Error('Failed to fetch similar recommendations');
       const data = await response.json();
-      console.log('Similar: Got', data.length, 'recommendations');
       return data;
     },
     enabled: !!cardId,
