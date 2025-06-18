@@ -102,101 +102,75 @@ export function ThemeBasedSynergies({ cardId, onCardClick, onAddCard, currentFil
   }
 
   return (
-    <div className="space-y-4">
-      {synergyData.map((synergy: SynergyCard, index: number) => (
-        <div
-          key={synergy.card.id}
-          className="bg-slate-800/50 rounded-lg p-4 border border-slate-700 hover:border-slate-600 transition-all duration-200"
-        >
-          <div className="flex items-start space-x-4">
-            <div className="flex-shrink-0">
-              <div className="w-20 h-28">
-                <CardTile
-                  card={synergy.card}
-                  onClick={() => onCardClick(synergy.card)}
-                />
+    <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {synergyData.map((synergy: SynergyCard, index: number) => (
+          <div
+            key={synergy.card.id}
+            className="group relative overflow-visible rounded-lg bg-slate-800 border border-slate-600 hover:border-blue-400 transition-all duration-300 cursor-pointer hover:scale-200 hover:z-50 hover:shadow-2xl"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCardClick(synergy.card);
+            }}
+            style={{ transformOrigin: 'center' }}
+          >
+            <div className="aspect-[5/7] relative">
+              <img
+                src={synergy.card.image_uris?.normal || synergy.card.image_uris?.large}
+                alt={synergy.card.name}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+              
+              {/* Card name overlay */}
+              <div className="absolute bottom-0 left-0 right-0 p-3">
+                <h4 className="text-white text-base font-semibold leading-tight line-clamp-2">
+                  {synergy.card.name}
+                </h4>
               </div>
             </div>
-            
-            <div className="flex-grow min-w-0">
-              <div className="flex items-start justify-between">
-                <div className="flex-grow">
-                  <h4 className="font-semibold text-slate-200 mb-2">
-                    {synergy.card.name}
-                  </h4>
-                  
-                  <div className="flex items-center space-x-2 mb-3">
-                    <Badge variant="outline" className="bg-blue-500/20 text-blue-300 border-blue-500/30">
-                      {Math.round(synergy.synergyScore * 100)}% Synergy
-                    </Badge>
-                    <span className="text-xs text-slate-500">
-                      {synergy.sharedThemes.length} shared theme{synergy.sharedThemes.length !== 1 ? 's' : ''}
+
+            {/* Synergy details overlay */}
+            <div className="absolute top-3 right-3 bg-black/90 rounded-md px-3 py-2 border border-blue-400/30">
+              <div className="text-sm text-blue-300 font-bold">
+                {Math.round(synergy.synergyScore * 100)}%
+              </div>
+            </div>
+
+            {/* Theme badges overlay */}
+            <div className="absolute top-3 left-3 flex flex-col gap-2">
+              {synergy.sharedThemes.slice(0, 2).map((theme, themeIndex) => (
+                <span
+                  key={themeIndex}
+                  className="text-sm bg-purple-600/90 text-white px-3 py-1 rounded-md font-medium border border-purple-400/30"
+                >
+                  {theme.theme}
+                </span>
+              ))}
+              {synergy.sharedThemes.length > 2 && (
+                <span className="text-sm bg-slate-600/90 text-white px-3 py-1 rounded-md border border-slate-400/30">
+                  +{synergy.sharedThemes.length - 2}
+                </span>
+              )}
+            </div>
+
+            {/* Hover info */}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+              <div className="text-center text-white p-4">
+                <p className="text-sm font-medium mb-3">{synergy.reason}</p>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {synergy.sharedThemes.map((theme, idx) => (
+                    <span key={idx} className="text-sm bg-purple-500/90 px-3 py-1 rounded-md border border-purple-400/30">
+                      {theme.theme}
                     </span>
-                  </div>
-                  
-                  <div className="mb-3">
-                    <p className="text-sm text-slate-300 mb-2">{synergy.reason}</p>
-                    
-                    <div className="flex flex-wrap gap-1">
-                      {synergy.sharedThemes.map((theme, themeIndex) => (
-                        <Badge
-                          key={themeIndex}
-                          variant="secondary"
-                          className="text-xs bg-slate-700 text-slate-300 hover:bg-slate-600"
-                        >
-                          {theme.theme}
-                          <span className="ml-1 text-slate-400">
-                            ({Math.round(theme.confidence)}%)
-                          </span>
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    {onAddCard && (
-                      <Button
-                        size="sm"
-                        onClick={() => onAddCard(synergy.card)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                      >
-                        Add to Deck
-                      </Button>
-                    )}
-                    
-                    <div className="flex items-center space-x-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleFeedback(synergy.card.id, true)}
-                        className={`h-8 w-8 p-0 ${
-                          feedback[synergy.card.id] === 'helpful' 
-                            ? 'text-green-400 bg-green-400/20' 
-                            : 'text-slate-400 hover:text-green-400'
-                        }`}
-                      >
-                        <ThumbsUp className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleFeedback(synergy.card.id, false)}
-                        className={`h-8 w-8 p-0 ${
-                          feedback[synergy.card.id] === 'not_helpful' 
-                            ? 'text-red-400 bg-red-400/20' 
-                            : 'text-slate-400 hover:text-red-400'
-                        }`}
-                      >
-                        <ThumbsDown className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

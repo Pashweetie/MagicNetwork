@@ -492,7 +492,11 @@ export function CardDetailModal({ card, isOpen, onClose, onCardClick, onAddCard,
                 </div>
                 <ThemeBasedSynergies 
                   cardId={card.id} 
-                  onCardClick={onCardClick || (() => onClose())}
+                  onCardClick={(clickedCard) => {
+                    if (onCardClick) {
+                      onCardClick(clickedCard);
+                    }
+                  }}
                   onAddCard={onAddCard}
                   currentFilters={currentFilters}
                 />
