@@ -350,6 +350,23 @@ export class DatabaseStorage implements IStorage {
           }
         }
 
+        // Query-based color identity filter (like "id<=R")
+        if (filters.query && typeof filters.query === 'string') {
+          const colorIdentityMatch = filters.query.match(/id<=([WUBRG]+)/);
+          if (colorIdentityMatch) {
+            const allowedColors = colorIdentityMatch[1].split('');
+            const cardColorIdentity = card.color_identity || [];
+            
+            const isValidIdentity = cardColorIdentity.every((color: string) => 
+              allowedColors.includes(color)
+            );
+            
+            if (!isValidIdentity) {
+              return false;
+            }
+          }
+        }
+
         // Color identity filter (commander constraint)
         if (filters.colorIdentity && filters.colorIdentity.length > 0) {
           const cardIdentity = card.color_identity || [];
