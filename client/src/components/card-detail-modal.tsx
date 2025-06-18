@@ -30,35 +30,19 @@ function ThemeRecommendations({ cardId, onCardClick }: { cardId: string; onCardC
 }
 
 // Synergy Recommendations Component
-function SynergyRecommendations({ cardId, onCardClick, onAddCard }: { cardId: string; onCardClick: (card: Card) => void; onAddCard?: (card: Card) => void }) {
-  const deck = useDeck();
+function SynergyRecommendations({ cardId, onCardClick }: { cardId: string; onCardClick: (card: Card) => void }) {
   const { data: recommendations, isLoading, error } = useQuery({
     queryKey: ['/api/cards', cardId, 'recommendations', 'synergy'],
     queryFn: async () => {
-      const response = await fetch(`/api/cards/${cardId}/recommendations?type=synergy&limit=12`);
+      const response = await fetch(`/api/cards/${cardId}/recommendations?type=synergy&limit=15`);
       if (!response.ok) throw new Error('Failed to fetch synergy recommendations');
       return response.json();
     },
     enabled: !!cardId,
   });
 
-  // Filter recommendations to exclude cards at max capacity
-  const availableCards = recommendations?.filter((rec: any) => {
-    if (!deck.canAddCard(rec.card)) return false;
-    
-    // Apply format restrictions
-    if (deck.format.name === 'Commander' && deck.commander) {
-      const commanderColors = deck.commander.color_identity || [];
-      const cardColors = rec.card.color_identity || [];
-      
-      // Check if card fits commander color identity
-      if (cardColors.some((color: string) => !commanderColors.includes(color))) {
-        return false;
-      }
-    }
-    
-    return true;
-  }) || [];
+  // Filter recommendations - no deck filtering here, just show all results
+  const availableCards = recommendations || [];
 
   return (
     <div>
@@ -82,18 +66,6 @@ function SynergyRecommendations({ cardId, onCardClick, onAddCard }: { cardId: st
           {availableCards.map((rec: any) => (
             <div key={rec.card.id} className="relative group">
               <CardTile card={rec.card} onClick={onCardClick} />
-              {onAddCard && (
-                <Button
-                  size="sm"
-                  className="absolute top-2 right-2 w-8 h-8 p-0 bg-green-600 hover:bg-green-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAddCard(rec.card);
-                  }}
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
-              )}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
                 <div className="text-xs text-yellow-400 font-medium">{rec.score}% match</div>
                 <div className="text-xs text-slate-300 truncate">{rec.reason}</div>
@@ -104,7 +76,7 @@ function SynergyRecommendations({ cardId, onCardClick, onAddCard }: { cardId: st
       ) : (
         <div className="text-center py-8 text-slate-400">
           <GitMerge className="w-8 h-8 mx-auto mb-2 opacity-50" />
-          No available synergy cards found
+          No synergy cards found
         </div>
       )}
     </div>
@@ -112,35 +84,19 @@ function SynergyRecommendations({ cardId, onCardClick, onAddCard }: { cardId: st
 }
 
 // Similar Recommendations Component
-function SimilarRecommendations({ cardId, onCardClick, onAddCard }: { cardId: string; onCardClick: (card: Card) => void; onAddCard?: (card: Card) => void }) {
-  const deck = useDeck();
+function SimilarRecommendations({ cardId, onCardClick }: { cardId: string; onCardClick: (card: Card) => void }) {
   const { data: recommendations, isLoading, error } = useQuery({
     queryKey: ['/api/cards', cardId, 'recommendations', 'functional_similarity'],
     queryFn: async () => {
-      const response = await fetch(`/api/cards/${cardId}/recommendations?type=functional_similarity&limit=12`);
+      const response = await fetch(`/api/cards/${cardId}/recommendations?type=functional_similarity&limit=15`);
       if (!response.ok) throw new Error('Failed to fetch similar recommendations');
       return response.json();
     },
     enabled: !!cardId,
   });
 
-  // Filter recommendations to exclude cards at max capacity
-  const availableCards = recommendations?.filter((rec: any) => {
-    if (!deck.canAddCard(rec.card)) return false;
-    
-    // Apply format restrictions
-    if (deck.format.name === 'Commander' && deck.commander) {
-      const commanderColors = deck.commander.color_identity || [];
-      const cardColors = rec.card.color_identity || [];
-      
-      // Check if card fits commander color identity
-      if (cardColors.some((color: string) => !commanderColors.includes(color))) {
-        return false;
-      }
-    }
-    
-    return true;
-  }) || [];
+  // Filter recommendations - no deck filtering here, just show all results
+  const availableCards = recommendations || [];
 
   return (
     <div>
@@ -186,7 +142,7 @@ function SimilarRecommendations({ cardId, onCardClick, onAddCard }: { cardId: st
       ) : (
         <div className="text-center py-8 text-slate-400">
           <Copy className="w-8 h-8 mx-auto mb-2 opacity-50" />
-          No available similar cards found
+          No similar cards found
         </div>
       )}
     </div>
@@ -347,10 +303,6 @@ export function CardDetailModal({ card, isOpen, onClose, onCardClick }: CardDeta
               <SynergyRecommendations 
                 cardId={card.id} 
                 onCardClick={onCardClick || (() => onClose())}
-                onAddCard={(addCard) => {
-                  const deck = useDeck();
-                  deck.addCard(addCard);
-                }}
               />
             </TabsContent>
             
@@ -358,10 +310,6 @@ export function CardDetailModal({ card, isOpen, onClose, onCardClick }: CardDeta
               <SimilarRecommendations 
                 cardId={card.id} 
                 onCardClick={onCardClick || (() => onClose())}
-                onAddCard={(addCard) => {
-                  const deck = useDeck();
-                  deck.addCard(addCard);
-                }}
               />
             </TabsContent>
           </Tabs>
