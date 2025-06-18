@@ -258,12 +258,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (filters && typeof filters === 'string') {
         try {
           filterObj = JSON.parse(filters);
+          console.log(`🎯 Theme suggestions for ${id} with filters:`, filterObj);
         } catch (e) {
           console.warn('Invalid filters JSON:', filters);
         }
       }
       
       const themeGroups = await recommendationService.getThemeSuggestions(id, filterObj);
+      
+      console.log(`📊 Returning ${themeGroups.length} filtered theme groups:`, 
+        themeGroups.map(t => ({ theme: t.theme, cards: t.cards.length })));
+      
       res.json(themeGroups);
     } catch (error) {
       console.error('Theme suggestions error:', error);

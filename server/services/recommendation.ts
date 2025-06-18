@@ -97,8 +97,12 @@ export class RecommendationService {
           
           if (cached.length > 0) {
             const cardData = cached[0].cardData as Card;
+            console.log(`🔍 Checking card: ${cardData?.name} with identity: ${JSON.stringify(cardData?.color_identity)}`);
             if (cardData && this.cardMatchesFilters(cardData, filters)) {
+              console.log(`✅ Card ${cardData.name} passed filters`);
               cards.push(cardData);
+            } else if (filters) {
+              console.log(`❌ Card ${cardData?.name} filtered out by filters`);
             }
           }
         }
@@ -127,6 +131,20 @@ export class RecommendationService {
     if (!filters) return true;
     
     try {
+      // Color identity filtering (for commander format)
+      if (filters.colorIdentity && filters.colorIdentity.length > 0) {
+        const cardColorIdentity = card.color_identity || [];
+        // Card's color identity must be subset of commander's identity
+        const isValidIdentity = cardColorIdentity.every((color: string) => 
+          filters.colorIdentity.includes(color)
+        );
+        if (!isValidIdentity) {
+          console.log(`❌ ${card.name} rejected - color identity [${cardColorIdentity.join(',')}] not subset of [${filters.colorIdentity.join(',')}]`);
+          return false;
+        }
+      }
+
+      // Regular color filtering
       if (filters.colors && filters.colors.length > 0) {
         const cardColors = card.colors || [];
         const hasRequiredColors = filters.colors.every((color: string) => 
