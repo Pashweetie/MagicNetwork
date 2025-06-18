@@ -46,23 +46,22 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
         const result = await response.json();
         
         // Show visual feedback with updated confidence
-        const button = document.activeElement as HTMLElement;
+        const button = document.activeElement as HTMLButtonElement;
         if (button) {
           const originalClasses = button.className;
-          const checkmark = feedback === 'helpful' ? '✓' : '✗';
-          const bgColor = feedback === 'helpful' ? 'bg-green-500' : 'bg-red-500';
-          
-          button.innerHTML = `<span class="text-white">${checkmark}</span>`;
-          button.className = `${originalClasses} ${bgColor} scale-110 transition-all duration-300`;
+          button.className = originalClasses + ' bg-green-600 text-white';
           
           const toast = document.createElement('div');
           toast.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-          toast.textContent = result.message;
+          toast.textContent = `${result.message} New confidence: ${result.newConfidence}% (${result.upvotes}↑ ${result.downvotes}↓)`;
           document.body.appendChild(toast);
           
           setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+          
+          setTimeout(() => {
             button.className = originalClasses;
-            button.innerHTML = feedback === 'helpful' ? '<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z"></path></svg>' : '<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M18 9.5a1.5 1.5 0 11-3 0v-6a1.5 1.5 0 013 0v6zM14 9.667v-5.43a2 2 0 00-1.106-1.79l-.05-.025A4 4 0 0011.057 2H5.64a2 2 0 00-1.962 1.608l-1.2 6A2 2 0 004.44 12H8v4a2 2 0 002 2 1 1 0 001-1v-.667a4 4 0 01.8-2.4l1.4-1.866a4 4 0 00.8-2.4z"></path></svg>';
             toast.remove();
           }, 2000);
         }

@@ -289,26 +289,143 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Vote on card tags
-  app.post('/api/cards/:cardId/tags/:tag/vote', async (req, res) => {
+  // Theme voting endpoint
+  app.post('/api/cards/:cardId/theme-vote', async (req, res) => {
     try {
-      const { cardId, tag } = req.params;
-      const { vote, userId } = req.body; // 'up' or 'down'
+      const { cardId } = req.params;
+      const { themeName, vote } = req.body;
+      const userId = 1;
+
+      const { db } = await import('./db');
+      const { cardThemes, eq, and, sql } = await import('@shared/schema');
       
-      if (!userId) {
-        return res.status(401).json({ error: 'User ID required' });
+      const theme = await db.select().from(cardThemes)
+        .where(and(eq(cardThemes.card_id, cardId), eq(cardThemes.theme_name, themeName)))
+        .limit(1);
+
+      if (!theme.length) {
+        return res.status(404).json({ error: 'Theme not found' });
       }
 
-      await storage.recordUserTagFeedback({
-        userId,
-        cardId,
-        tag: decodeURIComponent(tag),
-        vote
-      });
+      // Check if user already voted
+      const existingVote = await db.execute(sql`
+        SELECT id FROM user_votes 
+        WHERE user_id = ${userId} AND target_type = 'theme' AND target_id = ${theme[0].id}
+      `);
 
-      res.json({ success: true });
+      if (existingVote.rows.length > 0) {
+        return res.status(400).json({ error: 'You have already voted on this theme' });
+      }
+
+      // Record vote
+      await db.execute(sql`
+        INSERT INTO user_votes (user_id, target_type, target_id, vote)
+        VALUES (${userId}, 'theme', ${theme[0].id}, ${vote})
+      `);
+
+      // Update vote counts
+      const voteIncrement = vote === 'up' ? 1 : 0;
+      const downvoteIncrement = vote === 'down' ? 1 : 0;
+      
+      const updatedTheme = await db.update(cardThemes)
+        .set({
+          upvotes: sql`upvotes + ${voteIncrement}`,
+          downvotes: sql`downvotes + ${downvoteIncrement}`,
+          user_votes_count: sql`user_votes_count + 1`,
+          last_updated: new Date()
+        })
+        .where(eq(cardThemes.id, theme[0].id))
+        .returning();
+
+      // Recalculate confidence
+      const totalVotes = updatedTheme[0].upvotes + updatedTheme[0].downvotes;
+      const positiveRatio = totalVotes > 0 ? updatedTheme[0].upvotes / totalVotes : 0.5;
+      const baseConfidence = theme[0].confidence;
+      const adjustedConfidence = Math.max(10, Math.min(100, Math.round(baseConfidence * (0.7 + 0.6 * positiveRatio))));
+
+      await db.update(cardThemes)
+        .set({ confidence: adjustedConfidence })
+        .where(eq(cardThemes.id, theme[0].id));
+
+      res.json({ 
+        success: true, 
+        message: `Vote recorded! Theme confidence updated.`,
+        newConfidence: adjustedConfidence,
+        upvotes: updatedTheme[0].upvotes,
+        downvotes: updatedTheme[0].downvotes
+      });
     } catch (error) {
-      console.error('Tag vote error:', error);
+      console.error('Error recording theme vote:', error);
+      res.status(500).json({ error: 'Failed to record vote' });
+    }
+  });
+
+  // Recommendation voting endpoint
+  app.post('/api/recommendations/:recommendationId/vote', async (req, res) => {
+    try {
+      const { recommendationId } = req.params;
+      const { vote } = req.body;
+      const userId = 1;
+
+      const { db } = await import('./db');
+      const { cardRecommendations, eq, sql } = await import('@shared/schema');
+      
+      const recommendation = await db.select().from(cardRecommendations)
+        .where(eq(cardRecommendations.id, parseInt(recommendationId)))
+        .limit(1);
+
+      if (!recommendation.length) {
+        return res.status(404).json({ error: 'Recommendation not found' });
+      }
+
+      // Check if user already voted
+      const existingVote = await db.execute(sql`
+        SELECT id FROM user_votes 
+        WHERE user_id = ${userId} AND target_type = 'recommendation' AND target_id = ${parseInt(recommendationId)}
+      `);
+
+      if (existingVote.rows.length > 0) {
+        return res.status(400).json({ error: 'You have already voted on this recommendation' });
+      }
+
+      // Record vote
+      await db.execute(sql`
+        INSERT INTO user_votes (user_id, target_type, target_id, vote)
+        VALUES (${userId}, 'recommendation', ${parseInt(recommendationId)}, ${vote})
+      `);
+
+      // Update vote counts
+      const voteIncrement = vote === 'up' ? 1 : 0;
+      const downvoteIncrement = vote === 'down' ? 1 : 0;
+      
+      const updatedRec = await db.update(cardRecommendations)
+        .set({
+          upvotes: sql`upvotes + ${voteIncrement}`,
+          downvotes: sql`downvotes + ${downvoteIncrement}`,
+          user_votes_count: sql`user_votes_count + 1`
+        })
+        .where(eq(cardRecommendations.id, parseInt(recommendationId)))
+        .returning();
+
+      // Recalculate score
+      const totalVotes = updatedRec[0].upvotes + updatedRec[0].downvotes;
+      const positiveRatio = totalVotes > 0 ? updatedRec[0].upvotes / totalVotes : 0.5;
+      const baseScore = recommendation[0].score;
+      const adjustedScore = Math.max(10, Math.min(100, Math.round(baseScore * (0.7 + 0.6 * positiveRatio))));
+
+      await db.update(cardRecommendations)
+        .set({ score: adjustedScore })
+        .where(eq(cardRecommendations.id, parseInt(recommendationId)));
+
+      res.json({ 
+        success: true, 
+        message: `Vote recorded! Recommendation score updated.`,
+        newScore: adjustedScore,
+        upvotes: updatedRec[0].upvotes,
+        downvotes: updatedRec[0].downvotes
+      });
+    } catch (error) {
+      console.error('Error recording recommendation vote:', error);
       res.status(500).json({ error: 'Failed to record vote' });
     }
   });
