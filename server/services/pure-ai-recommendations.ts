@@ -126,23 +126,32 @@ Oracle Text: ${card.oracle_text || 'No text'}`;
         // Using Google Gemini
         try {
           const model = this.textGenerator.getGenerativeModel({ model: "gemini-1.5-flash" });
-          const prompt = `Analyze this Magic card and respond with EXACTLY 2 lines in this format:
+          const prompt = `Analyze this Magic card and identify 5-8 strategic themes it supports. Be comprehensive and specific.
 
 ${cardContext}
 
-YOUR RESPONSE MUST BE EXACTLY THIS FORMAT:
+Consider these categories:
+1. Core Mechanics: Keywords, abilities, game mechanics it interacts with
+2. Tribal Synergies: Creature types, spell types, permanent types it supports  
+3. Deck Archetypes: Competitive strategies or casual themes it enables
+4. Resource Management: How it interacts with mana, cards, life, other resources
+5. Board State: Effects on creatures, artifacts, enchantments, battlefield
+6. Combo Potential: Specific card interactions or infinite loops it enables
+7. Value Engines: Card advantage, tempo, recurring effects generation
+8. Protection/Disruption: Asset protection or opponent disruption
+
+Respond with 5-8 lines in this exact format:
 ThemeName1: Description
 ThemeName2: Description
+ThemeName3: Description
+ThemeName4: Description
+ThemeName5: Description
 
 Rules:
-- Theme names: 2-3 words maximum
-- No asterisks, no bold formatting, no markdown
-- No extra text before or after
-- Examples: Tempo Control, Value Engine, Combat Tricks, Token Strategy
-
-EXAMPLE RESPONSE:
-Tempo Control: Manages board state through timing
-Value Engine: Generates card advantage over time`;
+- Theme names: 2-4 words maximum (e.g., "Sacrifice Strategy", "ETB Value", "Token Generation")
+- Focus on actual gameplay synergies, not just card types
+- No asterisks, formatting, or extra text
+- Be specific about strategic interactions`;
 
           const result = await model.generateContent(prompt);
           aiResponse = result.response.text() || '';
@@ -220,7 +229,7 @@ Value Engine: Generates card advantage over time`;
         // Only accept proper theme names and avoid duplicates
         if (!themeName.match(/^(Theme|This|Here|Based|The|Analysis)/i) && 
             description.length > 10 && 
-            themes.length < 2 &&
+            themes.length < 8 &&
             !themes.some(t => t.theme === themeName)) {
           themes.push({
             theme: themeName,

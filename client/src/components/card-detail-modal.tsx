@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Lightbulb, GitMerge, Copy, AlertCircle, Plus, ThumbsUp, ThumbsDown } from "lucide-react";
 import { ThemeSuggestions } from "./theme-suggestions";
+import { ThemeBasedSynergies } from "./theme-based-synergies";
 import { CardTile } from "./card-tile";
 import { Card } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
@@ -463,10 +464,10 @@ export function CardDetailModal({ card, isOpen, onClose, onCardClick, onAddCard,
           </div>
         )}
 
-        {/* Three Recommendation Categories in Tabs */}
+        {/* Two Recommendation Categories in Tabs */}
         <div className="mt-6">
           <Tabs defaultValue="themes" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-slate-800 border-slate-700">
+            <TabsList className="grid w-full grid-cols-2 bg-slate-800 border-slate-700">
               <TabsTrigger value="themes" className="data-[state=active]:bg-slate-700 flex items-center space-x-2">
                 <Lightbulb className="w-4 h-4" />
                 <span>Themes</span>
@@ -475,10 +476,6 @@ export function CardDetailModal({ card, isOpen, onClose, onCardClick, onAddCard,
                 <GitMerge className="w-4 h-4" />
                 <span>Synergy</span>
               </TabsTrigger>
-              <TabsTrigger value="similar" className="data-[state=active]:bg-slate-700 flex items-center space-x-2">
-                <Copy className="w-4 h-4" />
-                <span>Similar</span>
-              </TabsTrigger>
             </TabsList>
             
             <TabsContent value="themes" className="mt-6">
@@ -486,21 +483,20 @@ export function CardDetailModal({ card, isOpen, onClose, onCardClick, onAddCard,
             </TabsContent>
             
             <TabsContent value="synergy" className="mt-6">
-              <SynergyRecommendations 
-                cardId={card.id} 
-                onCardClick={onCardClick || (() => onClose())}
-                onAddCard={onAddCard}
-                currentFilters={currentFilters}
-              />
-            </TabsContent>
-            
-            <TabsContent value="similar" className="mt-6">
-              <SimilarRecommendations 
-                cardId={card.id} 
-                onCardClick={onCardClick || (() => onClose())}
-                onAddCard={onAddCard}
-                currentFilters={currentFilters}
-              />
+              <div className="space-y-4">
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold text-slate-200 mb-2">Theme-Based Synergies</h3>
+                  <p className="text-sm text-slate-400 mb-4">
+                    Cards that share the most strategic themes with this card
+                  </p>
+                </div>
+                <ThemeBasedSynergies 
+                  cardId={card.id} 
+                  onCardClick={onCardClick || (() => onClose())}
+                  onAddCard={onAddCard}
+                  currentFilters={currentFilters}
+                />
+              </div>
             </TabsContent>
           </Tabs>
         </div>

@@ -1190,7 +1190,7 @@ Example: 75|Token generator enables sacrifice payoff`;
       }
       
       // Calculate synergy scores based on shared themes
-      for (const [cardId, sharedThemes] of cardThemeMap.entries()) {
+      for (const [cardId, sharedThemes] of Array.from(cardThemeMap.entries())) {
         if (sharedThemes.length === 0) continue;
         
         const card = await this.getCard(cardId);
@@ -1200,12 +1200,12 @@ Example: 75|Token generator enables sacrifice payoff`;
         if (filters && !cardMatchesFilters(card, filters)) continue;
         
         // Calculate synergy score
-        const averageConfidence = sharedThemes.reduce((sum, t) => sum + t.confidence, 0) / sharedThemes.length;
+        const averageConfidence = sharedThemes.reduce((sum: number, t: any) => sum + t.confidence, 0) / sharedThemes.length;
         const themeOverlap = sharedThemes.length / sourceThemeNames.length;
         const synergyScore = (averageConfidence / 100) * themeOverlap;
         
         // Generate reason
-        const themeNames = sharedThemes.map(t => t.theme);
+        const themeNames = sharedThemes.map((t: any) => t.theme);
         const reason = `Shares ${sharedThemes.length} theme${sharedThemes.length > 1 ? 's' : ''}: ${themeNames.slice(0, 3).join(', ')}${themeNames.length > 3 ? '...' : ''}`;
         
         synergies.push({
