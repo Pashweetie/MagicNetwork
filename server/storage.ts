@@ -483,7 +483,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  private async findAISynergyCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
+  private async findAISynergyCards(sourceCard: Card, filters?: any): Promise<Array<{cardId: string, score: number, reason: string}>> {
     const synergies: Array<{cardId: string, score: number, reason: string}> = [];
     
     // Get recommendation weights for adjustment
@@ -503,6 +503,9 @@ export class DatabaseStorage implements IStorage {
       const card = cached.cardData as Card;
       if (!card || !card.id) continue;
       
+      // Apply filters early to avoid processing cards that won't pass filtering
+      if (filters && !cardMatchesFilters(card, filters)) continue;
+      
       // Use pure AI neural network to analyze synergy
       const synergyAnalysis = await pureAIService.analyzeSynergy(sourceCard, card);
       
@@ -518,7 +521,7 @@ export class DatabaseStorage implements IStorage {
     return synergies.sort((a, b) => b.score - a.score).slice(0, 15);
   }
 
-  private async generateBasicSynergy(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
+  private async generateBasicSynergy(sourceCard: Card, filters?: any): Promise<Array<{cardId: string, score: number, reason: string}>> {
     const synergies: Array<{cardId: string, score: number, reason: string}> = [];
     
     // Get cards with shared characteristics
@@ -530,6 +533,10 @@ export class DatabaseStorage implements IStorage {
 
     for (const cached of candidateCards) {
       const card = cached.cardData as Card;
+      
+      // Apply filters early to avoid processing cards that won't pass filtering
+      if (filters && !cardMatchesFilters(card, filters)) continue;
+      
       const analysis = this.calculateBasicSynergyScore(sourceCard, card);
       
       if (analysis.score > 0.3) {
@@ -870,7 +877,7 @@ Example: 75|Token generator enables sacrifice payoff`;
   }
 
   // Find functionally similar cards (alternatives/substitutes with similar effects)
-  async findFunctionallySimilarCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
+  async findFunctionallySimilarCards(sourceCard: Card, filters?: any): Promise<Array<{cardId: string, score: number, reason: string}>> {
     try {
       // Check for stored recommendations first
       const storedSims = await db
@@ -883,15 +890,27 @@ Example: 75|Token generator enables sacrifice payoff`;
         .limit(20);
 
       if (storedSims.length > 0) {
-        return storedSims.map(rec => ({
+        const result = storedSims.map(rec => ({
           cardId: rec.recommendedCardId,
           score: rec.score,
           reason: rec.reason || 'stored similarity'
         }));
+        
+        if (filters) {
+          const filteredResults = [];
+          for (const rec of result) {
+            const card = await this.getCard(rec.cardId);
+            if (card && cardMatchesFilters(card, filters)) {
+              filteredResults.push(rec);
+            }
+          }
+          return filteredResults;
+        }
+        return result;
       }
 
       // Generate basic similarity recommendations
-      return await this.generateBasicSimilarity(sourceCard);
+      return await this.generateBasicSimilarity(sourceCard, filters);
     } catch (error) {
       console.error('Error finding similar cards:', error);
       return [];

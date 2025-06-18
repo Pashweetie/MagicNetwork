@@ -98,10 +98,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate recommendations on the fly using the new algorithms
       let recs: Array<{cardId: string, score: number, reason: string}> = [];
       
+      // Parse filters early to pass to storage methods
+      let parsedFilters = null;
+      if (filters) {
+        try {
+          parsedFilters = JSON.parse(filters as string);
+        } catch (err) {
+          console.warn('Failed to parse filters:', err);
+        }
+      }
+
       if (type === 'synergy') {
-        recs = await storage.findSynergyCards(sourceCard);
+        recs = await storage.findSynergyCards(sourceCard, parsedFilters);
       } else if (type === 'functional_similarity') {
-        recs = await storage.findFunctionallySimilarCards(sourceCard);
+        recs = await storage.findFunctionallySimilarCards(sourceCard, parsedFilters);
       }
       
       // Convert to the expected format with card data
