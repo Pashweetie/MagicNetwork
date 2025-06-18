@@ -197,6 +197,23 @@ export const insertUserInteractionSchema = createInsertSchema(userInteractions).
 
 export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, createdAt: true, lastUpdated: true });
 export const insertRecommendationFeedbackSchema = createInsertSchema(recommendationFeedback).omit({ id: true, createdAt: true });
+// Deck persistence schema
+export const decks = pgTable('decks', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  name: text('name').notNull(),
+  format: text('format').notNull(), // 'standard', 'commander', 'modern', etc.
+  description: text('description'),
+  commanderId: text('commander_id').references(() => cardCache.id),
+  cards: jsonb('cards').notNull(), // Array of {cardId: string, quantity: number}
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index('decks_user_idx').on(table.userId),
+  nameIdx: index('decks_name_idx').on(table.name),
+}));
+
+export const insertDeckSchema = createInsertSchema(decks).omit({ id: true, createdAt: true, updatedAt: true });
 // export const insertThemeWeightSchema = createInsertSchema(themeWeights).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type User = typeof users.$inferSelect;
@@ -218,5 +235,9 @@ export type CardTheme = typeof cardThemes.$inferSelect;
 export type InsertCardTheme = z.infer<typeof insertCardThemeSchema>;
 export type RecommendationFeedback = typeof recommendationFeedback.$inferSelect;
 export type InsertRecommendationFeedback = z.infer<typeof insertRecommendationFeedbackSchema>;
+export type Deck = typeof decks.$inferSelect;
+export type InsertDeck = z.infer<typeof insertDeckSchema>;
+export type Deck = typeof decks.$inferSelect;
+export type InsertDeck = z.infer<typeof insertDeckSchema>;
 // export type ThemeWeight = typeof themeWeights.$inferSelect;
 // export type InsertThemeWeight = z.infer<typeof insertThemeWeightSchema>;

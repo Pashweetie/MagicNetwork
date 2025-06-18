@@ -45,6 +45,13 @@ export interface IStorage {
   // Feedback system
   recordRecommendationFeedback(feedback: InsertRecommendationFeedback): Promise<void>;
   getRecommendationWeights(): Promise<{[key: string]: number}>;
+  
+  // Deck persistence
+  createDeck(deck: InsertDeck): Promise<Deck>;
+  getUserDecks(userId: number): Promise<Deck[]>;
+  getDeck(id: number, userId: number): Promise<Deck | null>;
+  updateDeck(id: number, userId: number, updates: Partial<InsertDeck>): Promise<Deck | null>;
+  deleteDeck(id: number, userId: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -540,7 +547,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Find functionally similar cards (alternatives/substitutes with similar effects)
-  private async findFunctionallySimarCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
+  private async findFunctionallySimilarCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
     const functionalCards: Array<{cardId: string, score: number, reason: string}> = [];
     
     // Get sample of cards to analyze
