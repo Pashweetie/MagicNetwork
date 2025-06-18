@@ -700,6 +700,11 @@ Example: 75|Token generator enables sacrifice payoff`;
     
     // Cross-reference enabler/payoff relationships
     const synergyPairs = [
+      { enabler: 'prowess', payoff: 'instant_sorcery', score: 40, reason: 'prowess spell synergy' },
+      { enabler: 'prowess', payoff: 'noncreature_spells', score: 40, reason: 'prowess spell synergy' },
+      { enabler: 'prowess', payoff: 'spell_matters', score: 35, reason: 'prowess spell synergy' },
+      { enabler: 'spell_matters', payoff: 'instant_sorcery', score: 35, reason: 'spell synergy' },
+      { enabler: 'noncreature_spells', payoff: 'instant_sorcery', score: 30, reason: 'spell synergy' },
       { enabler: 'token_generation', payoff: 'token_benefit', score: 35, reason: 'token synergy' },
       { enabler: 'mill', payoff: 'graveyard_value', score: 30, reason: 'mill-graveyard synergy' },
       { enabler: 'ramp', payoff: 'high_cost', score: 25, reason: 'ramp-payoff synergy' },
