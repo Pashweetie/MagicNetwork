@@ -2,7 +2,7 @@ import { storage } from "../storage";
 import { Card, cardThemes, InsertCardTheme } from "@shared/schema";
 import { db } from "../db";
 import { cardCache } from "@shared/schema";
-import { desc, sql, eq, and } from "drizzle-orm";
+import { desc, sql, eq } from "drizzle-orm";
 
 export class RecommendationService {
   
