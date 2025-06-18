@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@shared/schema";
 import { CardTile } from "./card-tile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { apiRequest } from "@/lib/queryClient";
-import { Lightbulb, TrendingUp } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ThumbsUp, ThumbsDown, X, Lightbulb, GitMerge, Copy } from "lucide-react";
 
 interface CardRecommendationsProps {
   cardId: string;
@@ -19,11 +19,13 @@ interface RecommendationWithCard {
 }
 
 export function CardRecommendations({ cardId, onCardClick }: CardRecommendationsProps) {
+  const [activeTab, setActiveTab] = useState<'synergy' | 'functional_similarity'>('synergy');
+  
   const { data: recommendations, isLoading, error } = useQuery({
-    queryKey: ['/api/cards', cardId, 'recommendations'],
+    queryKey: ['/api/cards', cardId, 'recommendations', activeTab],
     queryFn: async () => {
       try {
-        const response = await fetch(`/api/cards/${cardId}/recommendations?limit=8`);
+        const response = await fetch(`/api/cards/${cardId}/recommendations?type=${activeTab}&limit=8`);
         if (!response.ok) throw new Error('Failed to fetch recommendations');
         return response.json();
       } catch (err) {
@@ -33,6 +35,18 @@ export function CardRecommendations({ cardId, onCardClick }: CardRecommendations
     },
     enabled: !!cardId,
   });
+
+  const submitFeedback = async (recommendedCardId: string, feedback: 'helpful' | 'not_helpful' | 'irrelevant') => {
+    try {
+      await fetch(`/api/cards/${cardId}/recommendations/${recommendedCardId}/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feedback, type: activeTab })
+      });
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -66,18 +80,39 @@ export function CardRecommendations({ cardId, onCardClick }: CardRecommendations
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Lightbulb className="w-5 h-5 text-blue-400" />
-          <h3 className="text-lg font-semibold text-white">Similar Cards</h3>
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'synergy' | 'functional_similarity')} className="w-full">
+        <div className="flex items-center justify-between mb-4">
+          <TabsList className="grid w-full grid-cols-2 bg-slate-800 border-slate-700 max-w-md">
+            <TabsTrigger value="synergy" className="data-[state=active]:bg-slate-700 flex items-center space-x-1">
+              <GitMerge className="w-4 h-4" />
+              <span>Synergies</span>
+            </TabsTrigger>
+            <TabsTrigger value="functional_similarity" className="data-[state=active]:bg-slate-700 flex items-center space-x-1">
+              <Copy className="w-4 h-4" />
+              <span>Similar</span>
+            </TabsTrigger>
+          </TabsList>
+          
+          <div className="text-sm text-slate-400">
+            {recommendations?.length || 0} cards
+          </div>
         </div>
-        <div className="text-sm text-slate-400">
-          {recommendations.length} recommendations
-        </div>
-      </div>
+
+        <TabsContent value="synergy" className="mt-0">
+          <div className="mb-2">
+            <p className="text-sm text-slate-300">Cards that work well together in the same deck</p>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="functional_similarity" className="mt-0">
+          <div className="mb-2">
+            <p className="text-sm text-slate-300">Cards that do similar things (alternatives/substitutes)</p>
+          </div>
+        </TabsContent>
+      </Tabs>
       
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-        {recommendations.map((rec: any) => (
+        {recommendations?.map((rec: any) => (
           <div key={rec.card.id} className="relative group">
             <CardTile
               card={rec.card}
@@ -85,9 +120,28 @@ export function CardRecommendations({ cardId, onCardClick }: CardRecommendations
             />
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <div className="text-xs text-white">
-                <div className="flex items-center space-x-1 mb-1">
-                  <TrendingUp className="w-3 h-3" />
+                <div className="flex items-center justify-between mb-1">
                   <span className="font-medium">{rec.score}% match</span>
+                  <div className="flex space-x-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        submitFeedback(rec.card.id, 'helpful');
+                      }}
+                      className="p-1 rounded hover:bg-green-600/20"
+                    >
+                      <ThumbsUp className="w-3 h-3 text-green-400" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        submitFeedback(rec.card.id, 'not_helpful');
+                      }}
+                      className="p-1 rounded hover:bg-red-600/20"
+                    >
+                      <ThumbsDown className="w-3 h-3 text-red-400" />
+                    </button>
+                  </div>
                 </div>
                 <div className="text-slate-300 truncate">
                   {rec.reason}

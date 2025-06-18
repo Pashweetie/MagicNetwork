@@ -130,11 +130,13 @@ export const cardRecommendations = pgTable('card_recommendations', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
   sourceCardId: text('source_card_id').references(() => cardCache.id).notNull(),
   recommendedCardId: text('recommended_card_id').references(() => cardCache.id).notNull(),
+  recommendationType: text('recommendation_type').notNull(), // 'synergy' or 'functional_similarity'
   score: integer('score').notNull(), // 0-100 recommendation strength
   reason: text('reason').notNull(), // Why this card is recommended
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
   sourceCardIdx: index('card_recommendations_source_idx').on(table.sourceCardId),
+  typeIdx: index('card_recommendations_type_idx').on(table.recommendationType),
   scoreIdx: index('card_recommendations_score_idx').on(table.score),
 }));
 
@@ -167,6 +169,21 @@ export const cardThemes = pgTable('card_themes', {
   themeNameIdx: index('theme_name_idx').on(table.themeName),
 }));
 
+// User feedback for improving recommendations
+export const recommendationFeedback = pgTable('recommendation_feedback', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  userId: integer('user_id').references(() => users.id),
+  sourceCardId: text('source_card_id').references(() => cardCache.id).notNull(),
+  recommendedCardId: text('recommended_card_id').references(() => cardCache.id).notNull(),
+  recommendationType: text('recommendation_type').notNull(), // 'synergy' or 'functional_similarity'
+  feedback: text('feedback').notNull(), // 'helpful', 'not_helpful', 'irrelevant'
+  userComment: text('user_comment'), // Optional explanation
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  sourceCardIdx: index('feedback_source_idx').on(table.sourceCardId),
+  feedbackIdx: index('feedback_type_idx').on(table.feedback),
+}));
+
 // Zod schemas for database operations
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertSavedSearchSchema = createInsertSchema(savedSearches).omit({ id: true, createdAt: true });
@@ -176,6 +193,7 @@ export const insertSearchCacheSchema = createInsertSchema(searchCache).omit({ id
 export const insertCardRecommendationSchema = createInsertSchema(cardRecommendations).omit({ id: true, createdAt: true });
 export const insertUserInteractionSchema = createInsertSchema(userInteractions).omit({ id: true, createdAt: true });
 export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, createdAt: true, lastUpdated: true });
+export const insertRecommendationFeedbackSchema = createInsertSchema(recommendationFeedback).omit({ id: true, createdAt: true });
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -193,3 +211,5 @@ export type UserInteraction = typeof userInteractions.$inferSelect;
 export type InsertUserInteraction = z.infer<typeof insertUserInteractionSchema>;
 export type CardTheme = typeof cardThemes.$inferSelect;
 export type InsertCardTheme = z.infer<typeof insertCardThemeSchema>;
+export type RecommendationFeedback = typeof recommendationFeedback.$inferSelect;
+export type InsertRecommendationFeedback = z.infer<typeof insertRecommendationFeedbackSchema>;

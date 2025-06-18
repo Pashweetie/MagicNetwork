@@ -38,9 +38,13 @@ export interface IStorage {
   getUserInteractions(userId: number, limit?: number): Promise<UserInteraction[]>;
   
   // Recommendation system
-  getCardRecommendations(cardId: string, limit?: number): Promise<CardRecommendation[]>;
+  getCardRecommendations(cardId: string, type: 'synergy' | 'functional_similarity', limit?: number): Promise<CardRecommendation[]>;
   generateRecommendationsForCard(cardId: string): Promise<void>;
   getPersonalizedRecommendations(userId: number, limit?: number): Promise<Card[]>;
+  
+  // Feedback system
+  recordRecommendationFeedback(feedback: InsertRecommendationFeedback): Promise<void>;
+  getRecommendationWeights(): Promise<{[key: string]: number}>;
 }
 
 export class DatabaseStorage implements IStorage {
