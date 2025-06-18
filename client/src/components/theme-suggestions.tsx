@@ -133,8 +133,26 @@ export function ThemeSuggestions({ card, onCardClick }: ThemeSuggestionsProps) {
               {getThemeIcon(group.theme)}
               <h4 className="font-semibold text-white text-base">{group.theme}</h4>
             </div>
-            <div className="text-xs text-blue-300 bg-blue-900/30 px-2 py-1 rounded">
-              {group.cards.length} cards
+            <div className="flex items-center space-x-2">
+              <div className="text-xs text-blue-300 bg-blue-900/30 px-2 py-1 rounded">
+                {group.cards.length} cards
+              </div>
+              <Button
+                variant="outline" 
+                size="sm"
+                onClick={() => handleThemeFeedback(group.theme, 'helpful')}
+                className="text-green-400 hover:text-green-300 text-xs px-2 py-1"
+              >
+                👍
+              </Button>
+              <Button
+                variant="outline"
+                size="sm" 
+                onClick={() => handleThemeFeedback(group.theme, 'not_helpful')}
+                className="text-red-400 hover:text-red-300 text-xs px-2 py-1"
+              >
+                👎
+              </Button>
             </div>
           </div>
           <p className="text-sm text-slate-300 leading-relaxed">
