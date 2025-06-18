@@ -885,8 +885,75 @@ Example: 75|Token generator enables sacrifice payoff`;
     return false;
   }
 
+  private calculateBasicSynergyScore(sourceCard: Card, targetCard: Card): {score: number, reason: string} {
+    let score = 0;
+    const reasons: string[] = [];
+    
+    const sourceText = (sourceCard.oracle_text || '').toLowerCase();
+    const targetText = (targetCard.oracle_text || '').toLowerCase();
+    const sourceType = (sourceCard.type_line || '').toLowerCase();
+    const targetType = (targetCard.type_line || '').toLowerCase();
+    
+    // Color synergy
+    const sourceColors = sourceCard.color_identity || [];
+    const targetColors = targetCard.color_identity || [];
+    if (sourceColors.some(c => targetColors.includes(c))) {
+      score += 0.2;
+      reasons.push('shared colors');
+    }
+    
+    // Artifact synergy
+    if (sourceText.includes('artifact') && targetType.includes('artifact')) {
+      score += 0.4;
+      reasons.push('artifact synergy');
+    }
+    
+    // Tribal synergy
+    const tribes = ['goblin', 'elf', 'dragon', 'human', 'wizard', 'warrior'];
+    for (const tribe of tribes) {
+      if (sourceType.includes(tribe) && (targetType.includes(tribe) || targetText.includes(tribe))) {
+        score += 0.5;
+        reasons.push(`${tribe} tribal`);
+        break;
+      }
+    }
+    
+    return {
+      score: Math.min(score, 1.0),
+      reason: reasons.join(', ') || 'basic synergy'
+    };
+  }
+
   // Find functionally similar cards (alternatives/substitutes with similar effects)
   async findFunctionallySimilarCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
+    try {
+      // Check for stored recommendations first
+      const storedSims = await db
+        .select()
+        .from(cardRecommendations)
+        .where(and(
+          eq(cardRecommendations.sourceCardId, sourceCard.id),
+          eq(cardRecommendations.recommendationType, 'functional_similarity')
+        ))
+        .limit(20);
+
+      if (storedSims.length > 0) {
+        return storedSims.map(rec => ({
+          cardId: rec.recommendedCardId,
+          score: rec.score,
+          reason: rec.reason || 'stored similarity'
+        }));
+      }
+
+      // Generate basic similarity recommendations
+      return await this.generateBasicSimilarity(sourceCard);
+    } catch (error) {
+      console.error('Error finding similar cards:', error);
+      return [];
+    }
+  }
+
+  private async generateBasicSimilarity(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
     const similar: Array<{cardId: string, score: number, reason: string}> = [];
     
     console.log(`Finding functionally similar cards to ${sourceCard.name}`);
