@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { pgTable, text, integer, boolean, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, boolean, timestamp, jsonb, index, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 
 export const cardSchema = z.object({

@@ -1,5 +1,5 @@
 import { storage } from "../storage";
-import { Card, cardThemes, InsertCardTheme, userInteractions, userPreferences, adaptiveRecommendations } from "@shared/schema";
+import { Card, cardThemes, InsertCardTheme, userInteractions } from "@shared/schema";
 import { db } from "../db";
 import { cardCache } from "@shared/schema";
 import { desc, sql, eq, and, inArray, gte } from "drizzle-orm";

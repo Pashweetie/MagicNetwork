@@ -131,14 +131,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { limit = 20 } = req.query;
       
-      // For now, return popular cards with some personalization simulation
-      const popularCards = await db.select()
-        .from(cardCache)
-        .orderBy(desc(cardCache.searchCount))
-        .limit(parseInt(limit as string));
-      
-      const suggestions = popularCards.map(c => c.cardData as Card);
-      res.json(suggestions);
+      // Get popular cards based on search count
+      const popularCards = await storage.getPersonalizedRecommendations(1, parseInt(limit as string));
+      res.json(popularCards);
     } catch (error) {
       console.error('Contextual suggestions error:', error);
       res.status(500).json({ message: "Internal server error" });
