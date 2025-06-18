@@ -12,6 +12,177 @@ interface CardDetailModalProps {
   onClose: () => void;
 }
 
+// Theme Recommendations Component
+function ThemeRecommendations({ cardId, onCardClick }: { cardId: string; onCardClick: () => void }) {
+  return (
+    <div>
+      <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+        <Lightbulb className="w-5 h-5 mr-2 text-purple-400" />
+        Themes
+      </h3>
+      <ThemeSuggestions card={{ id: cardId } as Card} onCardClick={onCardClick} />
+    </div>
+  );
+}
+
+// Synergy Recommendations Component
+function SynergyRecommendations({ cardId, onCardClick }: { cardId: string; onCardClick: () => void }) {
+  const { data: recommendations, isLoading, error } = useQuery({
+    queryKey: ['/api/cards', cardId, 'recommendations', 'synergy'],
+    queryFn: async () => {
+      const response = await fetch(`/api/cards/${cardId}/recommendations?type=synergy&limit=6`);
+      if (!response.ok) throw new Error('Failed to fetch synergy recommendations');
+      return response.json();
+    },
+    enabled: !!cardId,
+  });
+
+  return (
+    <div>
+      <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+        <GitMerge className="w-5 h-5 mr-2 text-yellow-400" />
+        Synergy Cards
+      </h3>
+      {isLoading ? (
+        <div className="text-center py-8 text-slate-400">
+          <div className="animate-spin w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full mx-auto mb-2"></div>
+          Finding synergistic cards...
+        </div>
+      ) : error ? (
+        <div className="text-center py-8 text-red-400">
+          <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+          Failed to load synergy cards
+        </div>
+      ) : recommendations?.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {recommendations.map((rec: any) => (
+            <div
+              key={rec.card.id}
+              className="bg-slate-800 rounded-lg p-3 border border-slate-700 hover:border-yellow-400/50 transition-colors cursor-pointer group"
+              onClick={() => onCardClick()}
+            >
+              <div className="flex items-start space-x-3">
+                <div className="w-12 h-16 bg-slate-700 rounded overflow-hidden flex-shrink-0">
+                  {rec.card.image_uris?.small ? (
+                    <img
+                      src={rec.card.image_uris.small}
+                      alt={rec.card.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xs text-slate-400">
+                      {rec.card.name.substring(0, 2)}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium text-white truncate group-hover:text-yellow-400 transition-colors">
+                    {rec.card.name}
+                  </h4>
+                  <p className="text-xs text-slate-400 mb-1">
+                    {rec.card.type_line}
+                  </p>
+                  <span className="text-xs text-yellow-400 font-medium">
+                    {rec.score}% match
+                  </span>
+                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                    {rec.reason}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8 text-slate-400">
+          <GitMerge className="w-8 h-8 mx-auto mb-2 opacity-50" />
+          No synergy cards found
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Similar Recommendations Component
+function SimilarRecommendations({ cardId, onCardClick }: { cardId: string; onCardClick: () => void }) {
+  const { data: recommendations, isLoading, error } = useQuery({
+    queryKey: ['/api/cards', cardId, 'recommendations', 'functional_similarity'],
+    queryFn: async () => {
+      const response = await fetch(`/api/cards/${cardId}/recommendations?type=functional_similarity&limit=6`);
+      if (!response.ok) throw new Error('Failed to fetch similar recommendations');
+      return response.json();
+    },
+    enabled: !!cardId,
+  });
+
+  return (
+    <div>
+      <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+        <Copy className="w-5 h-5 mr-2 text-blue-400" />
+        Similar Cards
+      </h3>
+      {isLoading ? (
+        <div className="text-center py-8 text-slate-400">
+          <div className="animate-spin w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full mx-auto mb-2"></div>
+          Finding similar cards...
+        </div>
+      ) : error ? (
+        <div className="text-center py-8 text-red-400">
+          <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+          Failed to load similar cards
+        </div>
+      ) : recommendations?.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {recommendations.map((rec: any) => (
+            <div
+              key={rec.card.id}
+              className="bg-slate-800 rounded-lg p-3 border border-slate-700 hover:border-blue-400/50 transition-colors cursor-pointer group"
+              onClick={() => onCardClick()}
+            >
+              <div className="flex items-start space-x-3">
+                <div className="w-12 h-16 bg-slate-700 rounded overflow-hidden flex-shrink-0">
+                  {rec.card.image_uris?.small ? (
+                    <img
+                      src={rec.card.image_uris.small}
+                      alt={rec.card.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xs text-slate-400">
+                      {rec.card.name.substring(0, 2)}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium text-white truncate group-hover:text-blue-400 transition-colors">
+                    {rec.card.name}
+                  </h4>
+                  <p className="text-xs text-slate-400 mb-1">
+                    {rec.card.type_line}
+                  </p>
+                  <span className="text-xs text-blue-400 font-medium">
+                    {rec.score}% match
+                  </span>
+                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                    {rec.reason}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8 text-slate-400">
+          <Copy className="w-8 h-8 mx-auto mb-2 opacity-50" />
+          No similar cards found
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CardDetailModal({ card, isOpen, onClose }: CardDetailModalProps) {
   if (!card) return null;
 
