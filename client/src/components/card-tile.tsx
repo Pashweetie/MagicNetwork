@@ -41,7 +41,7 @@ export function CardTile({ card, onClick }: CardTileProps) {
 
   return (
     <div 
-      className="group cursor-pointer transform hover:scale-105 transition-transform duration-200"
+      className="group cursor-pointer transform hover:scale-110 hover:z-20 transition-transform duration-200"
       onClick={() => onClick(card)}
     >
       <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700 hover:border-slate-500">

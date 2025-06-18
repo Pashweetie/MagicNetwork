@@ -176,14 +176,21 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
   }, [getCardQuantity, getMaxCopies, format, commander]);
 
   const setCommanderFromCard = useCallback((card: Card) => {
-    if (card.type_line?.toLowerCase().includes('legendary') && 
-        card.type_line?.toLowerCase().includes('creature')) {
+    const typeLine = card.type_line?.toLowerCase() || '';
+    const isLegendary = typeLine.includes('legendary');
+    const isCreature = typeLine.includes('creature');
+    const isPlaneswalker = typeLine.includes('planeswalker');
+    
+    // Check if card can be a commander (legendary creature or planeswalker)
+    if (isLegendary && (isCreature || isPlaneswalker)) {
       if (commander?.id === card.id) {
         setCommander(null); // Remove if already commander
       } else {
         setCommander(card); // Set as new commander
       }
+      return true;
     }
+    return false;
   }, [commander]);
 
   const totalCards = deckEntries.reduce((sum, entry) => sum + entry.quantity, 0);

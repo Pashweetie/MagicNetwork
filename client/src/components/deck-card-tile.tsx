@@ -40,7 +40,7 @@ export function DeckCardTile({
   return (
     <div className="relative group">
       <div 
-        className="aspect-[2.5/3.5] bg-slate-700 rounded-lg overflow-hidden cursor-pointer transition-transform hover:scale-105"
+        className="aspect-[2.5/3.5] bg-slate-700 rounded-lg overflow-hidden cursor-pointer transition-transform hover:scale-110 hover:z-20"
         onClick={() => onClick(card)}
       >
         {card.image_uris?.small ? (
@@ -69,15 +69,32 @@ export function DeckCardTile({
       {quantity > 0 && (
         <Badge 
           variant="secondary" 
-          className="absolute top-2 left-2 bg-slate-800 text-white border-slate-600"
+          className="absolute top-2 right-2 bg-slate-800 text-white border-slate-600 z-20"
         >
           {quantity}x
         </Badge>
       )}
 
+      {/* Commander Crown */}
+      {onSetCommander && canBeCommander() && (
+        <Button
+          size="sm"
+          variant={isCommander ? "default" : "secondary"}
+          className={`absolute top-2 left-2 z-20 w-7 h-7 p-0 ${
+            isCommander ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-slate-600 hover:bg-slate-500'
+          }`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSetCommander(card);
+          }}
+        >
+          <Crown className="w-3 h-3" />
+        </Button>
+      )}
+
       {/* Add/Remove Controls */}
       {showControls && (
-        <div className="absolute bottom-2 right-2 flex space-x-1 z-10">
+        <div className="absolute bottom-2 right-2 flex space-x-1 z-20">
           {quantity > 0 && (
             <Button
               size="sm"
@@ -114,7 +131,7 @@ export function DeckCardTile({
 
       {/* Max copies indicator */}
       {showControls && quantity === maxCopies && maxCopies < 999 && (
-        <div className="absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+        <div className="absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
           <Badge variant="outline" className="text-xs bg-slate-800 text-slate-300 border-slate-600">
             Max
           </Badge>
