@@ -15,7 +15,28 @@ export class PureAIRecommendationService {
     if (this.isReady) return;
     
     try {
-      // Try OpenAI first if available
+      // Try Google Gemini first (free tier available)
+      if (process.env.GOOGLE_API_KEY) {
+        const { GoogleGenerativeAI } = await import('@google/generative-ai');
+        this.textGenerator = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+        this.isReady = true;
+        console.log('Google Gemini AI ready for theme generation');
+        return;
+      }
+
+      // Try DeepSeek (free alternative)
+      if (process.env.DEEPSEEK_API_KEY) {
+        const { default: OpenAI } = await import('openai');
+        this.textGenerator = new OpenAI({
+          apiKey: process.env.DEEPSEEK_API_KEY,
+          baseURL: 'https://api.deepseek.com'
+        });
+        this.isReady = true;
+        console.log('DeepSeek AI ready for theme generation');
+        return;
+      }
+
+      // Fallback to OpenAI if available
       if (process.env.OPENAI_API_KEY) {
         const { default: OpenAI } = await import('openai');
         this.textGenerator = new OpenAI({
@@ -26,8 +47,8 @@ export class PureAIRecommendationService {
         return;
       }
 
-      // Skip local transformer for now - too resource intensive
-      console.log('No OpenAI key available, AI theme generation disabled');
+      // No AI available
+      console.log('No AI API keys available, using basic fallback themes');
       this.isReady = false;
     } catch (error) {
       console.error('Failed to initialize AI:', error);
@@ -98,11 +119,34 @@ Oracle Text: ${card.oracle_text || 'No text'}`;
 
       let aiResponse = '';
 
-      if (this.textGenerator.chat) {
-        // Using OpenAI GPT
+      if (this.textGenerator.getGenerativeModel) {
+        // Using Google Gemini
         try {
+          const model = this.textGenerator.getGenerativeModel({ model: "gemini-pro" });
+          const prompt = `You are a Magic: The Gathering expert. Analyze this card and identify 2-3 strategic themes. Be concise.
+
+${cardContext}
+
+Format your response as:
+Theme1: Description
+Theme2: Description`;
+
+          const result = await model.generateContent(prompt);
+          aiResponse = result.response.text() || '';
+        } catch (error: any) {
+          if (error.status === 429 || error.code === 'RESOURCE_EXHAUSTED') {
+            console.log('Gemini quota exceeded, falling back to basic analysis');
+            return this.getFallbackThemes(card);
+          }
+          console.error('Gemini API error:', error);
+          return this.getFallbackThemes(card);
+        }
+      } else if (this.textGenerator.chat) {
+        // Using OpenAI-compatible API (DeepSeek or OpenAI)
+        try {
+          const model = process.env.DEEPSEEK_API_KEY ? "deepseek-chat" : "gpt-4o-mini";
           const response = await this.textGenerator.chat.completions.create({
-            model: "gpt-4o-mini", // Use cheaper model
+            model: model,
             messages: [
               {
                 role: "system",
@@ -119,11 +163,12 @@ Oracle Text: ${card.oracle_text || 'No text'}`;
 
           aiResponse = response.choices[0]?.message?.content || '';
         } catch (error: any) {
-          if (error.status === 429) {
-            console.log('OpenAI quota exceeded, falling back to basic analysis');
+          if (error.status === 429 || error.code === 'insufficient_quota') {
+            console.log('AI quota exceeded, falling back to basic analysis');
             return this.getFallbackThemes(card);
           }
-          throw error;
+          console.error('AI API error:', error);
+          return this.getFallbackThemes(card);
         }
       } else {
         // No AI available
@@ -386,6 +431,81 @@ Oracle Text: ${card.oracle_text || 'No text'}`;
   }
 
 
+
+  // Basic fallback methods when AI is unavailable
+  private getFallbackThemes(card: Card): Array<{theme: string, description: string}> {
+    const themes: Array<{theme: string, description: string}> = [];
+    const text = (card.oracle_text || '').toLowerCase();
+    const type = (card.type_line || '').toLowerCase();
+
+    if (type.includes('creature')) {
+      themes.push({
+        theme: 'Creature Strategy',
+        description: 'Build around creature-focused gameplay'
+      });
+    }
+    
+    if (type.includes('instant') || type.includes('sorcery')) {
+      themes.push({
+        theme: 'Spell Strategy', 
+        description: 'Leverage instant and sorcery effects'
+      });
+    }
+
+    if (type.includes('artifact')) {
+      themes.push({
+        theme: 'Artifact Strategy',
+        description: 'Artifact-based deck construction'
+      });
+    }
+
+    return themes.slice(0, 2);
+  }
+
+  private getBasicSynergy(sourceCard: Card, targetCard: Card): {score: number, reason: string} {
+    // Basic synergy based on shared types/mechanics
+    const sourceText = (sourceCard.oracle_text || '').toLowerCase();
+    const targetText = (targetCard.oracle_text || '').toLowerCase();
+    
+    let score = 0;
+    let reasons = [];
+
+    if (sourceCard.color_identity?.some(c => targetCard.color_identity?.includes(c))) {
+      score += 0.2;
+      reasons.push('shared colors');
+    }
+
+    if (sourceCard.type_line?.includes('Creature') && targetCard.type_line?.includes('Creature')) {
+      score += 0.3;
+      reasons.push('both creatures');
+    }
+
+    return {
+      score: Math.min(score, 0.7),
+      reason: reasons.join(', ') || 'basic compatibility'
+    };
+  }
+
+  private getBasicSimilarity(sourceCard: Card, targetCard: Card): {score: number, reason: string} {
+    // Basic similarity based on type and cost
+    let score = 0;
+    let reasons = [];
+
+    if (sourceCard.type_line === targetCard.type_line) {
+      score += 0.4;
+      reasons.push('same type');
+    }
+
+    if (sourceCard.mana_cost === targetCard.mana_cost) {
+      score += 0.3;
+      reasons.push('same cost');
+    }
+
+    return {
+      score: Math.min(score, 0.8),
+      reason: reasons.join(', ') || 'basic similarity'
+    };
+  }
 
   private cardMatchesFilters(card: Card, filters: any): boolean {
     if (!filters) return true;
