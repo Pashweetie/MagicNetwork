@@ -163,6 +163,8 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
     deckEntries,
     format,
     setFormat,
+    commander,
+    setCommander,
     addCard,
     removeCard,
     clearDeck,

@@ -252,4 +252,105 @@ export class ScryfallQueryParser {
       filters.produces = colors;
     }
   }
+
+  static buildQuery(filters: SearchFilters): string {
+    const parts: string[] = [];
+
+    // Color identity search
+    if (filters.colors && filters.colors.length > 0) {
+      const colorQuery = filters.colors.map(color => `c:${color.toLowerCase()}`).join(' OR ');
+      if (filters.colors.length > 1) {
+        parts.push(`(${colorQuery})`);
+      } else {
+        parts.push(colorQuery);
+      }
+    }
+
+    // Type line search
+    if (filters.types && filters.types.length > 0) {
+      const typeQuery = filters.types.map(type => `t:${type}`).join(' OR ');
+      if (filters.types.length > 1) {
+        parts.push(`(${typeQuery})`);
+      } else {
+        parts.push(typeQuery);
+      }
+    }
+
+    // Rarity search
+    if (filters.rarities && filters.rarities.length > 0) {
+      const rarityQuery = filters.rarities.map(rarity => `r:${rarity}`).join(' OR ');
+      if (filters.rarities.length > 1) {
+        parts.push(`(${rarityQuery})`);
+      } else {
+        parts.push(rarityQuery);
+      }
+    }
+
+    // CMC range
+    if (filters.cmcMin !== undefined || filters.cmcMax !== undefined) {
+      if (filters.cmcMin !== undefined && filters.cmcMax !== undefined) {
+        if (filters.cmcMin === filters.cmcMax) {
+          parts.push(`cmc:${filters.cmcMin}`);
+        } else {
+          parts.push(`cmc>=${filters.cmcMin} cmc<=${filters.cmcMax}`);
+        }
+      } else if (filters.cmcMin !== undefined) {
+        parts.push(`cmc>=${filters.cmcMin}`);
+      } else if (filters.cmcMax !== undefined) {
+        parts.push(`cmc<=${filters.cmcMax}`);
+      }
+    }
+
+    // Oracle text search - split words and create AND logic
+    if (filters.oracleText && filters.oracleText.trim()) {
+      const words = filters.oracleText.trim().split(/\s+/);
+      const oracleQuery = words.map(word => `o:${word}`).join(' ');
+      parts.push(oracleQuery);
+    }
+
+    // Set search
+    if (filters.set && filters.set.trim()) {
+      parts.push(`s:${filters.set.trim()}`);
+    }
+
+    return parts.join(' ');
+  }
+
+  static filtersToDisplayText(filters: SearchFilters): string {
+    const parts: string[] = [];
+    
+    if (filters.colors?.length) {
+      parts.push(`Colors: ${filters.colors.join(', ')}`);
+    }
+    
+    if (filters.types?.length) {
+      parts.push(`Types: ${filters.types.join(', ')}`);
+    }
+    
+    if (filters.rarities?.length) {
+      parts.push(`Rarity: ${filters.rarities.join(', ')}`);
+    }
+    
+    if (filters.oracleText) {
+      parts.push(`Oracle: ${filters.oracleText}`);
+    }
+    
+    if (filters.set) {
+      parts.push(`Set: ${filters.set}`);
+    }
+    
+    if (filters.cmcMin !== undefined || filters.cmcMax !== undefined) {
+      if (filters.cmcMin === filters.cmcMax) {
+        parts.push(`CMC: ${filters.cmcMin}`);
+      } else if (filters.cmcMin !== undefined && filters.cmcMax !== undefined) {
+        parts.push(`CMC: ${filters.cmcMin}-${filters.cmcMax}`);
+      } else if (filters.cmcMin !== undefined) {
+        parts.push(`CMC: ${filters.cmcMin}+`);
+      } else {
+        parts.push(`CMC: ≤${filters.cmcMax}`);
+      }
+    }
+    
+    return parts.join(' | ');
+  }
 }

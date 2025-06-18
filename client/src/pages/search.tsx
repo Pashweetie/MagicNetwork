@@ -93,11 +93,11 @@ export default function Search() {
     setSelectedCard(null);
   };
 
-  const handleLoadMore = () => {
+  const handleLoadMore = useCallback(() => {
     if (hasNextPage && !isFetching) {
       fetchNextPage();
     }
-  };
+  }, [hasNextPage, isFetching, fetchNextPage]);
 
   const handleRetry = () => {
     refetch();
@@ -165,12 +165,32 @@ export default function Search() {
                   <span>Deck ({deck.totalCards})</span>
                 </Button>
                 
-                <Link href="/deck-builder">
-                  <Button variant="secondary" className="flex items-center space-x-2">
-                    <Settings className="w-4 h-4" />
-                    <span>AI Deck Builder</span>
-                  </Button>
-                </Link>
+                {/* Commander Selection */}
+                <Select value={deck.commander?.id || ""} onValueChange={(commanderId) => {
+                  const commander = allCards.find(card => card.id === commanderId);
+                  if (commander) {
+                    deck.setCommander(commander);
+                  }
+                }}>
+                  <SelectTrigger className="w-48 bg-slate-800 border-slate-600">
+                    <SelectValue placeholder="Choose Commander" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-800 border-slate-600">
+                    <SelectItem value="">No Commander</SelectItem>
+                    {allCards
+                      .filter(card => 
+                        card.type_line?.toLowerCase().includes('legendary') && 
+                        card.type_line?.toLowerCase().includes('creature')
+                      )
+                      .slice(0, 20)
+                      .map(card => (
+                        <SelectItem key={card.id} value={card.id}>
+                          {card.name}
+                        </SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
               </div>
               
               <div className="flex items-center space-x-2">
@@ -336,9 +356,16 @@ export default function Search() {
                 <Button 
                   onClick={handleLoadMore}
                   variant="outline"
+                  disabled={isFetching}
                 >
                   Load More
                 </Button>
+              </div>
+            )}
+            
+            {isFetching && (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>
               </div>
             )}
           </div>
