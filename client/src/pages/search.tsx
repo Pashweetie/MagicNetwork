@@ -58,15 +58,28 @@ export default function Search() {
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    setUseManualFilters(false); // Switch to search query mode
-    setManualFilters({}); // Clear manual filters
+    
+    // Parse query and update filters
+    if (query.trim()) {
+      const parsedFilters = ScryfallQueryParser.parseQuery(query);
+      setManualFilters(parsedFilters);
+      setUseManualFilters(Object.keys(parsedFilters).length > 0);
+    } else {
+      setUseManualFilters(false);
+      setManualFilters({});
+    }
   };
 
   const handleFiltersChange = (filters: SearchFilters) => {
     setManualFilters(filters);
-    setUseManualFilters(Object.keys(filters).length > 0); // Switch to manual filter mode if filters exist
+    setUseManualFilters(Object.keys(filters).length > 0);
+    
+    // Update search bar with filter text
     if (Object.keys(filters).length > 0) {
-      setSearchQuery(""); // Clear search query when using manual filters
+      const queryText = ScryfallQueryParser.buildQuery(filters);
+      setSearchQuery(queryText);
+    } else {
+      setSearchQuery("");
     }
   };
 
