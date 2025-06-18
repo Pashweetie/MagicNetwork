@@ -206,16 +206,16 @@ export function FilterSidebar({ isOpen, filters, onFiltersChange, onClose }: Fil
           <div className="mb-6">
             <h3 className="text-sm font-medium text-slate-300 mb-3">Format</h3>
             <Select
-              value={filters.format || ''}
+              value={filters.format || 'all'}
               onValueChange={(value) => 
-                updateFilters({ format: value || undefined })
+                updateFilters({ format: value === 'all' ? undefined : value })
               }
             >
               <SelectTrigger className="bg-slate-700 border-slate-600 text-sm">
                 <SelectValue placeholder="All Formats" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Formats</SelectItem>
+                <SelectItem value="all">All Formats</SelectItem>
                 {FORMATS.map((format) => (
                   <SelectItem key={format} value={format}>
                     {format.charAt(0).toUpperCase() + format.slice(1)}
