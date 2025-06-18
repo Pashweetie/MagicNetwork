@@ -4,11 +4,12 @@ import { Card } from "@shared/schema";
 import { CardTile } from "./card-tile";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sparkles, Wand2, Users, Crown } from "lucide-react";
+import { Sparkles, Wand2, Users, Crown, Plus, ThumbsUp, ThumbsDown } from "lucide-react";
 
 interface ThemeSuggestionsProps {
   card: Card;
   onCardClick: (card: Card) => void;
+  onAddCard?: (card: Card) => void;
   currentFilters?: any;
 }
 
@@ -20,7 +21,7 @@ interface ThemeGroup {
   confidence: number;
 }
 
-export function ThemeSuggestions({ card, onCardClick, currentFilters }: ThemeSuggestionsProps) {
+export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters }: ThemeSuggestionsProps) {
   const { data: themeGroups, isLoading, error } = useQuery({
     queryKey: ['/api/cards', card.id, 'theme-suggestions', currentFilters],
     queryFn: async () => {

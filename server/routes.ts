@@ -133,8 +133,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   return false;
                 }
               } else {
-                // Card must match exact colors
-                if (JSON.stringify(cardColors.sort()) !== JSON.stringify(searchFilters.colors.sort())) {
+                // Card must contain at least one specified color, or be colorless if colorless is specified
+                if (cardColors.length > 0 && !searchFilters.colors.some((color: string) => cardColors.includes(color))) {
                   return false;
                 }
               }
