@@ -428,12 +428,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create or update card-theme relevance vote
       await db.execute(sql`
-        INSERT INTO user_votes (user_id, target_type, target_id, vote, metadata)
-        VALUES (${userId}, 'card_theme_relevance', 0, ${vote}, ${JSON.stringify({
-          cardId,
-          themeName,
-          sourceCardId
-        })})
+        INSERT INTO user_votes (user_id, target_type, target_id, vote)
+        VALUES (${userId}, 'card_theme_relevance', 0, ${vote})
       `);
 
       // Record card-theme relevance feedback
