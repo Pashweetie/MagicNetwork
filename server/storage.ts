@@ -575,6 +575,31 @@ export class DatabaseStorage implements IStorage {
         score += 30; reasons.push('equipment-creature synergy');
       }
 
+      // Flying synergies - cards that benefit from flying creatures
+      if (sourceText.includes('flying') && 
+          (cardText.includes('flying') || cardText.includes('airborne') || cardText.includes('can\'t block'))) {
+        score += 15; reasons.push('flying synergy');
+      }
+
+      // Initiative/Dungeon synergies
+      if ((sourceText.includes('initiative') || sourceText.includes('dungeon')) &&
+          (cardText.includes('initiative') || cardText.includes('dungeon') || cardText.includes('venture'))) {
+        score += 20; reasons.push('dungeon synergy');
+      }
+
+      // General creature synergies - same types benefit each other
+      if (sourceType.includes('creature') && cardType.includes('creature')) {
+        // Same mana cost creatures often work together
+        if (Math.abs((sourceCard.cmc || 0) - (card.cmc || 0)) <= 1) {
+          score += 8; reasons.push('similar mana cost creatures');
+        }
+        
+        // Small creatures work together (CMC <= 3)
+        if ((sourceCard.cmc || 0) <= 3 && (card.cmc || 0) <= 3) {
+          score += 5; reasons.push('small creature synergy');
+        }
+      }
+
       // Tribal synergies (same creature type)
       const sourceCreatureTypes = this.extractCreatureTypes(sourceCard.type_line);
       const cardCreatureTypes = this.extractCreatureTypes(card.type_line);
@@ -591,7 +616,7 @@ export class DatabaseStorage implements IStorage {
       // Apply centralized weight adjustment
       score = score * synergyWeight;
 
-      if (score >= 15) {
+      if (score >= 5) { // Even lower threshold to debug
         synergies.push({
           cardId: card.id,
           score: Math.min(score, 100),
