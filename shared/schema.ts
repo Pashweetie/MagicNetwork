@@ -230,14 +230,27 @@ export const insertSavedSearchSchema = createInsertSchema(savedSearches).omit({ 
 export const insertFavoriteCardSchema = createInsertSchema(favoriteCards).omit({ id: true, createdAt: true });
 export const insertCardCacheSchema = createInsertSchema(cardCache).omit({ lastUpdated: true, searchCount: true });
 export const insertSearchCacheSchema = createInsertSchema(searchCache).omit({ id: true, createdAt: true, lastAccessed: true, accessCount: true });
-export const insertCardRecommendationSchema = createInsertSchema(cardRecommendations).omit({ id: true, createdAt: true });
+export const insertCardRecommendationSchema = createInsertSchema(cardRecommendations).omit({ id: true, createdAt: true, upvotes: true, downvotes: true, user_votes_count: true });
 export const insertUserInteractionSchema = createInsertSchema(userInteractions).omit({ id: true, createdAt: true });
 
 export const insertCardTagSchema = createInsertSchema(cardTags).omit({ id: true, createdAt: true, lastUpdated: true });
 export const insertTagRelationshipSchema = createInsertSchema(tagRelationships).omit({ id: true, createdAt: true, lastUpdated: true });
 export const insertUserTagFeedbackSchema = createInsertSchema(userTagFeedback).omit({ id: true, createdAt: true });
-export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, createdAt: true, lastUpdated: true });
+export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, created_at: true, last_updated: true, upvotes: true, downvotes: true, user_votes_count: true });
 export const insertRecommendationFeedbackSchema = createInsertSchema(recommendationFeedback).omit({ id: true, createdAt: true });
+// User votes tracking for recommendations and themes
+export const userVotes = pgTable('user_votes', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  targetType: text('target_type').notNull(), // 'theme', 'recommendation'
+  targetId: integer('target_id').notNull(), // ID of theme or recommendation
+  vote: text('vote').notNull(), // 'up', 'down'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userTargetIdx: index('user_votes_user_target_idx').on(table.userId, table.targetType, table.targetId),
+  targetIdx: index('user_votes_target_idx').on(table.targetType, table.targetId),
+}));
+
 // Deck persistence schema
 export const decks = pgTable('decks', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
@@ -255,6 +268,7 @@ export const decks = pgTable('decks', {
 }));
 
 export const insertDeckSchema = createInsertSchema(decks).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertUserVoteSchema = createInsertSchema(userVotes).omit({ id: true, createdAt: true });
 // export const insertThemeWeightSchema = createInsertSchema(themeWeights).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type User = typeof users.$inferSelect;
@@ -287,5 +301,8 @@ export type InsertRecommendationFeedback = z.infer<typeof insertRecommendationFe
 // export type InsertRecommendationWeight = z.infer<typeof insertRecommendationWeightSchema>;
 export type Deck = typeof decks.$inferSelect;
 export type InsertDeck = z.infer<typeof insertDeckSchema>;
+
+export type UserVote = typeof userVotes.$inferSelect;
+export type InsertUserVote = z.infer<typeof insertUserVoteSchema>;
 // export type ThemeWeight = typeof themeWeights.$inferSelect;
 // export type InsertThemeWeight = z.infer<typeof insertThemeWeightSchema>;

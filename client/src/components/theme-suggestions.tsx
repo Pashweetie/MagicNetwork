@@ -31,22 +31,21 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
     },
   });
 
-  const handleThemeFeedback = async (themeName: string, feedback: 'helpful' | 'not_helpful') => {
+  const handleThemeVote = async (themeName: string, vote: 'up' | 'down') => {
     try {
-      const response = await fetch(`/api/cards/${card.id}/theme-feedback`, {
+      const response = await fetch(`/api/cards/${card.id}/theme-vote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          themeName: themeName, // Ensure we're sending the actual theme name
-          feedback,
-          reason: feedback === 'not_helpful' ? 'Theme does not match card strategy' : null
+          themeName,
+          vote
         })
       });
       
       if (response.ok) {
         const result = await response.json();
         
-        // Show visual feedback
+        // Show visual feedback with updated confidence
         const button = document.activeElement as HTMLElement;
         if (button) {
           const originalClasses = button.className;
@@ -173,16 +172,18 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
               <Button
                 variant="outline" 
                 size="sm"
-                onClick={() => handleThemeFeedback(group.theme, 'helpful')}
+                onClick={() => handleThemeVote(group.theme, 'up')}
                 className="text-green-400 hover:text-green-300 text-xs px-2 py-1"
+                title="Vote up - increases confidence"
               >
                 👍
               </Button>
               <Button
                 variant="outline"
                 size="sm" 
-                onClick={() => handleThemeFeedback(group.theme, 'not_helpful')}
+                onClick={() => handleThemeVote(group.theme, 'down')}
                 className="text-red-400 hover:text-red-300 text-xs px-2 py-1"
+                title="Vote down - decreases confidence"
               >
                 👎
               </Button>
