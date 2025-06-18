@@ -183,6 +183,12 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
     
     // Check if card can be a commander (legendary creature or planeswalker)
     if (isLegendary && (isCreature || isPlaneswalker)) {
+      // Add card to deck if not already present
+      const currentQuantity = getCardQuantity(card.id);
+      if (currentQuantity === 0) {
+        addCard(card);
+      }
+      
       if (commander?.id === card.id) {
         setCommander(null); // Remove if already commander
       } else {
@@ -191,7 +197,7 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
       return true;
     }
     return false;
-  }, [commander]);
+  }, [commander, getCardQuantity, addCard]);
 
   const totalCards = deckEntries.reduce((sum, entry) => sum + entry.quantity, 0);
   const uniqueCards = deckEntries.length;

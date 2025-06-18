@@ -30,7 +30,7 @@ export default function Search() {
   
   const deck = useDeck();
 
-  // Use either parsed query filters OR manual filters, with commander restrictions
+  // Use either parsed query filters OR manual filters, with commander and format restrictions
   const activeFilters = useMemo(() => {
     let baseFilters;
     if (useManualFilters && Object.keys(manualFilters).length > 0) {
@@ -39,20 +39,31 @@ export default function Search() {
       baseFilters = ScryfallQueryParser.parseQuery(searchQuery);
     }
 
+    // Apply format filtering
+    const formatFilters: string[] = [];
+    
+    // Add format-specific filters
+    if (deck.format.name !== 'Casual') {
+      formatFilters.push(`legal:${deck.format.name.toLowerCase()}`);
+    }
+
     // Apply commander color identity filtering
     if (deck.format.name === 'Commander' && deck.commander) {
       const commanderColors = deck.commander.color_identity || [];
-      let colorFilter = '';
       
       if (commanderColors.length > 0) {
-        colorFilter = `id<=${commanderColors.join('')}`;
+        formatFilters.push(`id<=${commanderColors.join('')}`);
       } else {
-        colorFilter = 'id:c'; // colorless only if commander is colorless
+        formatFilters.push('id:c'); // colorless only if commander is colorless
       }
-      
+    }
+    
+    // Combine all filters
+    if (formatFilters.length > 0) {
+      const combinedFilter = formatFilters.join(' ');
       return {
         ...baseFilters,
-        query: baseFilters.query ? `${baseFilters.query} ${colorFilter}` : colorFilter
+        query: baseFilters.query ? `${baseFilters.query} ${combinedFilter}` : combinedFilter
       };
     }
     
