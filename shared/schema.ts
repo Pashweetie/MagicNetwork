@@ -169,7 +169,7 @@ export const cardThemes = pgTable('card_themes', {
   last_updated: timestamp('last_updated').defaultNow().notNull(),
 }, (table) => ({
   cardThemeIdx: index('card_theme_idx').on(table.card_id, table.theme_name),
-  themeNameIdx: index('theme_name_idx').on(table.themeName),
+  themeNameIdx: index('theme_name_idx').on(table.theme_name),
 }));
 
 // User feedback for improving recommendations
