@@ -105,7 +105,7 @@ export class RecommendationService {
               cardData = cached[0].cardData as Card;
             }
             
-            if (cardData && this.cardMatchesFilters(cardData, filters)) {
+            if (cardData && cardMatchesFilters(cardData, filters)) {
               cards.push(cardData);
             }
           }
