@@ -385,7 +385,7 @@ Oracle Text: ${card.oracle_text || 'No text'}`;
     }
   }
 
-  // Removed hardcoded pattern matching - AI only
+
 
   private cardMatchesFilters(card: Card, filters: any): boolean {
     if (!filters) return true;
