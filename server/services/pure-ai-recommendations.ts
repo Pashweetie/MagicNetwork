@@ -393,10 +393,23 @@ Provide: SCORE|REASON (e.g., "75|Strong artifact synergy with metalcraft trigger
       const sourceContext = `"${sourceCard.name}" (${sourceCard.type_line}): ${sourceCard.oracle_text || 'No text'}`;
       const targetContext = `"${targetCard.name}" (${targetCard.type_line}): ${targetCard.oracle_text || 'No text'}`;
 
-      if (this.textGenerator.chat) {
-        // Using OpenAI GPT
+      if (this.textGenerator.getGenerativeModel) {
+        // Using Google Gemini
+        const model = this.textGenerator.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const prompt = `You are a Magic: The Gathering expert. Rate functional similarity between these two cards on a scale of 0-100.
+
+Source: ${sourceContext}
+Target: ${targetContext}
+
+Provide: SCORE|REASON (e.g., "85|Both are 3-mana removal spells with similar effects")`;
+
+        const result = await model.generateContent(prompt);
+        aiResponse = result.response.text() || '';
+      } else if (this.textGenerator.chat) {
+        // Using OpenAI-compatible API
+        const model = process.env.DEEPSEEK_API_KEY ? "deepseek-chat" : "gpt-4o-mini";
         const response = await this.textGenerator.chat.completions.create({
-          model: "gpt-4o",
+          model: model,
           messages: [
             {
               role: "system",
@@ -413,15 +426,8 @@ Provide: SCORE|REASON (e.g., "75|Strong artifact synergy with metalcraft trigger
 
         aiResponse = response.choices[0]?.message?.content || '';
       } else {
-        // Using local transformer
-        const prompt = `Rate functional similarity 0-100 between Magic cards. Source: ${sourceContext} Target: ${targetContext} - Do they serve similar deck purposes? Format: NUMBER|reason`;
-        
-        const response = await this.textGenerator(prompt, {
-          max_new_tokens: 50,
-          temperature: 0.3
-        });
-
-        aiResponse = response[0]?.generated_text || '';
+        // No AI available
+        return this.getBasicSimilarity(sourceCard, targetCard);
       }
 
       const match = aiResponse.match(/(\d{1,3})\s*\|\s*(.+)/);
