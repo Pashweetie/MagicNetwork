@@ -432,9 +432,9 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Power/Toughness similarity for creatures
-      if (sourceCard.power && card.power && sourceCard.toughness && card.toughness) {
-        const powerDiff = Math.abs(parseInt(sourceCard.power) - parseInt(card.power));
-        const toughnessDiff = Math.abs(parseInt(sourceCard.toughness) - parseInt(card.toughness));
+      if ((sourceCard as any).power && (card as any).power && (sourceCard as any).toughness && (card as any).toughness) {
+        const powerDiff = Math.abs(parseInt((sourceCard as any).power) - parseInt((card as any).power));
+        const toughnessDiff = Math.abs(parseInt((sourceCard as any).toughness) - parseInt((card as any).toughness));
         if (powerDiff <= 1 && toughnessDiff <= 1) {
           score += 12;
           reasons.push('similar stats');
