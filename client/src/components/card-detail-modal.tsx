@@ -47,17 +47,32 @@ function SynergyRecommendations({ cardId, onCardClick, onAddCard, currentFilters
 
   const handleRecommendationFeedback = async (recommendedCardId: string, feedback: 'helpful' | 'not_helpful', type: string) => {
     try {
-      await fetch(`/api/recommendation-feedback`, {
+      const response = await fetch(`/api/cards/${cardId}/recommendation-feedback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sourceCardId: cardId,
           recommendedCardId,
-          feedback,
+          helpful: feedback === 'helpful',
           recommendationType: type,
           userId: 1
         })
       });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Feedback recorded:', result.message);
+        // Show visual feedback to user
+        const button = document.activeElement;
+        if (button && button instanceof HTMLElement) {
+          const originalText = button.innerHTML;
+          button.innerHTML = feedback === 'helpful' ? '✓' : '✗';
+          button.classList.add('animate-pulse');
+          setTimeout(() => {
+            button.innerHTML = originalText;
+            button.classList.remove('animate-pulse');
+          }, 1000);
+        }
+      }
     } catch (error) {
       console.error('Failed to submit synergy feedback:', error);
     }

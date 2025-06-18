@@ -536,7 +536,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       // If no stored recommendations, generate basic ones
-      return await this.generateBasicSynergyRecommendations(sourceCard);
+      return await this.generateBasicSynergy(sourceCard);
     } catch (error) {
       console.error('Error finding synergy cards:', error);
       return [];
@@ -576,6 +576,34 @@ export class DatabaseStorage implements IStorage {
     }
 
     return synergies.sort((a, b) => b.score - a.score).slice(0, 15);
+  }
+
+  private async generateBasicSynergy(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
+    const synergies: Array<{cardId: string, score: number, reason: string}> = [];
+    
+    // Get cards with shared characteristics
+    const candidateCards = await db
+      .select()
+      .from(cardCache)
+      .where(sql`card_data->>'id' != ${sourceCard.id}`)
+      .limit(500);
+
+    for (const cached of candidateCards) {
+      const card = cached.cardData as Card;
+      const analysis = this.calculateBasicSynergy(sourceCard, card);
+      
+      if (analysis.score > 0.3) {
+        synergies.push({
+          cardId: card.id,
+          score: analysis.score,
+          reason: analysis.reason
+        });
+      }
+    }
+    
+    return synergies
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 20);
   }
 
   private prepareCardContext(card: Card): any {
