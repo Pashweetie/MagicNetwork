@@ -66,9 +66,11 @@ function SynergyRecommendations({ cardId, onCardClick }: { cardId: string; onCar
           {availableCards.map((rec: any) => (
             <div key={rec.card.id} className="relative group">
               <CardTile card={rec.card} onClick={onCardClick} />
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                <div className="text-xs text-yellow-400 font-medium">{rec.score}% match</div>
-                <div className="text-xs text-slate-300 truncate">{rec.reason}</div>
+              <div className="absolute top-1 right-1">
+                <div className="text-xs bg-yellow-500/90 text-black px-1.5 py-0.5 rounded font-medium">{rec.score}%</div>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-1">
+                <div className="text-xs text-slate-300 text-center truncate">{rec.reason}</div>
               </div>
             </div>
           ))}
@@ -120,9 +122,11 @@ function SimilarRecommendations({ cardId, onCardClick }: { cardId: string; onCar
           {availableCards.map((rec: any) => (
             <div key={rec.card.id} className="relative group">
               <CardTile card={rec.card} onClick={onCardClick} />
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                <div className="text-xs text-blue-400 font-medium">{rec.score}% match</div>
-                <div className="text-xs text-slate-300 truncate">{rec.reason}</div>
+              <div className="absolute top-1 right-1">
+                <div className="text-xs bg-blue-500/90 text-white px-1.5 py-0.5 rounded font-medium">{rec.score}%</div>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-1">
+                <div className="text-xs text-slate-300 text-center truncate">{rec.reason}</div>
               </div>
             </div>
           ))}

@@ -111,18 +111,24 @@ export class RecommendationService {
 
       // Generate themes using local AI analysis
       const detectedThemes = await this.analyzeCardWithLocalAI(card);
+      console.log(`Found ${detectedThemes.length} themes for ${card.name}:`, detectedThemes.map(t => t.name));
       
       const results: Array<{theme: string, description: string, cards: Card[]}> = [];
 
       // For each detected theme, find matching cards
       for (const theme of detectedThemes) {
-        const relatedCards = await this.findCardsForDynamicTheme(theme, card);
-        if (relatedCards.length > 0) {
-          results.push({
-            theme: theme.name,
-            description: theme.description,
-            cards: relatedCards.slice(0, 12)
-          });
+        try {
+          const relatedCards = await this.findCardsForDynamicTheme(theme, card);
+          console.log(`Theme "${theme.name}" found ${relatedCards.length} cards`);
+          if (relatedCards.length > 0) {
+            results.push({
+              theme: theme.name,
+              description: theme.description,
+              cards: relatedCards.slice(0, 12)
+            });
+          }
+        } catch (error) {
+          console.error(`Error finding cards for theme "${theme.name}":`, error);
         }
       }
 
@@ -151,17 +157,22 @@ export class RecommendationService {
   }
 
   private async generateThemesWithAI(card: Card): Promise<Array<{name: string, description: string, keywords: string[], searchTerms: string[]}>> {
-    const prompt = `Analyze this Magic card for deck themes. Card: ${card.name}, Type: ${card.type_line}, Text: ${card.oracle_text || 'No text'}. List 3 strategic themes this card enables (like Theft, Stax, Tokens, Reanimator, etc.) with keywords to find similar cards.`;
+    const prompt = `Identify strategic deck themes for Magic card "${card.name}". Type: ${card.type_line}. Text: ${card.oracle_text || 'No rules text'}. What 3 competitive deck archetypes use this card? Examples: Control, Aggro, Combo, Prison, Theft, Tokens, Reanimator, Artifacts, Tribal.`;
     
     try {
+      console.log(`Generating AI themes for ${card.name}...`);
       const result = await this.textGenerator(prompt, {
-        max_length: 200,
-        temperature: 0.7,
+        max_length: 150,
+        temperature: 0.8,
+        do_sample: true,
       });
       
       // Parse AI response and extract themes
       const aiText = result[0]?.generated_text || '';
-      return this.parseAIThemes(aiText, card);
+      console.log(`AI response for ${card.name}: ${aiText.substring(0, 100)}...`);
+      const parsedThemes = this.parseAIThemes(aiText, card);
+      console.log(`Parsed ${parsedThemes.length} themes from AI response`);
+      return parsedThemes;
     } catch (error) {
       console.error('AI theme generation failed:', error);
       return [];
