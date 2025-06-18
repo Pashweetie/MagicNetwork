@@ -254,9 +254,10 @@ Commander Value: Provides format-specific advantages`;
       }
     }
     
-    // If still no proper themes, generate meaningful fallback based on card
+    // If still no themes found, use fallbacks
     if (themes.length === 0) {
-      return this.getFallbackThemes(card);
+      console.log('No themes extracted, using fallback themes');
+      return this.getFallbackThemes(null);
     }
     
     return themes;
