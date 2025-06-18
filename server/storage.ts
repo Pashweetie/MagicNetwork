@@ -37,10 +37,8 @@ export interface IStorage {
   recordUserInteraction(interaction: InsertUserInteraction): Promise<void>;
   getUserInteractions(userId: number, limit?: number): Promise<UserInteraction[]>;
   
-  // Recommendation system
+  // Recommendation system (simplified)
   getCardRecommendations(cardId: string, type: 'synergy' | 'functional_similarity', limit?: number, filters?: any): Promise<CardRecommendation[]>;
-  generateRecommendationsForCard(cardId: string): Promise<void>;
-  getPersonalizedRecommendations(userId: number, limit?: number): Promise<Card[]>;
   
   // Feedback system
   recordRecommendationFeedback(feedback: InsertRecommendationFeedback): Promise<void>;
@@ -814,43 +812,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRecommendationWeights(): Promise<{[key: string]: number}> {
-    try {
-      // Analyze feedback to adjust weights
-      const feedbackData = await db
-        .select()
-        .from(recommendationFeedback);
-
-      const weights: {[key: string]: number} = {
-        'oracle_text_match': 1.0,
-        'type_match': 0.8,
-        'synergy_bonus': 1.2,
-        'mana_cost_similarity': 0.3
-      };
-
-      // Adjust weights based on feedback
-      const helpfulCount = feedbackData.filter(f => f.feedback === 'helpful').length;
-      const totalCount = feedbackData.length;
-      
-      if (totalCount > 10) {
-        const helpfulRatio = helpfulCount / totalCount;
-        if (helpfulRatio < 0.6) {
-          // If less than 60% helpful, adjust weights
-          weights.oracle_text_match *= 1.2;
-          weights.synergy_bonus *= 1.1;
-          weights.mana_cost_similarity *= 0.8;
-        }
-      }
-
-      return weights;
-    } catch (error) {
-      console.error('Error getting recommendation weights:', error);
-      return {
-        'oracle_text_match': 1.0,
-        'type_match': 0.8,
-        'synergy_bonus': 1.2,
-        'mana_cost_similarity': 0.3
-      };
-    }
+    return {
+      'oracle_text_match': 1.0,
+      'type_match': 0.8,
+      'synergy_bonus': 1.2,
+      'mana_cost_similarity': 0.3
+    };
   }
 }
 
