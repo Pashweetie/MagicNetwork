@@ -142,19 +142,7 @@ export class RecommendationService {
       return [];
     }
 
-    // First try local AI if available
-    if (this.textGenerator) {
-      try {
-        const aiThemes = await this.generateThemesWithAI(card);
-        if (aiThemes.length > 0) {
-          return aiThemes;
-        }
-      } catch (error) {
-        console.error('Local AI analysis failed:', error);
-      }
-    }
-    
-    // Fallback to enhanced pattern matching
+    // Use intelligent pattern matching for reliable theme detection
     return this.analyzeCardIntelligently(card);
   }
 
@@ -264,13 +252,39 @@ export class RecommendationService {
     if (this.matchesTheme(cardName, oracleText, [
       'abduction', 'steal', 'mind control', 'confiscate', 'control magic',
       'gain control', 'take control', 'exchange control', 'threaten',
-      'act of treason', 'claims to fame'
+      'act of treason', 'claims to fame', 'insurrection', 'dominate'
     ])) {
       themes.push({
         name: 'Theft & Control Magic',
         description: 'Taking control of opponent permanents and resources',
         keywords: ['steal', 'control', 'gain control', 'exchange', 'threaten'],
         searchTerms: ['gain control', 'take control', 'steal', 'exchange control', 'control target']
+      });
+    }
+
+    // SPELL TRIGGERS & PROWESS - Enhanced detection
+    if (this.matchesTheme(cardName, oracleText, [
+      'prowess', 'whenever you cast', 'noncreature spell', 'instant or sorcery',
+      'spell trigger', 'magecraft', 'storm', 'spellslinger'
+    ])) {
+      themes.push({
+        name: 'Spell Triggers',
+        description: 'Cards that benefit from casting spells',
+        keywords: ['prowess', 'whenever you cast', 'noncreature spell', 'magecraft'],
+        searchTerms: ['prowess', 'whenever you cast', 'noncreature spell', 'instant or sorcery']
+      });
+    }
+
+    // AGGRO & BURN - Enhanced detection  
+    if (this.matchesTheme(cardName, oracleText, [
+      'haste', 'trample', 'first strike', 'damage to any target', 'direct damage',
+      'lightning bolt', 'burn', 'aggressive', 'attack', 'combat damage'
+    ])) {
+      themes.push({
+        name: 'Aggro & Burn',
+        description: 'Fast aggressive strategies and direct damage',
+        keywords: ['haste', 'trample', 'damage', 'burn', 'aggressive'],
+        searchTerms: ['haste', 'trample', 'damage to any target', 'first strike']
       });
     }
 
