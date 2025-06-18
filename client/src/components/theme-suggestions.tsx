@@ -21,6 +21,8 @@ interface ThemeGroup {
 }
 
 export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters }: ThemeSuggestionsProps) {
+  const [userHasVoted, setUserHasVoted] = useState<{[theme: string]: boolean}>({});
+  
   const { data: themeGroups, isLoading, error } = useQuery({
     queryKey: ['/api/cards', card.id, 'theme-suggestions', currentFilters],
     queryFn: async () => {
@@ -32,6 +34,15 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
   });
 
   const handleThemeVote = async (themeName: string, vote: 'up' | 'down') => {
+    if (userHasVoted[themeName]) {
+      const toast = document.createElement('div');
+      toast.className = 'fixed top-4 right-4 bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+      toast.textContent = 'You have already voted on this theme';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
+      return;
+    }
+
     try {
       const response = await fetch(`/api/cards/${card.id}/theme-vote`, {
         method: 'POST',
@@ -186,6 +197,7 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
                 onClick={() => handleThemeVote(group.theme, 'up')}
                 className="text-green-400 hover:text-green-300 text-xs px-2 py-1"
                 title="Vote up - increases confidence"
+                disabled={userHasVoted[group.theme]}
               >
                 👍
               </Button>
@@ -195,6 +207,7 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
                 onClick={() => handleThemeVote(group.theme, 'down')}
                 className="text-red-400 hover:text-red-300 text-xs px-2 py-1"
                 title="Vote down - decreases confidence"
+                disabled={userHasVoted[group.theme]}
               >
                 👎
               </Button>

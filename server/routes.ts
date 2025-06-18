@@ -306,11 +306,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!theme.length) {
         // Theme doesn't exist in database yet, create it
-        const { sql } = await import('drizzle-orm');
         await db.execute(sql`
           INSERT INTO card_themes (card_id, theme_name, theme_category, confidence, description, upvotes, downvotes, user_votes_count)
           VALUES (${cardId}, ${themeName}, 'ai_generated', 50, 'AI-identified theme', 0, 0, 0)
-          ON CONFLICT (card_id, theme_name) DO NOTHING
         `);
         
         // Retry fetching the theme
