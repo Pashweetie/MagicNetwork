@@ -109,17 +109,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Track user interaction endpoint
   app.post("/api/interactions", async (req, res) => {
     try {
-      const { userId, cardId, interactionType, metadata } = req.body;
+      const { cardId, interactionType, metadata } = req.body;
+      const userId = 1; // Default user for now
       
-      if (!userId || !cardId || !interactionType) {
-        res.status(400).json({ message: "Missing required fields" });
-        return;
-      }
+      await storage.recordUserInteraction({
+        userId,
+        cardId,
+        interactionType,
+        metadata
+      });
       
-      await recommendationService.trackUserInteraction(userId, cardId, interactionType, metadata);
       res.json({ success: true });
     } catch (error) {
       console.error('Interaction tracking error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Context-aware suggestions endpoint
+  app.get("/api/suggestions/contextual", async (req, res) => {
+    try {
+      const { limit = 20 } = req.query;
+      
+      // For now, return popular cards with some personalization simulation
+      const popularCards = await db.select()
+        .from(cardCache)
+        .orderBy(desc(cardCache.searchCount))
+        .limit(parseInt(limit as string));
+      
+      const suggestions = popularCards.map(c => c.cardData as Card);
+      res.json(suggestions);
+    } catch (error) {
+      console.error('Contextual suggestions error:', error);
       res.status(500).json({ message: "Internal server error" });
     }
   });

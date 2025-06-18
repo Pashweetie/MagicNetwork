@@ -155,28 +155,6 @@ export const userInteractions = pgTable('user_interactions', {
 
 
 
-export const userPreferences = pgTable('user_preferences', {
-  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
-  userId: integer('user_id').notNull(),
-  preferenceType: text('preference_type').notNull(), // 'archetype', 'color', 'strategy', 'card_type'
-  preferenceValue: text('preference_value').notNull(), // 'aggro', 'blue', 'combo', 'creature'
-  weight: real('weight').default(1.0).notNull(), // How strong this preference is
-  learnedFromInteractions: integer('learned_from_interactions').default(0).notNull(),
-  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
-});
-
-export const adaptiveRecommendations = pgTable('adaptive_recommendations', {
-  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
-  userId: integer('user_id').notNull(),
-  cardId: text('card_id').notNull(),
-  recommendedCardId: text('recommended_card_id').notNull(),
-  contextType: text('context_type').notNull(), // 'search_context', 'deck_context', 'theme_context'
-  contextData: jsonb('context_data'), // Search terms, deck composition, current themes
-  score: real('score').notNull(),
-  reason: text('reason').notNull(),
-  adaptationFactors: jsonb('adaptation_factors'), // What influenced this recommendation
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-});
 
 // New table to store card themes
 export const cardThemes = pgTable('card_themes', {
@@ -217,8 +195,7 @@ export const insertCardCacheSchema = createInsertSchema(cardCache).omit({ lastUp
 export const insertSearchCacheSchema = createInsertSchema(searchCache).omit({ id: true, createdAt: true, lastAccessed: true, accessCount: true });
 export const insertCardRecommendationSchema = createInsertSchema(cardRecommendations).omit({ id: true, createdAt: true });
 export const insertUserInteractionSchema = createInsertSchema(userInteractions).omit({ id: true, createdAt: true });
-export const insertUserPreferenceSchema = createInsertSchema(userPreferences).omit({ id: true, lastUpdated: true });
-export const insertAdaptiveRecommendationSchema = createInsertSchema(adaptiveRecommendations).omit({ id: true, createdAt: true });
+
 export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, createdAt: true, lastUpdated: true });
 export const insertRecommendationFeedbackSchema = createInsertSchema(recommendationFeedback).omit({ id: true, createdAt: true });
 
@@ -236,10 +213,7 @@ export type CardRecommendation = typeof cardRecommendations.$inferSelect;
 export type InsertCardRecommendation = z.infer<typeof insertCardRecommendationSchema>;
 export type UserInteraction = typeof userInteractions.$inferSelect;
 export type InsertUserInteraction = z.infer<typeof insertUserInteractionSchema>;
-export type UserPreference = typeof userPreferences.$inferSelect;
-export type InsertUserPreference = z.infer<typeof insertUserPreferenceSchema>;
-export type AdaptiveRecommendation = typeof adaptiveRecommendations.$inferSelect;
-export type InsertAdaptiveRecommendation = z.infer<typeof insertAdaptiveRecommendationSchema>;
+
 export type CardTheme = typeof cardThemes.$inferSelect;
 export type InsertCardTheme = z.infer<typeof insertCardThemeSchema>;
 export type RecommendationFeedback = typeof recommendationFeedback.$inferSelect;

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Card } from "@/lib/types";
+import { Card } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, User, Heart } from "lucide-react";

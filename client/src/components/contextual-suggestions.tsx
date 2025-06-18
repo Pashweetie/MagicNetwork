@@ -11,7 +11,7 @@ export function ContextualSuggestions({ limit = 20 }: ContextualSuggestionsProps
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const { data: suggestions = [], isLoading } = useQuery({
+  const { data: suggestions = [], isLoading } = useQuery<Card[]>({
     queryKey: ['/api/suggestions/contextual', limit],
     enabled: true,
   });
