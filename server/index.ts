@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { runCacheCleanup } from "./cache-cleanup";
+import { recommendationService } from "./services/recommendation";
 
 const app = express();
 app.use(express.json());
@@ -73,5 +74,11 @@ app.use((req, res, next) => {
     
     // Set up periodic cache cleanup every 6 hours
     setInterval(runCacheCleanup, 6 * 60 * 60 * 1000);
+    
+    // Generate recommendations for popular cards after startup
+    setTimeout(() => {
+      recommendationService.generateRecommendationsForPopularCards(30)
+        .catch(error => console.error('Initial recommendation generation failed:', error));
+    }, 30000); // 30 seconds after startup
   });
 })();

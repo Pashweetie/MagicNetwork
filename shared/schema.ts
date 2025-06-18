@@ -120,9 +120,34 @@ export const searchCache = pgTable('search_cache', {
 export const favoriteCards = pgTable('favorite_cards', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
   userId: integer('user_id').references(() => users.id).notNull(),
-  cardId: text('card_id').notNull(),
+  cardId: text('card_id').references(() => cardCache.id).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+export const cardRecommendations = pgTable('card_recommendations', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  sourceCardId: text('source_card_id').references(() => cardCache.id).notNull(),
+  recommendedCardId: text('recommended_card_id').references(() => cardCache.id).notNull(),
+  score: integer('score').notNull(), // 0-100 recommendation strength
+  reason: text('reason').notNull(), // Why this card is recommended
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  sourceCardIdx: index('card_recommendations_source_idx').on(table.sourceCardId),
+  scoreIdx: index('card_recommendations_score_idx').on(table.score),
+}));
+
+export const userInteractions = pgTable('user_interactions', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  cardId: text('card_id').references(() => cardCache.id).notNull(),
+  interactionType: text('interaction_type').notNull(), // 'view', 'favorite', 'search', 'deck_add'
+  metadata: jsonb('metadata'), // Additional context like search query, deck type, etc.
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userCardIdx: index('user_interactions_user_card_idx').on(table.userId, table.cardId),
+  typeIdx: index('user_interactions_type_idx').on(table.interactionType),
+  userIdx: index('user_interactions_user_idx').on(table.userId),
+}));
 
 // Zod schemas for database operations
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
@@ -130,6 +155,8 @@ export const insertSavedSearchSchema = createInsertSchema(savedSearches).omit({ 
 export const insertFavoriteCardSchema = createInsertSchema(favoriteCards).omit({ id: true, createdAt: true });
 export const insertCardCacheSchema = createInsertSchema(cardCache).omit({ lastUpdated: true, searchCount: true });
 export const insertSearchCacheSchema = createInsertSchema(searchCache).omit({ id: true, createdAt: true, lastAccessed: true, accessCount: true });
+export const insertCardRecommendationSchema = createInsertSchema(cardRecommendations).omit({ id: true, createdAt: true });
+export const insertUserInteractionSchema = createInsertSchema(userInteractions).omit({ id: true, createdAt: true });
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -141,3 +168,7 @@ export type CardCacheEntry = typeof cardCache.$inferSelect;
 export type InsertCardCache = z.infer<typeof insertCardCacheSchema>;
 export type SearchCacheEntry = typeof searchCache.$inferSelect;
 export type InsertSearchCache = z.infer<typeof insertSearchCacheSchema>;
+export type CardRecommendation = typeof cardRecommendations.$inferSelect;
+export type InsertCardRecommendation = z.infer<typeof insertCardRecommendationSchema>;
+export type UserInteraction = typeof userInteractions.$inferSelect;
+export type InsertUserInteraction = z.infer<typeof insertUserInteractionSchema>;
