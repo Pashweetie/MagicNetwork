@@ -893,7 +893,6 @@ export class RecommendationService {
         .limit(5000); // Increased sample size
 
       console.log(`Analyzing ${candidateCards.length} candidate cards for theme: ${theme.name}`);
-
       for (const cached of candidateCards) {
         const card = cached.cardData as Card;
         
@@ -902,9 +901,8 @@ export class RecommendationService {
 
         const relevanceScore = this.calculateThemeRelevance(card, theme);
         
-        if (relevanceScore > 0.1) { // Much lower threshold
+        if (relevanceScore > 0.2) { // Reasonable threshold for quality results
           matchingCards.push({ card, score: relevanceScore });
-          console.log(`Found match for ${theme.name}: ${card.name} (score: ${relevanceScore.toFixed(2)})`);
         }
       }
 
@@ -913,7 +911,7 @@ export class RecommendationService {
         .sort((a, b) => b.score - a.score)
         .slice(0, 12);
 
-      console.log(`Theme "${theme.name}" found ${sortedCards.length} relevant cards`);
+      console.log(`Theme "${theme.name}" found ${sortedCards.length} cards`);
       
       // Remove duplicates by card ID
       const uniqueCards = new Map<string, {card: Card, score: number}>();
