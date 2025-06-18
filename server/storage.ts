@@ -547,7 +547,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Find functionally similar cards (alternatives/substitutes with similar effects)
-  private async findFunctionallySimilarCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
+  async findFunctionallySimilarCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
     const similar: Array<{cardId: string, score: number, reason: string}> = [];
     
     console.log(`Finding functionally similar cards to ${sourceCard.name}`);

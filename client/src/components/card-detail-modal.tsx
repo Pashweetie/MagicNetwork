@@ -156,11 +156,33 @@ function SimilarRecommendations({ cardId, onCardClick }: { cardId: string; onCar
           {availableCards.map((rec: any, index: number) => (
             <div key={`similar-${rec.card.id}-${index}`} className="relative group">
               <CardTile card={rec.card} onClick={onCardClick} />
-              <div className="absolute top-1 right-1">
-                <div className="text-xs bg-blue-500/90 text-white px-1.5 py-0.5 rounded font-medium">{rec.score}%</div>
+              <div className="absolute bottom-2 left-2 bg-black/80 text-white text-xs px-2 py-1 rounded flex items-center space-x-1">
+                <span>Score: {rec.score}</span>
+                <button 
+                  onClick={() => handleRecommendationFeedback(rec.card.id, 'helpful', 'functional_similarity')}
+                  className="text-green-400 hover:text-green-300"
+                >
+                  👍
+                </button>
+                <button 
+                  onClick={() => handleRecommendationFeedback(rec.card.id, 'not_helpful', 'functional_similarity')}
+                  className="text-red-400 hover:text-red-300"
+                >
+                  👎
+                </button>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-1">
-                <div className="text-xs text-slate-300 text-center truncate">{rec.reason}</div>
+              <div className="absolute top-2 right-2">
+                <button 
+                  onClick={() => {/* Add to deck functionality */}}
+                  className="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded text-xs"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              </div>
+              <div className="absolute bottom-2 right-2 text-white text-xs">
+                <span className="bg-blue-600/80 px-1 py-0.5 rounded text-xs">
+                  {rec.reason}
+                </span>
               </div>
             </div>
           ))}
