@@ -1,10 +1,9 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Card } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { CardRecommendations } from "./card-recommendations";
+import { X, Lightbulb, GitMerge, Copy, AlertCircle } from "lucide-react";
 import { ThemeSuggestions } from "./theme-suggestions";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
 
 interface CardDetailModalProps {
   card: Card | null;
@@ -326,36 +325,16 @@ export function CardDetailModal({ card, isOpen, onClose }: CardDetailModalProps)
           </div>
         </div>
 
-        {/* Recommendations and Theme Suggestions */}
-        <div className="px-6 pb-6">
-          <Tabs defaultValue="similar" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-slate-800 border-slate-700">
-              <TabsTrigger value="similar" className="data-[state=active]:bg-slate-700">
-                Similar Cards
-              </TabsTrigger>
-              <TabsTrigger value="themes" className="data-[state=active]:bg-slate-700">
-                AI Synergies
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="similar" className="mt-6">
-              <CardRecommendations 
-                cardId={card.id} 
-                onCardClick={(newCard) => {
-                  onClose();
-                }}
-              />
-            </TabsContent>
-            
-            <TabsContent value="themes" className="mt-6">
-              <ThemeSuggestions 
-                card={card} 
-                onCardClick={(newCard) => {
-                  onClose();
-                }}
-              />
-            </TabsContent>
-          </Tabs>
+        {/* Three Recommendation Categories */}
+        <div className="space-y-8 mt-6">
+          {/* Themes */}
+          <ThemeRecommendations cardId={card.id} onCardClick={onClose} />
+          
+          {/* Synergy Cards */}
+          <SynergyRecommendations cardId={card.id} onCardClick={onClose} />
+          
+          {/* Similar Cards */}
+          <SimilarRecommendations cardId={card.id} onCardClick={onClose} />
         </div>
       </DialogContent>
     </Dialog>
