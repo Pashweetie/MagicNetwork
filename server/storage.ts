@@ -171,23 +171,35 @@ export class DatabaseStorage implements IStorage {
   // Cache management methods
   async cacheCard(card: Card): Promise<void> {
     try {
-      await db
-        .insert(cardCache)
-        .values({
-          id: card.id,
-          cardData: card,
-        })
-        .onConflictDoUpdate({
-          target: cardCache.id,
-          set: {
+      console.log(`Attempting to cache card: ${card.name} (${card.id})`);
+      
+      // First try to insert
+      try {
+        await db
+          .insert(cardCache)
+          .values({
+            id: card.id,
             cardData: card,
-            lastUpdated: new Date(),
-            searchCount: sql`${cardCache.searchCount} + 1`,
-          }
-        });
-      console.log(`Cached card: ${card.name} (${card.id})`);
+          });
+        console.log(`Successfully cached new card: ${card.name} (${card.id})`);
+      } catch (insertError: any) {
+        // If duplicate key error, update instead
+        if (insertError.code === '23505') { // PostgreSQL unique violation
+          await db
+            .update(cardCache)
+            .set({
+              cardData: card,
+              lastUpdated: new Date(),
+              searchCount: sql`${cardCache.searchCount} + 1`,
+            })
+            .where(eq(cardCache.id, card.id));
+          console.log(`Updated existing cached card: ${card.name} (${card.id})`);
+        } else {
+          throw insertError;
+        }
+      }
     } catch (error) {
-      console.error('Error caching card:', error, card.id);
+      console.error('Error caching card:', error);
     }
   }
 
@@ -217,24 +229,35 @@ export class DatabaseStorage implements IStorage {
   async cacheSearchResults(filters: SearchFilters, page: number, results: SearchResponse): Promise<void> {
     try {
       const queryHash = this.generateQueryHash(filters, page);
+      console.log(`Attempting to cache search results for hash: ${queryHash}`);
       
-      await db
-        .insert(searchCache)
-        .values({
-          queryHash,
-          filters,
-          resultData: results,
-          page,
-        })
-        .onConflictDoUpdate({
-          target: searchCache.queryHash,
-          set: {
+      // First try to insert
+      try {
+        await db
+          .insert(searchCache)
+          .values({
+            queryHash,
+            filters,
             resultData: results,
-            lastAccessed: new Date(),
-            accessCount: sql`${searchCache.accessCount} + 1`,
-          }
-        });
-      console.log(`Cached search results: ${results.data.length} cards for query hash ${queryHash}`);
+            page,
+          });
+        console.log(`Successfully cached new search: ${results.data.length} cards for query hash ${queryHash}`);
+      } catch (insertError: any) {
+        // If duplicate key error, update instead
+        if (insertError.code === '23505') { // PostgreSQL unique violation
+          await db
+            .update(searchCache)
+            .set({
+              resultData: results,
+              lastAccessed: new Date(),
+              accessCount: sql`${searchCache.accessCount} + 1`,
+            })
+            .where(eq(searchCache.queryHash, queryHash));
+          console.log(`Updated existing search cache for query hash ${queryHash}`);
+        } else {
+          throw insertError;
+        }
+      }
     } catch (error) {
       console.error('Error caching search results:', error);
     }
