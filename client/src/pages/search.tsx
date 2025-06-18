@@ -80,12 +80,23 @@ export default function Search() {
     refetch,
   } = useCardSearch(activeFilters);
 
+  // Load default results when no search query
+  const shouldShowDefault = !searchQuery && !useManualFilters;
+  
+  const {
+    data: defaultData,
+    isLoading: defaultLoading,
+    error: defaultError,
+  } = useCardSearch({ query: "" }, shouldShowDefault);
+
   // Flatten all pages of cards
   const allCards = useMemo(() => {
-    return data?.pages.flatMap(page => page.data) || [];
-  }, [data]);
+    const searchData = data?.pages.flatMap(page => page.data) || [];
+    const fallbackData = shouldShowDefault ? (defaultData?.pages.flatMap(page => page.data) || []) : [];
+    return searchData.length > 0 ? searchData : fallbackData;
+  }, [data, defaultData, shouldShowDefault]);
 
-  const totalCards = data?.pages[0]?.total_cards || 0;
+  const totalCards = (data?.pages[0]?.total_cards) || (shouldShowDefault ? (defaultData?.pages[0]?.total_cards || 0) : 0);
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);

@@ -63,26 +63,22 @@ export class DatabaseStorage implements IStorage {
       return cachedResult;
     }
 
-    // Check if we have local cards data
-    const hasLocalData = await this.hasLocalCardData();
+    // Always use Scryfall for now - local search needs improvement
+    const result = await scryfallService.searchCards(filters, page);
+    await this.cacheSearchResults(filters, page, result);
     
-    if (hasLocalData) {
-      // Search in local database instead of Scryfall
-      const result = await this.searchLocalCards(filters, page);
-      await this.cacheSearchResults(filters, page, result);
-      return result;
-    } else {
-      // Fallback to Scryfall API if no local data
-      const result = await scryfallService.searchCards(filters, page);
-      await this.cacheSearchResults(filters, page, result);
-      
-      // Cache individual cards from the results
-      for (const card of result.data) {
-        await this.cacheCard(card);
-      }
-
-      return result;
+    // Cache individual cards efficiently - only if not already cached
+    if (result.data) {
+      const cardCachePromises = result.data.map(async (card) => {
+        const existingCard = await this.getCachedCard(card.id);
+        if (!existingCard) {
+          await this.cacheCard(card);
+        }
+      });
+      await Promise.all(cardCachePromises);
     }
+
+    return result;
   }
 
   async getCard(id: string): Promise<Card | null> {

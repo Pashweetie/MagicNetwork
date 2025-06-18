@@ -1,10 +1,11 @@
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { SearchFilters, SearchResponse, Card } from "@shared/schema";
 
-export function useCardSearch(filters: SearchFilters) {
+export function useCardSearch(filters: SearchFilters, enabled: boolean = true) {
   return useInfiniteQuery({
     queryKey: ['/api/cards/search', filters],
     initialPageParam: 1,
+    enabled,
     queryFn: async ({ pageParam }: { pageParam: number }) => {
       const searchParams = new URLSearchParams({
         page: pageParam.toString(),
