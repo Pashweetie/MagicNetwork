@@ -163,7 +163,7 @@ export function CardDetailModal({ card, isOpen, onClose }: CardDetailModalProps)
                 Similar Cards
               </TabsTrigger>
               <TabsTrigger value="themes" className="data-[state=active]:bg-slate-700">
-                Theme Suggestions
+                AI Synergies
               </TabsTrigger>
             </TabsList>
             

@@ -105,33 +105,8 @@ export class RecommendationService {
         }
       }
 
-      // If still no themes (card has no meaningful themes), create a generic one based on type
-      if (storedThemes.length === 0) {
-        const cardToAnalyze = sourceCard || await storage.getCachedCard(cardId);
-        if (cardToAnalyze) {
-          const mainType = cardToAnalyze.type_line.split(' ')[0].toLowerCase();
-          await db.insert(cardThemes).values({
-            cardId: cardId,
-            themeName: `${mainType.charAt(0).toUpperCase() + mainType.slice(1)} Cards`,
-            themeCategory: 'general',
-            confidence: 50,
-            keywords: [mainType, cardToAnalyze.type_line.toLowerCase()],
-            description: `Cards that share the ${mainType} type and similar mechanics`,
-          }).onConflictDoNothing();
-          
-          storedThemes = [{
-            id: 0,
-            cardId: cardId,
-            themeName: `${mainType.charAt(0).toUpperCase() + mainType.slice(1)} Cards`,
-            description: `Cards that share the ${mainType} type and similar mechanics`,
-            keywords: [mainType, cardToAnalyze.type_line.toLowerCase()],
-            themeCategory: 'general',
-            confidence: 50,
-            createdAt: new Date(),
-            lastUpdated: new Date()
-          }];
-        }
-      }
+      // If still no themes, don't create shallow type-based themes
+      // Only meaningful strategic themes should be included
 
       // For each stored theme, find matching cards
       const themeGroups = [];

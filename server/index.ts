@@ -1,7 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { runCacheCleanup } from "./cache-cleanup";
+
 import { recommendationService } from "./services/recommendation";
 
 const app = express();
