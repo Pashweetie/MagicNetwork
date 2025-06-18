@@ -82,7 +82,12 @@ export class RecommendationService {
     try {
       const sourceCard = await storage.getCachedCard(cardId);
       if (!sourceCard) {
-        throw new Error('Card not found');
+        // Try to get card from Scryfall if not cached
+        const freshCard = await storage.getCard(cardId);
+        if (!freshCard) {
+          console.log(`Card ${cardId} not found in cache or Scryfall`);
+          return [];
+        }
       }
 
       // Check if we already have themes stored for this card
@@ -93,14 +98,30 @@ export class RecommendationService {
 
       // If no themes stored, analyze and store them
       if (storedThemes.length === 0) {
-        const analyzedThemes = await this.analyzeAndStoreCardThemes(sourceCard);
-        storedThemes = analyzedThemes;
+        const cardToAnalyze = sourceCard || await storage.getCachedCard(cardId);
+        if (cardToAnalyze) {
+          const analyzedThemes = await this.analyzeAndStoreCardThemes(cardToAnalyze);
+          storedThemes = analyzedThemes;
+        }
+      }
+
+      // If still no themes (card has no meaningful themes), create a generic one
+      if (storedThemes.length === 0) {
+        const cardToAnalyze = sourceCard || await storage.getCachedCard(cardId);
+        if (cardToAnalyze) {
+          storedThemes = [{
+            themeName: 'Similar Cards',
+            description: 'Cards with similar effects and mechanics',
+            keywords: [cardToAnalyze.type_line.toLowerCase()],
+            themeCategory: 'general'
+          }];
+        }
       }
 
       // For each stored theme, find matching cards
       const themeGroups = [];
       for (const storedTheme of storedThemes) {
-        const matchingCards = await this.findCardsForStoredTheme(storedTheme, sourceCard);
+        const matchingCards = await this.findCardsForStoredTheme(storedTheme, sourceCard || await storage.getCachedCard(cardId));
         if (matchingCards.length > 0) {
           themeGroups.push({
             theme: storedTheme.themeName,
@@ -369,51 +390,72 @@ export class RecommendationService {
         const card = cached.cardData;
         let score = 0;
         
-        const cardText = (card.oracle_text || '').toLowerCase();
+        const currentCardText = (card.oracle_text || '').toLowerCase();
         const typeLine = card.type_line.toLowerCase();
         const cardName = card.name.toLowerCase();
 
-        // Score based on keyword matches
+        // Score based on keyword matches in oracle text (primary)
         for (const keyword of theme.keywords) {
-          if (cardText.includes(keyword) || cardName.includes(keyword) || typeLine.includes(keyword)) {
-            score += 10;
+          if (currentCardText.includes(keyword)) {
+            score += 25; // High weight for oracle text matches
+          } else if (cardName.includes(keyword) || typeLine.includes(keyword)) {
+            score += 5; // Lower weight for name/type matches
           }
         }
 
-        // Bonus for exact theme matches
+        // Oracle text-focused theme matching
         const themeLower = theme.name.toLowerCase();
         if (themeLower === 'death & taxes') {
-          if (card.colors?.includes('W') || !card.colors?.length) score += 5;
-          if (cardText.includes('thalia') || cardText.includes('leonin arbiter')) score += 20;
-          if (cardText.includes('tax') || cardText.includes('additional cost')) score += 15;
+          if (currentCardText.includes('thalia') || currentCardText.includes('leonin arbiter')) score += 30;
+          if (currentCardText.includes('tax') || currentCardText.includes('additional cost')) score += 20;
+          if (currentCardText.includes('enters the battlefield') && currentCardText.includes('opponent')) score += 15;
         } else if (themeLower === 'stax') {
-          if (typeLine.includes('artifact')) score += 5;
-          if (cardText.includes('winter orb') || cardText.includes('smokestack')) score += 25;
-          if (cardText.includes('upkeep') && cardText.includes('sacrifice')) score += 15;
+          if (currentCardText.includes('winter orb') || currentCardText.includes('smokestack')) score += 35;
+          if (currentCardText.includes('upkeep') && currentCardText.includes('sacrifice')) score += 25;
+          if (currentCardText.includes('can\'t') && (currentCardText.includes('cast') || currentCardText.includes('play'))) score += 20;
         } else if (themeLower === 'combo engine') {
-          if (cardText.includes('storm') || cardText.includes('cascade')) score += 20;
-          if (cardText.includes('infinite') || cardText.includes('without paying')) score += 15;
+          if (currentCardText.includes('storm') || currentCardText.includes('cascade')) score += 30;
+          if (currentCardText.includes('infinite') || currentCardText.includes('without paying')) score += 25;
+          if (currentCardText.includes('untap') && currentCardText.includes('target')) score += 20;
+        } else if (themeLower === 'cascade/cheating') {
+          if (currentCardText.includes('cascade')) score += 35;
+          if (currentCardText.includes('without paying') && currentCardText.includes('mana cost')) score += 30;
+          if (currentCardText.includes('suspend') || currentCardText.includes('rebound')) score += 20;
+        } else if (themeLower === 'card advantage') {
+          if (currentCardText.includes('draw') && currentCardText.includes('card')) score += 25;
+          if (currentCardText.includes('search') && currentCardText.includes('library')) score += 20;
+          if (currentCardText.includes('scry') || currentCardText.includes('surveil')) score += 15;
         } else if (themeLower === 'aristocrats') {
-          if (card.colors?.includes('B') || card.colors?.includes('W')) score += 5;
-          if (cardText.includes('blood artist') || cardText.includes('zulaport')) score += 25;
-          if (cardText.includes('sacrifice') && cardText.includes('creature')) score += 15;
+          if (currentCardText.includes('blood artist') || currentCardText.includes('zulaport')) score += 35;
+          if (currentCardText.includes('sacrifice') && currentCardText.includes('creature')) score += 25;
+          if (currentCardText.includes('whenever') && currentCardText.includes('dies')) score += 20;
         } else if (themeLower === 'ramp') {
-          if (card.colors?.includes('G')) score += 5;
-          if (cardText.includes('cultivate') || cardText.includes('rampant growth')) score += 20;
-          if (typeLine.includes('creature') && cardText.includes('add')) score += 10;
+          if (currentCardText.includes('cultivate') || currentCardText.includes('rampant growth')) score += 30;
+          if (currentCardText.includes('search') && currentCardText.includes('land')) score += 25;
+          if (currentCardText.includes('add') && currentCardText.includes('mana')) score += 20;
         } else if (themeLower === 'control') {
-          if (card.colors?.includes('U') || card.colors?.includes('W')) score += 5;
-          if (typeLine.includes('instant') && cardText.includes('counter')) score += 15;
-          if (cardText.includes('counterspell') || cardText.includes('wrath')) score += 20;
+          if (currentCardText.includes('counterspell') || currentCardText.includes('wrath')) score += 30;
+          if (currentCardText.includes('counter') && currentCardText.includes('spell')) score += 25;
+          if (currentCardText.includes('destroy') && currentCardText.includes('target')) score += 20;
         }
 
-        // Color identity compatibility
+        // Oracle text analysis for theme matching (most important)
+        const sourceText = (sourceCard.oracle_text || '').toLowerCase();
+        
+        // Score based on shared important phrases in oracle text
+        for (const keyword of theme.keywords) {
+          if (sourceText.includes(keyword) && currentCardText.includes(keyword)) {
+            score += 20; // High weight for oracle text matches
+          }
+        }
+        
+        // Minimal color identity compatibility
         const sourceColors = sourceCard.color_identity || [];
         const cardColors = card.color_identity || [];
         const colorOverlap = sourceColors.filter(c => cardColors.includes(c)).length;
-        if (colorOverlap > 0) score += colorOverlap * 3;
+        if (colorOverlap > 0) score += colorOverlap * 1; // Reduced weight
 
-        if (score >= 15) { // Minimum threshold for theme inclusion
+        if (score >= 10) { // Lower threshold to include more cards
           matchingCards.push({ card, score });
         }
       }
