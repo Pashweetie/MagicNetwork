@@ -590,7 +590,7 @@ export class DatabaseStorage implements IStorage {
 
     for (const cached of candidateCards) {
       const card = cached.cardData as Card;
-      const analysis = this.calculateBasicSynergy(sourceCard, card);
+      const analysis = this.calculateBasicSynergyScore(sourceCard, card);
       
       if (analysis.score > 0.3) {
         synergies.push({

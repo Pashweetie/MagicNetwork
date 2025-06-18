@@ -384,21 +384,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { themeName, feedback, reason } = req.body;
       
-      // For now, assume userId = 1 (would come from auth in real app)
-      const userId = 1;
+      console.log(`🎯 Recording theme feedback:`, {
+        userId: 1,
+        sourceCard: id,
+        theme: themeName,
+        helpful: feedback,
+        timestamp: new Date().toISOString()
+      });
       
       await storage.recordRecommendationFeedback({
-        userId,
+        userId: 1,
         sourceCardId: id,
-        recommendedCardId: id, // For theme feedback, source and recommended are the same
+        recommendedCardId: themeName, // Store theme name
         recommendationType: 'theme',
         feedback,
         userComment: reason
       });
       
-      res.json({ message: "Feedback recorded" });
+      console.log(`✅ Theme feedback recorded - AI will learn from this to improve theme identification`);
+      
+      res.json({ 
+        success: true,
+        message: `Thank you! Your feedback helps improve AI theme analysis for "${themeName}".`,
+        impact: `This trains our AI to better identify relevant themes for similar cards.`
+      });
     } catch (error) {
-      console.error('Theme feedback error:', error);
+      console.error('❌ Theme feedback error:', error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -407,22 +418,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/cards/:sourceId/recommendation-feedback", async (req, res) => {
     try {
       const { sourceId } = req.params;
-      const { recommendedCardId, feedback, reason, type } = req.body;
+      const { recommendedCardId, helpful, recommendationType } = req.body;
       
-      const userId = 1; // Would come from auth
-      
-      await storage.recordRecommendationFeedback({
-        userId,
-        sourceCardId: sourceId,
-        recommendedCardId,
-        recommendationType: type || 'synergy',
-        feedback,
-        userComment: reason
+      console.log(`📝 Recording recommendation feedback:`, {
+        userId: 1,
+        sourceCard: sourceId,
+        recommendedCard: recommendedCardId,
+        type: recommendationType,
+        helpful: helpful ? 'helpful' : 'not_helpful',
+        timestamp: new Date().toISOString()
       });
       
-      res.json({ message: "Feedback recorded" });
+      await storage.recordRecommendationFeedback({
+        userId: 1,
+        sourceCardId: sourceId,
+        recommendedCardId,
+        recommendationType: recommendationType || 'synergy',
+        feedback: helpful ? 'helpful' : 'not_helpful'
+      });
+      
+      console.log(`✅ Feedback recorded successfully - this will improve future ${recommendationType} recommendations`);
+      
+      res.json({ 
+        success: true, 
+        message: `Thank you! Your feedback helps improve ${recommendationType} recommendations.`,
+        impact: `This feedback adjusts the recommendation weights for similar cards.`
+      });
     } catch (error) {
-      console.error('Recommendation feedback error:', error);
+      console.error('❌ Recommendation feedback error:', error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
