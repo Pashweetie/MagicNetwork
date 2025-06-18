@@ -125,13 +125,15 @@ Oracle Text: ${card.oracle_text || 'No text'}`;
         // Using Google Gemini
         try {
           const model = this.textGenerator.getGenerativeModel({ model: "gemini-1.5-flash" });
-          const prompt = `Analyze this Magic card and identify 2 strategic themes with descriptive names:
+          const prompt = `Analyze this Magic card and identify exactly 2 strategic themes. Give each theme a concise name (2-3 words max) followed by a brief description.
 
 ${cardContext}
 
-Format:
-Dragon Tribal: Reduces dragon spell costs for tribal synergy
-Commander Value: Provides format-specific advantages`;
+Required format:
+Tempo Control: Brief description of tempo-based strategy
+Graveyard Value: Brief description of graveyard synergy
+
+Keep theme names short and specific like: Dragon Tribal, Tempo Control, Graveyard Value, Artifact Synergy, Token Strategy, etc.`;
 
           const result = await model.generateContent(prompt);
           aiResponse = result.response.text() || '';
@@ -197,38 +199,99 @@ Commander Value: Provides format-specific advantages`;
     for (const line of lines) {
       console.log('Processing line:', line);
       
-      // Look for any colon-separated content
+      // Look for direct theme pattern: "Theme Name: Description"
+      const directThemeMatch = line.match(/^([A-Z][a-zA-Z\s]{2,20}):\s*(.+)$/);
+      if (directThemeMatch) {
+        const rawThemeName = directThemeMatch[1].trim();
+        const description = directThemeMatch[2].trim();
+        
+        // Filter out generic patterns and extract meaningful theme names
+        if (!rawThemeName.match(/^(Theme|This theme|Strategy|\d+\.|\*+)/i) && description.length > 20) {
+          themes.push({
+            theme: rawThemeName,
+            description: description
+          });
+          console.log(`Direct theme extracted: "${rawThemeName}"`);
+          continue;
+        }
+      }
+      
+      // Look for numbered patterns with embedded theme names
+      const numberedMatch = line.match(/^\d+\.\s*\*\*([^*]+)\*\*:\s*(.+)$/);
+      if (numberedMatch) {
+        const embeddedTheme = numberedMatch[1].trim();
+        const description = numberedMatch[2].trim();
+        
+        if (description.length > 20) {
+          themes.push({
+            theme: embeddedTheme,
+            description: description
+          });
+          console.log(`Embedded theme extracted: "${embeddedTheme}"`);
+          continue;
+        }
+      }
+      
+      // Look for bold patterns without numbers: **Theme Name:** Description
+      const boldMatch = line.match(/^\*\*([^*]+)\*\*:\s*(.+)$/);
+      if (boldMatch) {
+        const boldTheme = boldMatch[1].trim();
+        const description = boldMatch[2].trim();
+        
+        if (description.length > 20) {
+          themes.push({
+            theme: boldTheme,
+            description: description
+          });
+          console.log(`Bold theme extracted: "${boldTheme}"`);
+          continue;
+        }
+      }
+      
+      // Fallback: Look for colon-separated content and generate meaningful theme names
       if (line.includes(':')) {
         const [prefix, ...contentParts] = line.split(':');
         const content = contentParts.join(':').trim();
         
-        if (content && content.length > 10) {
-          // Extract theme name from the content - look for the pattern before the colon
+        if (content && content.length > 20) {
           let themeName = '';
           
-          // Check if content starts with a theme name pattern
-          const themeMatch = content.match(/^([A-Z][a-zA-Z\s\/]+(?:Tribal|Strategy|Synergy|Build|Control|Aggro|Combo|Value|Support|Ramp))/i);
-          if (themeMatch) {
-            themeName = themeMatch[1].trim();
+          // Generate meaningful theme names based on content analysis
+          if (content.toLowerCase().includes('tempo') && content.toLowerCase().includes('swing')) {
+            themeName = 'Tempo Swing';
+          } else if (content.toLowerCase().includes('tempo') && content.toLowerCase().includes('beatdown')) {
+            themeName = 'Tempo Beatdown';
+          } else if (content.toLowerCase().includes('tempo')) {
+            themeName = 'Tempo Strategy';
+          } else if (content.toLowerCase().includes('power') && content.toLowerCase().includes('shift')) {
+            themeName = 'Power Shift';
+          } else if (content.toLowerCase().includes('elusive') && content.toLowerCase().includes('power')) {
+            themeName = 'Elusive Power';
+          } else if (content.toLowerCase().includes('discard') && content.toLowerCase().includes('synergy')) {
+            themeName = 'Discard Synergy';
+          } else if (content.toLowerCase().includes('value') && content.toLowerCase().includes('engine')) {
+            themeName = 'Value Engine';
+          } else if (content.toLowerCase().includes('flying') || content.toLowerCase().includes('evasion')) {
+            themeName = 'Evasion Strategy';
+          } else if (content.toLowerCase().includes('combat') || (content.toLowerCase().includes('power') && content.toLowerCase().includes('toughness'))) {
+            themeName = 'Combat Tricks';
+          } else if (content.toLowerCase().includes('graveyard')) {
+            themeName = 'Graveyard Value';
+          } else if (content.toLowerCase().includes('dragon')) {
+            themeName = 'Dragon Strategy';
+          } else if (content.toLowerCase().includes('artifact')) {
+            themeName = 'Artifact Synergy';
+          } else if (content.toLowerCase().includes('token')) {
+            themeName = 'Token Strategy';
+          } else if (content.toLowerCase().includes('tribal')) {
+            themeName = 'Tribal Synergy';
+          } else if (content.toLowerCase().includes('commander')) {
+            themeName = 'Commander Value';
+          } else if (content.toLowerCase().includes('beatdown') || content.toLowerCase().includes('aggressive')) {
+            themeName = 'Beatdown Strategy';
           } else {
-            // Look for specific patterns in the content
-            if (content.toLowerCase().includes('dragon tribal')) themeName = 'Dragon Tribal';
-            else if (content.toLowerCase().includes('commander ramp')) themeName = 'Commander Ramp';
-            else if (content.toLowerCase().includes('commander') && content.toLowerCase().includes('value')) themeName = 'Commander Value';
-            else if (content.toLowerCase().includes('tribal synergy')) themeName = 'Tribal Synergy';
-            else if (content.toLowerCase().includes('mana') && content.toLowerCase().includes('strategy')) themeName = 'Mana Strategy';
-            else if (content.toLowerCase().includes('dragon')) themeName = 'Dragon Strategy';
-            else if (content.toLowerCase().includes('commander')) themeName = 'Commander Strategy';
-            else if (content.toLowerCase().includes('tribal')) themeName = 'Tribal Strategy';
-            else {
-              // Extract first two meaningful words as theme name
-              const words = content.split(/\s+/).filter(w => w.length > 2 && !['the', 'card', 'this', 'that'].includes(w.toLowerCase()));
-              if (words.length >= 2) {
-                themeName = words.slice(0, 2).join(' ').replace(/[^a-zA-Z\s]/g, '');
-              } else {
-                themeName = 'Strategy';
-              }
-            }
+            // Skip if we can't generate a meaningful theme name
+            continue;
           }
           
           themes.push({
@@ -236,7 +299,7 @@ Commander Value: Provides format-specific advantages`;
             description: content
           });
           
-          console.log(`Extracted: "${themeName}" from content: "${content}"`);
+          console.log(`Generated theme: "${themeName}" from content analysis`);
         }
       }
     }
