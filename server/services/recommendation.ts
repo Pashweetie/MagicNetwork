@@ -96,8 +96,17 @@ export class RecommendationService {
             .limit(1);
           
           if (cached.length > 0) {
-            const cardData = cached[0].cardData as Card;
-            console.log(`🔍 Checking card: ${cardData?.name} with identity: ${JSON.stringify(cardData?.color_identity)}`);
+            let cardData: Card;
+            
+            // Handle both string and object cardData
+            if (typeof cached[0].cardData === 'string') {
+              cardData = JSON.parse(cached[0].cardData) as Card;
+            } else {
+              cardData = cached[0].cardData as Card;
+            }
+            
+            console.log(`🔍 Checking card: ${cardData?.name} with identity: ${JSON.stringify(cardData?.color_identity)} against filters: ${JSON.stringify(filters)}`);
+            
             if (cardData && this.cardMatchesFilters(cardData, filters)) {
               console.log(`✅ Card ${cardData.name} passed filters`);
               cards.push(cardData);
