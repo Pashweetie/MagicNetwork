@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card as UICard, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArchetypeAnalyzer } from "@/components/archetype-analyzer";
+
 import { CardTile } from "@/components/card-tile";
 import { useQuery } from "@tanstack/react-query";
 import { Search, Plus, Trash2, Brain } from "lucide-react";
@@ -204,13 +204,7 @@ export default function DeckBuilder() {
             </UICard>
           </div>
 
-          {/* AI Analysis */}
-          <div className="lg:col-span-1">
-            <ArchetypeAnalyzer 
-              cards={deck} 
-              onSuggestCard={addCardToDeck}
-            />
-          </div>
+
         </div>
       </div>
     </div>
