@@ -29,7 +29,7 @@ interface DeckData {
 
 export default function DeckBuilder() {
   const [deckCards, setDeckCards] = useState<Map<string, DeckCard>>(new Map());
-  const [commander, setCommander] = useState<Card | null>(null);
+  const [commanderCard, setCommanderCard] = useState<Card | null>(null);
   const [deckName, setDeckName] = useState("");
   const [deckFormat, setDeckFormat] = useState("commander");
   const [deckDescription, setDeckDescription] = useState("");
@@ -120,7 +120,7 @@ export default function DeckBuilder() {
       if (deck.commanderId) {
         const commanderResponse = await fetch(`/api/cards/${deck.commanderId}`);
         const commanderCard = await commanderResponse.json();
-        setCommander(commanderCard);
+        setCommanderCard(commanderCard);
       }
 
       toast({
@@ -158,9 +158,9 @@ export default function DeckBuilder() {
     setDeckCards(newDeckCards);
   };
 
-  const setCommander = (card: Card) => {
+  const handleSetCommander = (card: Card) => {
     if (deckFormat === 'commander') {
-      setCommander(card);
+      setCommanderCard(card);
     }
   };
 
@@ -185,7 +185,7 @@ export default function DeckBuilder() {
       name: deckName,
       format: deckFormat,
       description: deckDescription,
-      commanderId: commander?.id,
+      commanderId: commanderCard?.id,
       cards: Array.from(deckCards.values()).map(({ card, quantity }) => ({
         cardId: card.id,
         quantity
@@ -320,10 +320,10 @@ export default function DeckBuilder() {
                 <h2 className="text-2xl font-semibold">
                   Current Deck ({totalCards} cards)
                 </h2>
-                {deckFormat === 'commander' && commander && (
+                {deckFormat === 'commander' && commanderCard && (
                   <div className="flex items-center">
                     <Crown className="w-5 h-5 mr-2 text-yellow-400" />
-                    <span className="text-sm text-slate-400">Commander: {commander.name}</span>
+                    <span className="text-sm text-slate-400">Commander: {commanderCard.name}</span>
                   </div>
                 )}
               </div>
@@ -344,8 +344,8 @@ export default function DeckBuilder() {
                       onAdd={() => addCardToDeck(card)}
                       onRemove={() => removeCardFromDeck(card.id)}
                       onClick={handleCardClick}
-                      onSetCommander={deckFormat === 'commander' ? setCommander : undefined}
-                      isCommander={commander?.id === card.id}
+                      onSetCommander={deckFormat === 'commander' ? handleSetCommander : undefined}
+                      isCommander={commanderCard?.id === card.id}
                       showControls={true}
                     />
                   ))}

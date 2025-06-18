@@ -80,14 +80,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Card recommendations endpoint
+  // Card recommendations endpoint - using new algorithms directly
   app.get("/api/cards/:id/recommendations", async (req, res) => {
     try {
       const { id } = req.params;
-      const limit = parseInt(req.query.limit as string) || 10;
+      const { type = 'synergy', limit = 10 } = req.query;
       
-      const recommendations = await recommendationService.getCardRecommendations(id, limit);
-      res.json(recommendations);
+      // Get the source card
+      const sourceCard = await storage.getCard(id);
+      if (!sourceCard) {
+        return res.status(404).json({ message: "Card not found" });
+      }
+      
+      // Generate recommendations on the fly using the new algorithms
+      let recs: Array<{cardId: string, score: number, reason: string}> = [];
+      
+      if (type === 'synergy') {
+        recs = await (storage as any).findSynergyCards(sourceCard);
+      } else if (type === 'functional_similarity') {
+        recs = await (storage as any).findFunctionallySimilarCards(sourceCard);
+      }
+      
+      // Convert to the expected format with card data
+      const recsWithCards = await Promise.all(
+        recs.slice(0, parseInt(limit as string)).map(async (rec) => {
+          const card = await storage.getCard(rec.cardId);
+          return {
+            card,
+            score: rec.score,
+            reason: rec.reason,
+            sourceCardId: id,
+            recommendedCardId: rec.cardId,
+            recommendationType: type
+          };
+        })
+      );
+      
+      res.json(recsWithCards.filter(r => r.card));
     } catch (error) {
       console.error('Recommendations error:', error);
       res.status(500).json({ message: "Internal server error" });
