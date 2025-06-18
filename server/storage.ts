@@ -1174,7 +1174,9 @@ Example: 75|Token generator enables sacrifice payoff`;
       const sourceThemeNames = sourceThemes.map(t => t.theme);
       
       // Collect all cards from theme groups and track their themes
+      console.log(`📋 Processing ${sourceThemes.length} source themes for synergy analysis`);
       for (const themeGroup of sourceThemes) {
+        console.log(`  Theme: "${themeGroup.theme}" has ${themeGroup.cards.length} cards`);
         for (const card of themeGroup.cards) {
           if (card.id === sourceCard.id) continue; // Skip source card
           
@@ -1188,6 +1190,8 @@ Example: 75|Token generator enables sacrifice payoff`;
           });
         }
       }
+      
+      console.log(`📊 Found ${cardThemeMap.size} unique cards across all themes`);
       
       // Calculate synergy scores based on shared themes
       for (const [cardId, sharedThemes] of Array.from(cardThemeMap.entries())) {
