@@ -881,107 +881,100 @@ export class RecommendationService {
   }
 
   private async findCardsForDynamicTheme(theme: {name: string, description: string, keywords: string[], searchTerms: string[]}, sourceCard: Card): Promise<Card[]> {
+    console.log(`Searching for cards for theme: ${theme.name}`);
+    
     try {
-      const searchQueries: string[] = [];
-      
-      // Build search queries from theme keywords and search terms
-      for (const term of theme.searchTerms) {
-        searchQueries.push(`oracle:"${term}"`);
-      }
-      
-      for (const keyword of theme.keywords) {
-        searchQueries.push(`oracle:"${keyword}"`);
-      }
-      
-      // Also search by theme name components
-      const themeWords = theme.name.toLowerCase().split(/\s+|&|\//);
-      for (const word of themeWords) {
-        if (word.length > 3 && !['the', 'and', 'for', 'with'].includes(word)) {
-          searchQueries.push(`oracle:"${word}"`);
-        }
-      }
-
-      // Execute database searches
       const matchingCards: Array<{card: Card, score: number}> = [];
-      
-      for (const query of searchQueries.slice(0, 8)) { // Limit queries to avoid too many DB calls
-        try {
-          const searchTerm = query.replace('oracle:"', '').replace('"', '');
-          const cards = await db.execute(sql`
-            SELECT * FROM card_cache 
-            WHERE id != ${sourceCard.id}
-            AND (
-              LOWER(card_data->>'oracle_text') LIKE ${`%${searchTerm}%`}
-              OR LOWER(card_data->>'name') LIKE ${`%${searchTerm}%`}
-              OR LOWER(card_data->>'type_line') LIKE ${`%${searchTerm}%`}
-            )
-            LIMIT 20
-          `);
-          
-          // Handle different result formats
-          let cardRows = [];
-          if ((cards as any).rows) {
-            cardRows = (cards as any).rows;
-          } else if (Array.isArray(cards)) {
-            cardRows = cards;
-          }
-          
-          for (const card of cardRows) {
-            const score = this.calculateThemeRelevance(card, theme);
-            if (score > 0.3) {
-              matchingCards.push({ card: card as Card, score });
-            }
-          }
-        } catch (error) {
-          console.error('Error searching for theme cards:', error);
+
+      // Get a broader sample of cards to search through
+      const candidateCards = await db
+        .select()
+        .from(cardCache)
+        .limit(5000); // Increased sample size
+
+      console.log(`Analyzing ${candidateCards.length} candidate cards for theme: ${theme.name}`);
+
+      for (const cached of candidateCards) {
+        const card = cached.cardData as Card;
+        
+        // Skip the source card itself
+        if (card.id === sourceCard.id) continue;
+
+        const relevanceScore = this.calculateThemeRelevance(card, theme);
+        
+        if (relevanceScore > 0.1) { // Much lower threshold
+          matchingCards.push({ card, score: relevanceScore });
+          console.log(`Found match for ${theme.name}: ${card.name} (score: ${relevanceScore.toFixed(2)})`);
         }
       }
 
-      // Sort by relevance and remove duplicates
+      // Sort by relevance and take top results
+      const sortedCards = matchingCards
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 12);
+
+      console.log(`Theme "${theme.name}" found ${sortedCards.length} relevant cards`);
+      
+      // Remove duplicates by card ID
       const uniqueCards = new Map<string, {card: Card, score: number}>();
-      for (const item of matchingCards) {
-        if (!uniqueCards.has(item.card.id) || uniqueCards.get(item.card.id)!.score < item.score) {
+      for (const item of sortedCards) {
+        if (!uniqueCards.has(item.card.id)) {
           uniqueCards.set(item.card.id, item);
         }
       }
 
-      return Array.from(uniqueCards.values())
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 15)
-        .map(item => item.card);
+      return Array.from(uniqueCards.values()).map(item => item.card);
     } catch (error) {
-      console.error('Error finding cards for dynamic theme:', error);
+      console.error(`Error finding cards for theme ${theme.name}:`, error);
       return [];
     }
   }
 
   private calculateThemeRelevance(card: any, theme: {name: string, keywords: string[], searchTerms: string[]}): number {
-    const cardText = `${card.name} ${card.oracle_text || ''} ${card.type_line}`.toLowerCase();
+    const cardName = (card.name || '').toLowerCase();
+    const oracleText = (card.oracle_text || '').toLowerCase();
+    const typeLine = (card.type_line || '').toLowerCase();
+    
     let score = 0;
     
-    // Check search terms (higher weight)
-    for (const term of theme.searchTerms) {
-      if (cardText.includes(term.toLowerCase())) {
-        score += 0.4;
-      }
+    // Special handling for Graveyard Value theme
+    if (theme.name === 'Graveyard Value') {
+      // Look for cycling cards
+      if (oracleText.includes('cycling')) score += 0.8;
+      if (oracleText.includes('cycle')) score += 0.6;
+      
+      // Look for graveyard interaction
+      if (oracleText.includes('graveyard')) score += 0.7;
+      if (oracleText.includes('from your graveyard')) score += 0.9;
+      if (oracleText.includes('return') && oracleText.includes('graveyard')) score += 0.8;
+      
+      // Look for discard synergies
+      if (oracleText.includes('discard')) score += 0.5;
+      if (oracleText.includes('madness')) score += 0.7;
+      
+      // Look for cards that care about being in graveyard
+      if (oracleText.includes('from the graveyard')) score += 0.6;
+      if (oracleText.includes('flashback')) score += 0.7;
+      if (oracleText.includes('unearth')) score += 0.7;
+      if (oracleText.includes('dredge')) score += 0.8;
     }
     
-    // Check keywords (medium weight)
+    // Check for keyword matches
     for (const keyword of theme.keywords) {
-      if (cardText.includes(keyword.toLowerCase())) {
-        score += 0.2;
-      }
+      const keywordLower = keyword.toLowerCase();
+      if (cardName.includes(keywordLower)) score += 0.4;
+      if (oracleText.includes(keywordLower)) score += 0.3;
+      if (typeLine.includes(keywordLower)) score += 0.2;
     }
     
-    // Check theme name components (lower weight)
-    const themeWords = theme.name.toLowerCase().split(/\s+|&|\//);
-    for (const word of themeWords) {
-      if (word.length > 3 && cardText.includes(word)) {
-        score += 0.1;
-      }
+    // Check for search term matches
+    for (const searchTerm of theme.searchTerms) {
+      const termLower = searchTerm.toLowerCase();
+      if (cardName.includes(termLower)) score += 0.3;
+      if (oracleText.includes(termLower)) score += 0.2;
     }
     
-    return Math.min(score, 1.0);
+    return Math.min(score, 1.0); // Cap at 1.0
   }
 
   async analyzeAndStoreCardThemes(card: Card): Promise<any[]> {
