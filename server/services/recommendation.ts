@@ -41,9 +41,8 @@ export class RecommendationService {
     });
   }
 
-  // Pure neural network theme analysis - no hardcoded patterns
-  async getThemeSuggestions(cardId: string, filters?: any): Promise<Array<{theme: string, description: string, cards: Card[]}>> {
-    console.log(`Getting pure neural network theme analysis for card: ${cardId}`);
+  async getThemeSuggestions(cardId: string, filters?: any): Promise<Array<{theme: string, description: string, confidence: number, cards: Card[]}>> {
+    console.log(`Getting theme analysis with cards for card: ${cardId}`);
     
     try {
       const card = await storage.getCard(cardId);
@@ -54,23 +53,96 @@ export class RecommendationService {
       
       console.log(`Retrieved card: ${card.name} (${card.type_line})`);
       
-      // Get AI-generated themes (uses cache if available)
+      // Get AI-generated themes
       const aiThemes = await pureAIService.analyzeCardThemes(card);
       console.log(`AI identified ${aiThemes.length} themes for ${card.name}`);
       
-      // Return just theme names - cards loaded on-demand to avoid performance issues
-      const themeGroups = aiThemes.map(theme => ({
-        theme: theme.theme,
-        description: theme.description,
-        cards: [] // Empty - loaded when user expands theme
-      }));
+      // Get theme confidence from database and find similar cards
+      const { db } = await import('../db');
+      const { cardThemes, cardCache } = await import('@shared/schema');
+      const { eq, and, ne, sql, desc } = await import('drizzle-orm');
       
-      console.log(`Returning ${themeGroups.length} theme groups (cards on-demand)`);
+      const dbThemes = await db
+        .select()
+        .from(cardThemes)
+        .where(eq(cardThemes.card_id, cardId));
+      
+      const themeGroups = [];
+      for (const theme of aiThemes) {
+        const dbTheme = dbThemes.find(t => t.theme_name === theme.theme);
+        const confidence = dbTheme?.confidence || 0.5;
+        
+        // Find cards with the same theme
+        const similarThemeCards = await db
+          .select({
+            cardId: cardThemes.card_id,
+            confidence: cardThemes.confidence
+          })
+          .from(cardThemes)
+          .where(and(
+            eq(cardThemes.theme_name, theme.theme),
+            ne(cardThemes.card_id, cardId)
+          ))
+          .orderBy(desc(cardThemes.confidence))
+          .limit(12);
+        
+        // Get the actual card data from cache
+        const cards: Card[] = [];
+        for (const themeCard of similarThemeCards) {
+          const cached = await db
+            .select()
+            .from(cardCache)
+            .where(eq(cardCache.id, themeCard.cardId))
+            .limit(1);
+          
+          if (cached.length > 0) {
+            const cardData = cached[0].cardData as Card;
+            if (cardData && this.cardMatchesFilters(cardData, filters)) {
+              cards.push(cardData);
+            }
+          }
+        }
+        
+        console.log(`Found ${cards.length} cards for theme "${theme.theme}" with ${confidence * 100}% confidence`);
+        
+        themeGroups.push({
+          theme: theme.theme,
+          description: theme.description,
+          confidence: confidence,
+          cards: cards
+        });
+      }
+      
+      console.log(`Returning ${themeGroups.length} theme groups with cards and confidence`);
       return themeGroups;
       
     } catch (error) {
-      console.error('Error getting neural network theme suggestions:', error);
+      console.error('Error getting theme suggestions:', error);
       return [];
+    }
+  }
+
+  private cardMatchesFilters(card: Card, filters?: any): boolean {
+    if (!filters) return true;
+    
+    try {
+      if (filters.colors && filters.colors.length > 0) {
+        const cardColors = card.colors || [];
+        const hasRequiredColors = filters.colors.every((color: string) => 
+          cardColors.includes(color)
+        );
+        if (!hasRequiredColors) return false;
+      }
+      
+      if (filters.cmc_min !== undefined && card.cmc < filters.cmc_min) return false;
+      if (filters.cmc_max !== undefined && card.cmc > filters.cmc_max) return false;
+      
+      if (filters.type && !card.type_line.toLowerCase().includes(filters.type.toLowerCase())) return false;
+      
+      return true;
+    } catch (error) {
+      console.error('Filter matching error:', error);
+      return true;
     }
   }
 

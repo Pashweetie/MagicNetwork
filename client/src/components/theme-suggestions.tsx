@@ -16,9 +16,8 @@ interface ThemeSuggestionsProps {
 interface ThemeGroup {
   theme: string;
   description: string;
-  cards: Card[];
-  icon: React.ReactNode;
   confidence: number;
+  cards: Card[];
 }
 
 export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters }: ThemeSuggestionsProps) {
@@ -163,8 +162,13 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
               <h4 className="font-semibold text-white text-base">{group.theme}</h4>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="text-xs text-blue-300 bg-blue-900/30 px-2 py-1 rounded">
-                {group.cards.length} cards
+              <div className="flex items-center gap-2">
+                <div className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
+                  {Math.round((group.confidence || 0.5) * 100)}% confidence
+                </div>
+                <div className="text-xs text-blue-300 bg-blue-900/30 px-2 py-1 rounded">
+                  {group.cards.length} cards
+                </div>
               </div>
               <Button
                 variant="outline" 
