@@ -49,18 +49,24 @@ function SynergyRecommendations({ cardId, onCardClick, onAddCard, currentFilters
 
   const handleRecommendationFeedback = async (recommendedCardId: string, feedback: 'helpful' | 'not_helpful', type: string) => {
     try {
-      await fetch(`/api/cards/${cardId}/recommendation-feedback`, {
+      console.log('Submitting synergy feedback:', { recommendedCardId, feedback, type });
+      const response = await fetch(`/api/cards/${cardId}/recommendation-feedback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           recommendedCardId,
           feedback,
-          type,
-          reason: feedback === 'not_helpful' ? 'Card does not synergize well' : 'Good synergy recommendation'
+          recommendationType: type,
+          userId: 1
         })
       });
+      if (response.ok) {
+        console.log('Synergy feedback submitted successfully');
+      } else {
+        console.error('Synergy feedback submission failed:', await response.text());
+      }
     } catch (error) {
-      console.error('Failed to submit feedback:', error);
+      console.error('Failed to submit synergy feedback:', error);
     }
   };
 

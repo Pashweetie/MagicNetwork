@@ -192,6 +192,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+
+      
       res.json(recsWithCards.filter(r => r.card).slice(0, parseInt(limit as string)));
     } catch (error) {
       console.error('Recommendations error:', error);
