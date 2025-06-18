@@ -80,20 +80,15 @@ export function ThemeSuggestions({ card, onCardClick }: ThemeSuggestionsProps) {
       <div className="space-y-4">
         <div className="flex items-center space-x-2">
           <Sparkles className="w-5 h-5 text-blue-400" />
-          <h3 className="text-lg font-semibold text-white">Smart Theme Suggestions</h3>
+          <h3 className="text-lg font-semibold text-white">AI Synergies</h3>
         </div>
         <div className="text-center py-6 text-slate-400">
           <p className="text-sm">
-            {error ? 'Unable to generate theme suggestions' : 'No themes found for this card'}
+            {error ? 'Error loading synergy suggestions' : 'No strategic synergies detected for this card'}
           </p>
-          <Button 
-            onClick={() => setIsEnabled(false)}
-            variant="ghost" 
-            size="sm" 
-            className="mt-2 text-slate-400 hover:text-white"
-          >
-            Try again
-          </Button>
+          <p className="text-xs mt-2 text-slate-500">
+            The AI is still learning strategic patterns for this card type
+          </p>
         </div>
       </div>
     );
