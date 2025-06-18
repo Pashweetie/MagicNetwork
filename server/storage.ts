@@ -181,12 +181,13 @@ export class DatabaseStorage implements IStorage {
           target: cardCache.id,
           set: {
             cardData: card,
-            lastUpdated: sql`NOW()`,
+            lastUpdated: new Date(),
             searchCount: sql`${cardCache.searchCount} + 1`,
           }
         });
+      console.log(`Cached card: ${card.name} (${card.id})`);
     } catch (error) {
-      console.error('Error caching card:', error);
+      console.error('Error caching card:', error, card.id);
     }
   }
 
@@ -229,12 +230,13 @@ export class DatabaseStorage implements IStorage {
           target: searchCache.queryHash,
           set: {
             resultData: results,
-            lastAccessed: sql`NOW()`,
+            lastAccessed: new Date(),
             accessCount: sql`${searchCache.accessCount} + 1`,
           }
         });
+      console.log(`Cached search results: ${results.data.length} cards for query hash ${queryHash}`);
     } catch (error) {
-      console.error('Error caching search results:', error);
+      console.error('Error caching search results:', error, queryHash);
     }
   }
 
@@ -259,7 +261,7 @@ export class DatabaseStorage implements IStorage {
       await db
         .update(searchCache)
         .set({ 
-          lastAccessed: sql`NOW()`,
+          lastAccessed: new Date(),
           accessCount: sql`${searchCache.accessCount} + 1`
         })
         .where(eq(searchCache.queryHash, queryHash));
