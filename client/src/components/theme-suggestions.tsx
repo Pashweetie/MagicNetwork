@@ -19,8 +19,6 @@ interface ThemeGroup {
 }
 
 export function ThemeSuggestions({ card, onCardClick }: ThemeSuggestionsProps) {
-  const [isEnabled, setIsEnabled] = useState(false);
-
   const { data: themeGroups, isLoading, error } = useQuery({
     queryKey: ['/api/cards', card.id, 'theme-suggestions'],
     queryFn: async () => {
@@ -28,7 +26,6 @@ export function ThemeSuggestions({ card, onCardClick }: ThemeSuggestionsProps) {
       if (!response.ok) throw new Error('Failed to fetch theme suggestions');
       return response.json();
     },
-    enabled: isEnabled,
   });
 
   const getThemeIcon = (theme: string) => {
@@ -45,35 +42,7 @@ export function ThemeSuggestions({ card, onCardClick }: ThemeSuggestionsProps) {
     return <Sparkles className="w-4 h-4 text-blue-400" />;
   };
 
-  if (!isEnabled) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Sparkles className="w-5 h-5 text-blue-400" />
-            <h3 className="text-lg font-semibold text-white">Smart Theme Suggestions</h3>
-          </div>
-          <Button 
-            onClick={() => setIsEnabled(true)}
-            variant="outline"
-            size="sm"
-            className="bg-blue-600 hover:bg-blue-700 border-blue-500 text-white"
-          >
-            <Sparkles className="w-4 h-4 mr-2" />
-            Enable Smart Suggestions
-          </Button>
-        </div>
-        <div className="text-center py-6 text-slate-400">
-          <p className="text-sm">
-            AI-powered theme analysis will suggest cards based on deck archetypes like
-          </p>
-          <p className="text-sm mt-1 text-blue-300">
-            Death & Taxes, Stax, Combo Engines, and more strategic themes
-          </p>
-        </div>
-      </div>
-    );
-  }
+
 
   if (isLoading) {
     return (

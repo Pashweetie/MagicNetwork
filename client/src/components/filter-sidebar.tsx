@@ -459,19 +459,7 @@ export function FilterSidebar({ isOpen, filters, onFiltersChange, onClose }: Fil
 
           <Separator className="my-6 bg-slate-600" />
 
-          {/* AI Recommendations */}
-          <div className="mb-6 p-4 bg-purple-900/30 border border-purple-700 rounded-lg">
-            <h3 className="text-sm font-medium text-purple-200 mb-2 flex items-center">
-              <Brain className="h-4 w-4 mr-2" />
-              AI Recommendations
-            </h3>
-            <p className="text-xs text-purple-300 mb-3">
-              Find cards similar to your favorites using neural network analysis
-            </p>
-            <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white text-sm py-2 px-3">
-              Enable Smart Suggestions
-            </Button>
-          </div>
+
         </div>
       </aside>
     </>
