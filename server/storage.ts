@@ -538,7 +538,7 @@ export class DatabaseStorage implements IStorage {
 
       // For each card the user interacted with, get recommendations
       for (const interaction of interactions.slice(0, 10)) { // Limit to recent 10
-        const recommendations = await this.getCardRecommendations(interaction.cardId, 15);
+        const recommendations = await this.getCardRecommendations(interaction.cardId, 'synergy', 15);
         
         // Weight recommendations based on interaction type and recency
         const interactionWeight = this.getInteractionWeight(interaction.interactionType);

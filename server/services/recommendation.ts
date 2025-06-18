@@ -13,7 +13,7 @@ export class RecommendationService {
 
   // Get recommendations for a card
   async getCardRecommendations(cardId: string, limit: number = 10) {
-    const recommendations = await storage.getCardRecommendations(cardId, limit);
+    const recommendations = await storage.getCardRecommendations(cardId, 'synergy', limit);
     
     // Get the actual card data for each recommendation
     const cardData = await Promise.all(
@@ -45,7 +45,7 @@ export class RecommendationService {
     });
 
     // Generate recommendations for this card if we haven't already
-    const existingRecs = await storage.getCardRecommendations(cardId, 1);
+    const existingRecs = await storage.getCardRecommendations(cardId, 'synergy', 1);
     if (existingRecs.length === 0) {
       console.log(`Generating recommendations for card: ${cardId}`);
       await this.generateCardRecommendations(cardId);
@@ -64,7 +64,7 @@ export class RecommendationService {
       .limit(limit);
 
     for (const card of popularCards) {
-      const existingRecs = await storage.getCardRecommendations(card.id, 1);
+      const existingRecs = await storage.getCardRecommendations(card.id, 'synergy', 1);
       if (existingRecs.length === 0) {
         console.log(`Generating recommendations for popular card: ${card.id}`);
         await this.generateCardRecommendations(card.id);

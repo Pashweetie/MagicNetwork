@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card } from "@shared/schema";
 import { Header } from "@/components/header";
 import { FilterSidebar } from "@/components/filter-sidebar";
@@ -166,17 +166,21 @@ export default function Search() {
                 </Button>
                 
                 {/* Commander Selection */}
-                <Select value={deck.commander?.id || ""} onValueChange={(commanderId) => {
-                  const commander = allCards.find(card => card.id === commanderId);
-                  if (commander) {
-                    deck.setCommander(commander);
+                <Select value={deck.commander?.id || "none"} onValueChange={(commanderId) => {
+                  if (commanderId === "none") {
+                    deck.setCommander(null);
+                  } else {
+                    const commander = allCards.find(card => card.id === commanderId);
+                    if (commander) {
+                      deck.setCommander(commander);
+                    }
                   }
                 }}>
                   <SelectTrigger className="w-48 bg-slate-800 border-slate-600">
                     <SelectValue placeholder="Choose Commander" />
                   </SelectTrigger>
                   <SelectContent className="bg-slate-800 border-slate-600">
-                    <SelectItem value="">No Commander</SelectItem>
+                    <SelectItem value="none">No Commander</SelectItem>
                     {allCards
                       .filter(card => 
                         card.type_line?.toLowerCase().includes('legendary') && 

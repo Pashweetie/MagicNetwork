@@ -286,18 +286,18 @@ export class ScryfallQueryParser {
       }
     }
 
-    // CMC range
-    if (filters.cmcMin !== undefined || filters.cmcMax !== undefined) {
-      if (filters.cmcMin !== undefined && filters.cmcMax !== undefined) {
-        if (filters.cmcMin === filters.cmcMax) {
-          parts.push(`cmc:${filters.cmcMin}`);
+    // CMC range - use minMv/maxMv which exist in SearchFilters
+    if (filters.minMv !== undefined || filters.maxMv !== undefined) {
+      if (filters.minMv !== undefined && filters.maxMv !== undefined) {
+        if (filters.minMv === filters.maxMv) {
+          parts.push(`cmc:${filters.minMv}`);
         } else {
-          parts.push(`cmc>=${filters.cmcMin} cmc<=${filters.cmcMax}`);
+          parts.push(`cmc>=${filters.minMv} cmc<=${filters.maxMv}`);
         }
-      } else if (filters.cmcMin !== undefined) {
-        parts.push(`cmc>=${filters.cmcMin}`);
-      } else if (filters.cmcMax !== undefined) {
-        parts.push(`cmc<=${filters.cmcMax}`);
+      } else if (filters.minMv !== undefined) {
+        parts.push(`cmc>=${filters.minMv}`);
+      } else if (filters.maxMv !== undefined) {
+        parts.push(`cmc<=${filters.maxMv}`);
       }
     }
 
@@ -339,15 +339,15 @@ export class ScryfallQueryParser {
       parts.push(`Set: ${filters.set}`);
     }
     
-    if (filters.cmcMin !== undefined || filters.cmcMax !== undefined) {
-      if (filters.cmcMin === filters.cmcMax) {
-        parts.push(`CMC: ${filters.cmcMin}`);
-      } else if (filters.cmcMin !== undefined && filters.cmcMax !== undefined) {
-        parts.push(`CMC: ${filters.cmcMin}-${filters.cmcMax}`);
-      } else if (filters.cmcMin !== undefined) {
-        parts.push(`CMC: ${filters.cmcMin}+`);
+    if (filters.minMv !== undefined || filters.maxMv !== undefined) {
+      if (filters.minMv === filters.maxMv) {
+        parts.push(`CMC: ${filters.minMv}`);
+      } else if (filters.minMv !== undefined && filters.maxMv !== undefined) {
+        parts.push(`CMC: ${filters.minMv}-${filters.maxMv}`);
+      } else if (filters.minMv !== undefined) {
+        parts.push(`CMC: ${filters.minMv}+`);
       } else {
-        parts.push(`CMC: ≤${filters.cmcMax}`);
+        parts.push(`CMC: ≤${filters.maxMv}`);
       }
     }
     
