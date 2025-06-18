@@ -4,8 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 import { SearchFilters } from "@shared/schema";
-import { Brain } from "lucide-react";
+import { Brain, ChevronDown, ChevronUp } from "lucide-react";
 
 interface FilterSidebarProps {
   isOpen: boolean;
@@ -22,11 +24,26 @@ const MTG_COLORS = [
   { code: 'G', name: 'Green', gradient: 'linear-gradient(135deg, #00733e 0%, #198754 100%)', textColor: 'text-white' },
 ];
 
-const CARD_TYPES = ['Creature', 'Instant', 'Sorcery', 'Enchantment', 'Artifact', 'Planeswalker', 'Land'];
+const CARD_TYPES = ['Creature', 'Instant', 'Sorcery', 'Enchantment', 'Artifact', 'Planeswalker', 'Land', 'Battle', 'Tribal'];
 const RARITIES = ['common', 'uncommon', 'rare', 'mythic'];
-const FORMATS = ['standard', 'modern', 'legacy', 'vintage', 'commander', 'pioneer'];
+const FORMATS = ['standard', 'modern', 'legacy', 'vintage', 'commander', 'pioneer', 'pauper', 'historic', 'alchemy'];
+const POPULAR_KEYWORDS = ['Flying', 'Trample', 'Lifelink', 'Deathtouch', 'First Strike', 'Double Strike', 'Vigilance', 'Haste', 'Reach', 'Hexproof', 'Ward', 'Flash', 'Menace'];
 
 export function FilterSidebar({ isOpen, filters, onFiltersChange, onClose }: FilterSidebarProps) {
+  const [expandedSections, setExpandedSections] = useState({
+    advanced: false,
+    powerToughness: false,
+    price: false,
+    keywords: false,
+  });
+
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
   const updateFilters = (updates: Partial<SearchFilters>) => {
     onFiltersChange({ ...filters, ...updates });
   };
@@ -61,6 +78,16 @@ export function FilterSidebar({ isOpen, filters, onFiltersChange, onClose }: Fil
       : [...currentRarities, rarity];
     
     updateFilters({ rarities: newRarities.length > 0 ? newRarities : undefined });
+  };
+
+  const toggleKeyword = (keyword: string) => {
+    const currentKeywords = filters.keywords || [];
+    const lowerKeyword = keyword.toLowerCase();
+    const newKeywords = currentKeywords.includes(lowerKeyword)
+      ? currentKeywords.filter(k => k !== lowerKeyword)
+      : [...currentKeywords, lowerKeyword];
+    
+    updateFilters({ keywords: newKeywords.length > 0 ? newKeywords : undefined });
   };
 
   return (
@@ -224,6 +251,184 @@ export function FilterSidebar({ isOpen, filters, onFiltersChange, onClose }: Fil
               </SelectContent>
             </Select>
           </div>
+
+          {/* Oracle Text Search */}
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-slate-300 mb-3">Oracle Text</h3>
+            <Textarea
+              value={filters.oracleText || ''}
+              onChange={(e) => updateFilters({ oracleText: e.target.value || undefined })}
+              className="bg-slate-700 border-slate-600 text-sm resize-none"
+              rows={2}
+              placeholder="Search card text..."
+            />
+          </div>
+
+          {/* Set Selection */}
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-slate-300 mb-3">Set</h3>
+            <Input
+              value={filters.set || ''}
+              onChange={(e) => updateFilters({ set: e.target.value || undefined })}
+              className="bg-slate-700 border-slate-600 text-sm"
+              placeholder="e.g., BRO, DMU, ONE"
+            />
+          </div>
+
+          <Separator className="my-6 bg-slate-600" />
+
+          {/* Advanced Filters */}
+          <div className="mb-6">
+            <Button
+              variant="ghost"
+              onClick={() => toggleSection('advanced')}
+              className="w-full justify-between text-slate-300 hover:text-white p-0"
+            >
+              <h3 className="text-sm font-medium">Advanced Filters</h3>
+              {expandedSections.advanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+            
+            {expandedSections.advanced && (
+              <div className="mt-3 space-y-4">
+                <div>
+                  <Label className="block text-xs text-slate-400 mb-1">Artist</Label>
+                  <Input
+                    value={filters.artist || ''}
+                    onChange={(e) => updateFilters({ artist: e.target.value || undefined })}
+                    className="bg-slate-700 border-slate-600 text-sm"
+                    placeholder="Artist name"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Power/Toughness */}
+          <div className="mb-6">
+            <Button
+              variant="ghost"
+              onClick={() => toggleSection('powerToughness')}
+              className="w-full justify-between text-slate-300 hover:text-white p-0"
+            >
+              <h3 className="text-sm font-medium">Power/Toughness</h3>
+              {expandedSections.powerToughness ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+            
+            {expandedSections.powerToughness && (
+              <div className="mt-3 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="block text-xs text-slate-400 mb-1">Power</Label>
+                    <Input
+                      value={filters.power || ''}
+                      onChange={(e) => updateFilters({ power: e.target.value || undefined })}
+                      className="bg-slate-700 border-slate-600 text-sm"
+                      placeholder=">=3"
+                    />
+                  </div>
+                  <div>
+                    <Label className="block text-xs text-slate-400 mb-1">Toughness</Label>
+                    <Input
+                      value={filters.toughness || ''}
+                      onChange={(e) => updateFilters({ toughness: e.target.value || undefined })}
+                      className="bg-slate-700 border-slate-600 text-sm"
+                      placeholder="<=2"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="block text-xs text-slate-400 mb-1">Loyalty</Label>
+                  <Input
+                    value={filters.loyalty || ''}
+                    onChange={(e) => updateFilters({ loyalty: e.target.value || undefined })}
+                    className="bg-slate-700 border-slate-600 text-sm"
+                    placeholder=">=4"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Price Range */}
+          <div className="mb-6">
+            <Button
+              variant="ghost"
+              onClick={() => toggleSection('price')}
+              className="w-full justify-between text-slate-300 hover:text-white p-0"
+            >
+              <h3 className="text-sm font-medium">Price Range (USD)</h3>
+              {expandedSections.price ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+            
+            {expandedSections.price && (
+              <div className="mt-3 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="block text-xs text-slate-400 mb-1">Min $</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={filters.minPrice || ''}
+                      onChange={(e) => 
+                        updateFilters({ 
+                          minPrice: e.target.value ? parseFloat(e.target.value) : undefined 
+                        })
+                      }
+                      className="bg-slate-700 border-slate-600 text-sm"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div>
+                    <Label className="block text-xs text-slate-400 mb-1">Max $</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={filters.maxPrice || ''}
+                      onChange={(e) => 
+                        updateFilters({ 
+                          maxPrice: e.target.value ? parseFloat(e.target.value) : undefined 
+                        })
+                      }
+                      className="bg-slate-700 border-slate-600 text-sm"
+                      placeholder="100.00"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Keywords */}
+          <div className="mb-6">
+            <Button
+              variant="ghost"
+              onClick={() => toggleSection('keywords')}
+              className="w-full justify-between text-slate-300 hover:text-white p-0"
+            >
+              <h3 className="text-sm font-medium">Keywords</h3>
+              {expandedSections.keywords ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+            
+            {expandedSections.keywords && (
+              <div className="mt-3 space-y-2">
+                <div className="grid grid-cols-2 gap-1">
+                  {POPULAR_KEYWORDS.map((keyword) => (
+                    <Label key={keyword} className="flex items-center space-x-1 text-xs">
+                      <Checkbox
+                        checked={(filters.keywords || []).includes(keyword.toLowerCase())}
+                        onCheckedChange={() => toggleKeyword(keyword)}
+                      />
+                      <span>{keyword}</span>
+                    </Label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Separator className="my-6 bg-slate-600" />
 
           {/* AI Recommendations */}
           <div className="mb-6 p-4 bg-purple-900/30 border border-purple-700 rounded-lg">

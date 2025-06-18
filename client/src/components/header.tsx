@@ -84,7 +84,11 @@ export function Header({ onSearch, onToggleSidebar, searchQuery }: HeaderProps) 
                     <div><span className="text-purple-400">mv:</span> Mana value</div>
                     <div><span className="text-yellow-400">f:</span> Format (standard, modern, etc.)</div>
                     <div><span className="text-pink-400">r:</span> Rarity (c, u, r, m)</div>
-                    <div><span className="text-orange-400">set:</span> Set code</div>
+                    <div><span className="text-orange-400">s:</span> Set code</div>
+                    <div><span className="text-cyan-400">o:</span> Oracle text</div>
+                    <div><span className="text-red-400">pow:</span> Power, <span className="text-red-400">tou:</span> Toughness</div>
+                    <div><span className="text-indigo-400">k:</span> Keywords</div>
+                    <div><span className="text-emerald-400">usd:</span> Price range</div>
                   </div>
                 </div>
               </div>
