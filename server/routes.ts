@@ -282,21 +282,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         theme.push(newTheme[0]);
       }
 
-      // Check if user already voted
+      // Check if user already voted on this specific card-theme combination
       const existingVote = await db.execute(sql`
         SELECT id FROM user_votes 
         WHERE user_id = ${userId} AND target_type = 'theme' AND target_id = ${theme[0].id}
       `);
 
       if (existingVote.rows.length > 0) {
-        return res.status(400).json({ error: 'You have already voted on this theme' });
+        // Allow users to change their vote by updating existing record
+        await db.execute(sql`
+          UPDATE user_votes 
+          SET vote = ${vote}, created_at = NOW()
+          WHERE user_id = ${userId} AND target_type = 'theme' AND target_id = ${theme[0].id}
+        `);
+      } else {
+        // Record new vote
+        await db.execute(sql`
+          INSERT INTO user_votes (user_id, target_type, target_id, vote)
+          VALUES (${userId}, 'theme', ${theme[0].id}, ${vote})
+        `);
       }
 
-      // Record vote
-      await db.execute(sql`
-        INSERT INTO user_votes (user_id, target_type, target_id, vote)
-        VALUES (${userId}, 'theme', ${theme[0].id}, ${vote})
-      `);
+
 
       // Update vote counts using raw SQL since schema may not have these columns yet
       const voteIncrement = vote === 'up' ? 1 : 0;

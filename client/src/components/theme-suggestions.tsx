@@ -23,6 +23,13 @@ interface ThemeGroup {
 export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters }: ThemeSuggestionsProps) {
   const [userHasVoted, setUserHasVoted] = useState<{[theme: string]: boolean}>({});
   
+  // Reset vote state when card changes
+  const [currentCardId, setCurrentCardId] = useState(card.id);
+  if (currentCardId !== card.id) {
+    setCurrentCardId(card.id);
+    setUserHasVoted({});
+  }
+  
   const { data: themeGroups, isLoading, error } = useQuery({
     queryKey: ['/api/cards', card.id, 'theme-suggestions', currentFilters],
     queryFn: async () => {
@@ -34,7 +41,8 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
   });
 
   const handleThemeVote = async (themeName: string, vote: 'up' | 'down') => {
-    if (userHasVoted[themeName]) {
+    const voteKey = `${card.id}-${themeName}`;
+    if (userHasVoted[voteKey]) {
       const toast = document.createElement('div');
       toast.className = 'fixed top-4 right-4 bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
       toast.textContent = 'You have already voted on this theme';
@@ -56,8 +64,8 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
       if (response.ok) {
         const result = await response.json();
         
-        // Mark theme as voted
-        setUserHasVoted(prev => ({ ...prev, [themeName]: true }));
+        // Mark theme as voted using card-specific key
+        setUserHasVoted(prev => ({ ...prev, [voteKey]: true }));
         
         // Show visual feedback with updated confidence
         const button = document.activeElement as HTMLButtonElement;
@@ -91,6 +99,12 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
       }
     } catch (error) {
       console.error('Failed to submit feedback:', error);
+      // Show error toast
+      const toast = document.createElement('div');
+      toast.className = 'fixed top-4 right-4 bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+      toast.textContent = 'Failed to record vote. Please try again.';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
     }
   };
 
