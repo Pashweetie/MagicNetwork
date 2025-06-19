@@ -51,8 +51,8 @@ export function DeckImportDialog({ children }: DeckImportDialogProps) {
         });
       }
       
-      // Refresh the page to show imported deck
-      window.location.reload();
+      // Refresh deck data after import
+      queryClient.invalidateQueries({ queryKey: ['/api/user/deck'] });
       setIsOpen(false);
       setDeckText("");
     },
