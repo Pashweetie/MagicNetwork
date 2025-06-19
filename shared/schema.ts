@@ -218,13 +218,13 @@ export const insertUserSchema = createInsertSchema(users).omit({ id: true, creat
 
 export const insertCardCacheSchema = createInsertSchema(cardCache).omit({ lastUpdated: true, searchCount: true });
 export const insertSearchCacheSchema = createInsertSchema(searchCache).omit({ id: true, createdAt: true, lastAccessed: true, accessCount: true });
-export const insertCardRecommendationSchema = createInsertSchema(cardRecommendations).omit({ id: true, createdAt: true, upvotes: true, downvotes: true, user_votes_count: true });
+export const insertCardRecommendationSchema = createInsertSchema(cardRecommendations).omit({ id: true, createdAt: true });
 export const insertUserInteractionSchema = createInsertSchema(userInteractions).omit({ id: true, createdAt: true });
 
 export const insertCardTagSchema = createInsertSchema(cardTags).omit({ id: true, createdAt: true, lastUpdated: true });
 export const insertTagRelationshipSchema = createInsertSchema(tagRelationships).omit({ id: true, createdAt: true, lastUpdated: true });
 export const insertUserTagFeedbackSchema = createInsertSchema(userTagFeedback).omit({ id: true, createdAt: true });
-export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, created_at: true, last_updated: true, upvotes: true, downvotes: true, user_votes_count: true });
+export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, created_at: true, last_updated: true });
 export const insertRecommendationFeedbackSchema = createInsertSchema(recommendationFeedback).omit({ id: true, createdAt: true });
 // User votes tracking for recommendations and themes
 export const userVotes = pgTable('user_votes', {

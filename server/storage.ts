@@ -1,6 +1,6 @@
 import { db } from "./db";
-import { cardCache, searchCache, users, savedSearches, favoriteCards, cardRecommendations, userInteractions, recommendationFeedback, cardThemes, decks, userDecks, cardTags, tagRelationships, userTagFeedback } from "@shared/schema";
-import { Card, SearchFilters, SearchResponse, User, InsertUser, SavedSearch, InsertSavedSearch, FavoriteCard, InsertFavoriteCard, CardRecommendation, InsertCardRecommendation, UserInteraction, InsertUserInteraction, InsertRecommendationFeedback, Deck, InsertDeck, UserDeck, InsertUserDeck, DeckEntry, CardTag, InsertCardTag, TagRelationship, InsertTagRelationship, UserTagFeedback, InsertUserTagFeedback } from "@shared/schema";
+import { cardCache, searchCache, users, cardRecommendations, userInteractions, recommendationFeedback, cardThemes, decks, userDecks, cardTags, tagRelationships, userTagFeedback } from "@shared/schema";
+import { Card, SearchFilters, SearchResponse, User, InsertUser, CardRecommendation, InsertCardRecommendation, UserInteraction, InsertUserInteraction, InsertRecommendationFeedback, Deck, InsertDeck, UserDeck, InsertUserDeck, DeckEntry, CardTag, InsertCardTag, TagRelationship, InsertTagRelationship, UserTagFeedback, InsertUserTagFeedback } from "@shared/schema";
 import { eq, sql, and, desc, asc } from "drizzle-orm";
 import crypto from "crypto";
 import { scryfallService } from "./services/scryfall";
@@ -16,16 +16,6 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(insertUser: InsertUser): Promise<User>;
-  
-  // Saved searches
-  getSavedSearches(userId: number): Promise<SavedSearch[]>;
-  createSavedSearch(search: InsertSavedSearch): Promise<SavedSearch>;
-  deleteSavedSearch(id: number, userId: number): Promise<boolean>;
-  
-  // Favorite cards
-  getFavoriteCards(userId: number): Promise<FavoriteCard[]>;
-  addFavoriteCard(favorite: InsertFavoriteCard): Promise<FavoriteCard>;
-  removeFavoriteCard(cardId: string, userId: number): Promise<boolean>;
   
   // Cache management
   cacheCard(card: Card): Promise<void>;
@@ -70,6 +60,10 @@ export interface IStorage {
   
   // Deck import functionality
   importDeckFromText(userId: string, deckText: string, format?: string): Promise<{ success: boolean, message: string, importedCards: number, failedCards: string[] }>;
+
+  // Synergy and similarity methods
+  findSynergyCards(sourceCard: Card, filters?: any): Promise<Array<{cardId: string, score: number, reason: string}>>;
+  findFunctionallySimilarCards(sourceCard: Card, filters?: any): Promise<Array<{cardId: string, score: number, reason: string}>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -77,52 +71,75 @@ export class DatabaseStorage implements IStorage {
   private readonly SEARCH_CACHE_TTL = 60 * 60 * 1000; // 1 hour for search cache
 
   private generateQueryHash(filters: SearchFilters, page: number): string {
-    return crypto.createHash('md5').update(JSON.stringify({ filters, page })).digest('hex');
+    const queryString = JSON.stringify({ filters, page });
+    return crypto.createHash('md5').update(queryString).digest('hex');
   }
 
   async searchCards(filters: SearchFilters, page: number = 1): Promise<SearchResponse> {
     try {
-      return await scryfallService.searchCards(filters, page);
+      // Check cache first
+      const cachedResult = await this.getCachedSearchResults(filters, page);
+      if (cachedResult) {
+        return cachedResult;
+      }
+
+      // Use Scryfall service for live search
+      const result = await scryfallService.searchCards(filters, page);
+      
+      // Cache cards individually
+      for (const card of result.data) {
+        await this.cacheCard(card);
+      }
+      
+      // Cache search results
+      await this.cacheSearchResults(filters, page, result);
+      
+      return result;
     } catch (error) {
-      console.error('Search failed:', error);
-      return { data: [], has_more: false, total_cards: 0 };
+      console.error('Search error:', error);
+      throw error;
     }
   }
 
   async getCard(id: string): Promise<Card | null> {
-    // Try cache first
-    const cached = await this.getCachedCard(id);
-    if (cached) return cached;
-
-    // Fetch from API
     try {
+      // Try cache first
+      const cached = await this.getCachedCard(id);
+      if (cached) {
+        return cached;
+      }
+      
+      // Fetch from Scryfall
       const card = await scryfallService.getCard(id);
       if (card) {
         await this.cacheCard(card);
       }
+      
       return card;
     } catch (error) {
-      console.error(`Failed to get card ${id}:`, error);
+      console.error('Get card error:', error);
       return null;
     }
   }
 
   async getRandomCard(): Promise<Card> {
     try {
-      return await scryfallService.getRandomCard();
+      const card = await scryfallService.getRandomCard();
+      await this.cacheCard(card);
+      return card;
     } catch (error) {
-      console.error('Failed to get random card:', error);
-      throw new Error('Failed to get random card');
+      console.error('Random card error:', error);
+      throw error;
     }
   }
 
   async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, id));
+    const [user] = await db.select().from(users).where(eq(users.id, parseInt(id))).limit(1);
     return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+    const [user] = await db.select().from(users).where(eq(users.username, username)).limit(1);
     return user;
   }
 
@@ -131,97 +148,115 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async getSavedSearches(userId: number): Promise<SavedSearch[]> {
-    return db.select()
-      .from(savedSearches)
-      .where(eq(savedSearches.userId, userId))
-      .orderBy(desc(savedSearches.createdAt));
-  }
-
-  async createSavedSearch(search: InsertSavedSearch): Promise<SavedSearch> {
-    const [result] = await db.insert(savedSearches).values(search).returning();
-    return result;
-  }
-
-  async deleteSavedSearch(id: number, userId: number): Promise<boolean> {
-    await db.delete(savedSearches)
-      .where(and(eq(savedSearches.id, id), eq(savedSearches.userId, userId)));
-    return true;
-  }
-
-  async getFavoriteCards(userId: number): Promise<FavoriteCard[]> {
-    return db.select()
-      .from(favoriteCards)
-      .where(eq(favoriteCards.userId, userId))
-      .orderBy(desc(favoriteCards.createdAt));
-  }
-
-  async addFavoriteCard(favorite: InsertFavoriteCard): Promise<FavoriteCard> {
-    const [result] = await db.insert(favoriteCards).values(favorite).returning();
-    return result;
-  }
-
-  async removeFavoriteCard(cardId: string, userId: number): Promise<boolean> {
-    await db.delete(favoriteCards)
-      .where(and(eq(favoriteCards.cardId, cardId), eq(favoriteCards.userId, userId)));
-    return true;
-  }
-
   async cacheCard(card: Card): Promise<void> {
-    await db.insert(cardCache).values({
-      id: card.id,
-      cardData: card
-    }).onConflictDoUpdate({
-      target: cardCache.id,
-      set: {
-        cardData: card,
-        lastUpdated: new Date(),
-        searchCount: sql`${cardCache.searchCount} + 1`
-      }
-    });
+    try {
+      await db.insert(cardCache)
+        .values({
+          id: card.id,
+          cardData: card,
+          lastUpdated: new Date(),
+          searchCount: 1
+        })
+        .onConflictDoUpdate({
+          target: cardCache.id,
+          set: {
+            cardData: card,
+            lastUpdated: new Date(),
+            searchCount: sql`${cardCache.searchCount} + 1`
+          }
+        });
+    } catch (error) {
+      console.error('Cache card error:', error);
+    }
   }
 
   async getCachedCard(id: string): Promise<Card | null> {
-    const [cached] = await db.select().from(cardCache).where(eq(cardCache.id, id));
-    return cached ? cached.cardData as Card : null;
+    try {
+      const [cached] = await db.select()
+        .from(cardCache)
+        .where(eq(cardCache.id, id))
+        .limit(1);
+      
+      if (cached && (Date.now() - cached.lastUpdated.getTime()) < this.CACHE_TTL) {
+        return cached.cardData;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Get cached card error:', error);
+      return null;
+    }
   }
 
   async cacheSearchResults(filters: SearchFilters, page: number, results: SearchResponse): Promise<void> {
-    const queryHash = this.generateQueryHash(filters, page);
-    await db.insert(searchCache).values({
-      queryHash,
-      results
-    }).onConflictDoUpdate({
-      target: searchCache.queryHash,
-      set: {
-        results,
-        lastAccessed: new Date(),
-        accessCount: sql`${searchCache.accessCount} + 1`
-      }
-    });
+    try {
+      const queryHash = this.generateQueryHash(filters, page);
+      await db.insert(searchCache)
+        .values({
+          queryHash,
+          query: JSON.stringify({ filters, page }),
+          results,
+          createdAt: new Date(),
+          lastAccessed: new Date(),
+          accessCount: 1
+        })
+        .onConflictDoUpdate({
+          target: searchCache.queryHash,
+          set: {
+            results,
+            lastAccessed: new Date(),
+            accessCount: sql`${searchCache.accessCount} + 1`
+          }
+        });
+    } catch (error) {
+      console.error('Cache search results error:', error);
+    }
   }
 
   async getCachedSearchResults(filters: SearchFilters, page: number): Promise<SearchResponse | null> {
-    const queryHash = this.generateQueryHash(filters, page);
-    const [cached] = await db.select().from(searchCache).where(eq(searchCache.queryHash, queryHash));
-    
-    if (cached) {
-      const age = Date.now() - cached.createdAt.getTime();
-      if (age < this.SEARCH_CACHE_TTL) {
-        return cached.results as SearchResponse;
+    try {
+      const queryHash = this.generateQueryHash(filters, page);
+      const [cached] = await db.select()
+        .from(searchCache)
+        .where(eq(searchCache.queryHash, queryHash))
+        .limit(1);
+      
+      if (cached && (Date.now() - cached.lastAccessed.getTime()) < this.SEARCH_CACHE_TTL) {
+        // Update access time
+        await db.update(searchCache)
+          .set({ lastAccessed: new Date() })
+          .where(eq(searchCache.queryHash, queryHash));
+        
+        return cached.results;
       }
+      
+      return null;
+    } catch (error) {
+      console.error('Get cached search results error:', error);
+      return null;
     }
-    return null;
   }
 
   async cleanupOldCache(): Promise<void> {
-    const cutoff = new Date(Date.now() - this.CACHE_TTL);
-    await db.delete(cardCache).where(sql`${cardCache.lastUpdated} < ${cutoff}`);
-    await db.delete(searchCache).where(sql`${searchCache.lastAccessed} < ${cutoff}`);
+    try {
+      const cutoff = new Date(Date.now() - this.CACHE_TTL);
+      await db.delete(cardCache)
+        .where(sql`${cardCache.lastUpdated} < ${cutoff}`);
+      
+      const searchCutoff = new Date(Date.now() - this.SEARCH_CACHE_TTL);
+      await db.delete(searchCache)
+        .where(sql`${searchCache.lastAccessed} < ${searchCutoff}`);
+    } catch (error) {
+      console.error('Cleanup cache error:', error);
+    }
   }
 
   async recordUserInteraction(interaction: InsertUserInteraction): Promise<void> {
-    await db.insert(userInteractions).values(interaction);
+    try {
+      await db.insert(userInteractions).values(interaction);
+    } catch (error) {
+      console.error('Record interaction error:', error);
+    }
   }
 
   async getUserInteractions(userId: number, limit: number = 100): Promise<UserInteraction[]> {
@@ -235,58 +270,106 @@ export class DatabaseStorage implements IStorage {
   async getCardRecommendations(cardId: string, type: 'synergy' | 'functional_similarity', limit: number = 10, filters?: any): Promise<CardRecommendation[]> {
     return db.select()
       .from(cardRecommendations)
-      .where(and(eq(cardRecommendations.sourceCardId, cardId), eq(cardRecommendations.recommendationType, type)))
+      .where(and(
+        eq(cardRecommendations.sourceCardId, cardId),
+        eq(cardRecommendations.recommendationType, type)
+      ))
       .orderBy(desc(cardRecommendations.score))
       .limit(limit);
   }
 
-  async generateRecommendationsForCard(cardId: string): Promise<void> {
-    // AI handles this automatically
-    console.log(`AI generating recommendations for card: ${cardId}`);
+  async recordRecommendationFeedback(feedback: InsertRecommendationFeedback): Promise<void> {
+    try {
+      await db.insert(recommendationFeedback).values(feedback);
+    } catch (error) {
+      console.error('Record recommendation feedback error:', error);
+    }
   }
 
-  async getPersonalizedRecommendations(userId: number, limit: number = 20): Promise<Card[]> {
-    const interactions = await this.getUserInteractions(userId, 50);
+  async getRecommendationWeights(): Promise<{[key: string]: number}> {
+    // Simple implementation - in practice this would analyze feedback
+    return {
+      'synergy': 1.0,
+      'functional_similarity': 0.8,
+      'theme': 0.9
+    };
+  }
+
+  async findCardsBySharedThemes(
+    sourceCard: Card, 
+    sourceThemes: Array<{theme: string, description: string, confidence: number, cards: Card[]}>, 
+    filters?: any
+  ): Promise<Array<{card: Card, sharedThemes: Array<{theme: string, confidence: number}>, synergyScore: number, reason: string}>> {
+    const synergies: Array<{card: Card, sharedThemes: Array<{theme: string, confidence: number}>, synergyScore: number, reason: string}> = [];
     
-    if (interactions.length === 0) {
-      const popularCards = await db.select()
-        .from(cardCache)
-        .orderBy(desc(cardCache.searchCount))
-        .limit(limit);
-      
-      return popularCards.map(cached => cached.cardData as Card);
+    for (const theme of sourceThemes) {
+      for (const card of theme.cards) {
+        if (card.id === sourceCard.id) continue;
+        
+        const existingEntry = synergies.find(s => s.card.id === card.id);
+        if (existingEntry) {
+          existingEntry.sharedThemes.push({ theme: theme.theme, confidence: theme.confidence });
+          existingEntry.synergyScore += theme.confidence * 10;
+        } else {
+          synergies.push({
+            card,
+            sharedThemes: [{ theme: theme.theme, confidence: theme.confidence }],
+            synergyScore: theme.confidence * 10,
+            reason: `Shares ${theme.theme} theme`
+          });
+        }
+      }
     }
-
-    const cardIds = interactions.map(i => i.cardId);
-    const uniqueCardIds = Array.from(new Set(cardIds));
     
-    const userCards: Card[] = [];
-    for (const cardId of uniqueCardIds.slice(0, 10)) {
-      const card = await this.getCard(cardId);
-      if (card) userCards.push(card);
-    }
-
-    const recommendations = new Set<string>();
-    for (const card of userCards) {
-      const recs = await this.getCardRecommendations(card.id, 'synergy', 3);
-      recs.forEach(rec => recommendations.add(rec.recommendedCardId));
-    }
-
-    const recommendedCards: Card[] = [];
-    for (const cardId of Array.from(recommendations).slice(0, limit)) {
-      const card = await this.getCard(cardId);
-      if (card) recommendedCards.push(card);
-    }
-
-    return recommendedCards;
+    return synergies.sort((a, b) => b.synergyScore - a.synergyScore);
   }
 
-  async findSynergyCards(sourceCard: Card): Promise<Array<{cardId: string, score: number, reason: string}>> {
-    return [];
+  async getCardTags(cardId: string): Promise<CardTag[]> {
+    return db.select()
+      .from(cardTags)
+      .where(eq(cardTags.cardId, cardId));
   }
 
-  async findFunctionallySimilarCards(sourceCard: Card, filters?: any): Promise<Array<{cardId: string, score: number, reason: string}>> {
-    return [];
+  async createCardTag(tag: InsertCardTag): Promise<CardTag> {
+    const [result] = await db.insert(cardTags).values(tag).returning();
+    return result;
+  }
+
+  async updateCardTagVotes(cardId: string, tag: string, upvotes: number, downvotes: number): Promise<void> {
+    await db.update(cardTags)
+      .set({ upvotes, downvotes })
+      .where(and(eq(cardTags.cardId, cardId), eq(cardTags.tag, tag)));
+  }
+
+  async findCardsByTags(tags: string[], filters?: any): Promise<Card[]> {
+    const cardIds = await db.select({ cardId: cardTags.cardId })
+      .from(cardTags)
+      .where(sql`${cardTags.tag} = ANY(${tags})`);
+    
+    const cards: Card[] = [];
+    for (const { cardId } of cardIds) {
+      const card = await this.getCard(cardId);
+      if (card) {
+        cards.push(card);
+      }
+    }
+    
+    return cards;
+  }
+
+  async getTagRelationships(tag: string): Promise<TagRelationship[]> {
+    return db.select()
+      .from(tagRelationships)
+      .where(eq(tagRelationships.sourceTag, tag));
+  }
+
+  async createTagRelationship(relationship: InsertTagRelationship): Promise<TagRelationship> {
+    const [result] = await db.insert(tagRelationships).values(relationship).returning();
+    return result;
+  }
+
+  async recordUserTagFeedback(feedback: InsertUserTagFeedback): Promise<void> {
+    await db.insert(userTagFeedback).values(feedback);
   }
 
   async createDeck(deck: InsertDeck): Promise<Deck> {
@@ -304,7 +387,8 @@ export class DatabaseStorage implements IStorage {
   async getDeck(id: number, userId: number): Promise<Deck | null> {
     const [deck] = await db.select()
       .from(decks)
-      .where(and(eq(decks.id, id), eq(decks.userId, userId)));
+      .where(and(eq(decks.id, id), eq(decks.userId, userId)))
+      .limit(1);
     return deck || null;
   }
 
@@ -317,164 +401,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteDeck(id: number, userId: number): Promise<boolean> {
-    await db.delete(decks)
+    const result = await db.delete(decks)
       .where(and(eq(decks.id, id), eq(decks.userId, userId)));
-    return true;
+    return result.rowCount > 0;
   }
 
-  async recordRecommendationFeedback(feedback: InsertRecommendationFeedback): Promise<void> {
-    await db.insert(recommendationFeedback).values(feedback);
-  }
-
-  async getRecommendationWeights(): Promise<{[key: string]: number}> {
-    return {
-      synergy: 1.0,
-      functional_similarity: 0.8,
-      theme: 0.9
-    };
-  }
-
-  async findCardsBySharedThemes(
-    sourceCard: Card, 
-    sourceThemes: Array<{theme: string, cards: Card[], confidence?: number, description?: string}>, 
-    filters?: any
-  ): Promise<Array<{card: Card, sharedThemes: Array<{theme: string, confidence: number}>, synergyScore: number, reason: string}>> {
-    try {
-      const synergies: Array<{card: Card, sharedThemes: Array<{theme: string, confidence: number}>, synergyScore: number, reason: string}> = [];
-      const cardThemeMap = new Map<string, Array<{theme: string, confidence: number}>>();
-      
-      // Extract all theme names from source card
-      const sourceThemeNames = sourceThemes.map(t => t.theme);
-      
-      // Collect all cards from theme groups and track their themes
-      console.log(`📋 Processing ${sourceThemes.length} source themes for synergy analysis`);
-      for (const themeGroup of sourceThemes) {
-        console.log(`  Theme: "${themeGroup.theme}" has ${themeGroup.cards.length} cards`);
-        for (const card of themeGroup.cards) {
-          if (card.id === sourceCard.id) continue; // Skip source card
-          
-          if (!cardThemeMap.has(card.id)) {
-            cardThemeMap.set(card.id, []);
-          }
-          
-          cardThemeMap.get(card.id)!.push({
-            theme: themeGroup.theme,
-            confidence: themeGroup.confidence || 50 // Default confidence if not provided
-          });
-        }
-      }
-      
-      console.log(`📊 Found ${cardThemeMap.size} unique cards across all themes`);
-      
-      // Calculate synergy scores based on shared themes
-      let processedCount = 0;
-      let filteredCount = 0;
-      
-      for (const [cardId, sharedThemes] of Array.from(cardThemeMap.entries())) {
-        if (sharedThemes.length === 0) continue;
-        
-        const card = await this.getCard(cardId);
-        if (!card) continue;
-        
-        processedCount++;
-        
-        // Apply filters with detailed logging
-        if (filters) {
-          const matchesFilter = cardMatchesFilters(card, filters);
-          if (!matchesFilter) {
-            filteredCount++;
-            continue;
-          }
-        }
-        
-        // Calculate synergy score
-        const averageConfidence = sharedThemes.reduce((sum: number, t: any) => sum + t.confidence, 0) / sharedThemes.length;
-        const themeOverlap = sharedThemes.length / sourceThemeNames.length;
-        const synergyScore = (averageConfidence / 100) * themeOverlap;
-        
-        // Generate reason
-        const themeNames = sharedThemes.map((t: any) => t.theme);
-        const reason = `Shares ${sharedThemes.length} theme${sharedThemes.length > 1 ? 's' : ''}: ${themeNames.slice(0, 3).join(', ')}${themeNames.length > 3 ? '...' : ''}`;
-        
-        synergies.push({
-          card,
-          sharedThemes,
-          synergyScore,
-          reason
-        });
-      }
-      
-      console.log(`🔍 Processed ${processedCount} cards, filtered out ${filteredCount}, kept ${synergies.length}`);
-      
-      // Sort by synergy score and theme count
-      const finalResults = synergies
-        .sort((a, b) => {
-          // Primary sort: synergy score
-          if (Math.abs(a.synergyScore - b.synergyScore) > 0.1) {
-            return b.synergyScore - a.synergyScore;
-          }
-          // Secondary sort: number of shared themes
-          return b.sharedThemes.length - a.sharedThemes.length;
-        })
-        .slice(0, 50); // Limit results
-        
-      console.log(`🎯 Final synergy results: ${finalResults.length} cards after filtering and sorting`);
-      return finalResults;
-        
-    } catch (error) {
-      console.error('Error finding cards by shared themes:', error);
-      return [];
-    }
-  }
-
-  // Tag system methods
-  async getCardTags(cardId: string): Promise<CardTag[]> {
-    return await db.select().from(cardTags).where(eq(cardTags.cardId, cardId));
-  }
-
-  async createCardTag(tag: InsertCardTag): Promise<CardTag> {
-    const [result] = await db.insert(cardTags).values(tag).returning();
-    return result;
-  }
-
-  async updateCardTagVotes(cardId: string, tag: string, upvotes: number, downvotes: number): Promise<void> {
-    await db.update(cardTags)
-      .set({ upvotes, downvotes })
-      .where(and(eq(cardTags.cardId, cardId), eq(cardTags.tag, tag)));
-  }
-
-  async findCardsByTags(tags: string[], filters?: any): Promise<Card[]> {
-    const taggedCards = await db.select({ cardId: cardTags.cardId })
-      .from(cardTags)
-      .where(sql`${cardTags.tag} = ANY(${tags})`);
-
-    const cardIds = taggedCards.map(tc => tc.cardId);
-    if (cardIds.length === 0) return [];
-
-    const cards: Card[] = [];
-    for (const cardId of cardIds) {
-      const card = await this.getCachedCard(cardId);
-      if (card && cardMatchesFilters(card, filters)) {
-        cards.push(card);
-      }
-    }
-    return cards;
-  }
-
-  async getTagRelationships(tag: string): Promise<TagRelationship[]> {
-    return await db.select().from(tagRelationships).where(eq(tagRelationships.sourceTag, tag));
-  }
-
-  async createTagRelationship(relationship: InsertTagRelationship): Promise<TagRelationship> {
-    const [result] = await db.insert(tagRelationships).values(relationship).returning();
-    return result;
-  }
-
-  async recordUserTagFeedback(feedback: InsertUserTagFeedback): Promise<void> {
-    await db.insert(userTagFeedback).values(feedback);
-  }
-
-  // User deck management implementation
   async getUserDeck(userId: string): Promise<{ deck: UserDeck | null, entries: DeckEntry[], commander?: Card }> {
     try {
       const [deck] = await db.select().from(userDecks).where(eq(userDecks.userId, userId));
@@ -615,21 +546,71 @@ export class DatabaseStorage implements IStorage {
   }
 
   private async searchCardsByName(cardName: string): Promise<Card[]> {
-    // First try exact name match
-    const exactResults = await db.select().from(cardCache)
-      .where(sql`LOWER(${cardCache.cardData}->>'name') = LOWER(${cardName})`)
-      .limit(1);
-    
-    if (exactResults.length > 0) {
-      return [exactResults[0].cardData];
-    }
+    try {
+      // Try exact name match first from cache
+      const exactResults = await db.select()
+        .from(cardCache)
+        .where(sql`LOWER(${cardCache.cardData}->>'name') = LOWER(${cardName})`)
+        .limit(5);
 
-    // Try fuzzy search
-    const fuzzyResults = await db.select().from(cardCache)
-      .where(sql`LOWER(${cardCache.cardData}->>'name') LIKE LOWER(${'%' + cardName + '%'})`)
-      .limit(5);
+      if (exactResults.length > 0) {
+        return exactResults.map(r => r.cardData);
+      }
+
+      // Fall back to Scryfall search
+      const searchResult = await scryfallService.searchCards({ query: `!"${cardName}"` }, 1);
+      return searchResult.data.slice(0, 5);
+    } catch (error) {
+      console.error('Search cards by name error:', error);
+      return [];
+    }
+  }
+
+  async findSynergyCards(sourceCard: Card, filters?: any): Promise<Array<{cardId: string, score: number, reason: string}>> {
+    // Simple implementation - could be enhanced with AI analysis
+    const synergies: Array<{cardId: string, score: number, reason: string}> = [];
     
-    return fuzzyResults.map(result => result.cardData);
+    // Look for cards with similar colors
+    if (sourceCard.colors && sourceCard.colors.length > 0) {
+      const colorQuery = sourceCard.colors.map(color => `c:${color}`).join(' OR ');
+      try {
+        const result = await scryfallService.searchCards({ query: `(${colorQuery}) -"${sourceCard.name}"` }, 1);
+        result.data.slice(0, 10).forEach((card, index) => {
+          synergies.push({
+            cardId: card.id,
+            score: 80 - index * 5,
+            reason: 'Shares color identity'
+          });
+        });
+      } catch (error) {
+        console.error('Synergy search error:', error);
+      }
+    }
+    
+    return synergies;
+  }
+
+  async findFunctionallySimilarCards(sourceCard: Card, filters?: any): Promise<Array<{cardId: string, score: number, reason: string}>> {
+    const similarities: Array<{cardId: string, score: number, reason: string}> = [];
+    
+    // Look for cards with similar type line
+    if (sourceCard.type_line) {
+      const typeQuery = sourceCard.type_line.split(' ').slice(0, 2).join(' ');
+      try {
+        const result = await scryfallService.searchCards({ query: `t:"${typeQuery}" -"${sourceCard.name}"` }, 1);
+        result.data.slice(0, 10).forEach((card, index) => {
+          similarities.push({
+            cardId: card.id,
+            score: 85 - index * 5,
+            reason: 'Similar card type'
+          });
+        });
+      } catch (error) {
+        console.error('Similarity search error:', error);
+      }
+    }
+    
+    return similarities;
   }
 }
 
