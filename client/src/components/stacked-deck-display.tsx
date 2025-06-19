@@ -119,9 +119,8 @@ function VerticalStackedCards({
       >
         {cards.map((entry, index) => {
           const isHovered = hoveredIndex === index;
-          // Reverse algorithm: first card (index 0) goes furthest down, last card appears at top
-          const translateY = (cards.length - 1 - index) * CARD_SPACING;
-
+          // New stacking: first card (index 0) at top, subsequent cards stack below
+          const translateY = index * CARD_SPACING;
 
           return (
             <StackedCard
@@ -188,7 +187,7 @@ function StackedCard({
       className="absolute transition-all duration-300 ease-out cursor-pointer"
       style={{
         transform: `translateY(${translateY}px) ${isHovered ? 'translateX(30px) translateZ(0)' : ''}`,
-        zIndex: isHovered ? 100 : index,
+        zIndex: isHovered ? 100 : (50 - index), // Reverse z-index so first card appears on top
         width: '200px'
       }}
       onMouseEnter={onMouseEnter}
