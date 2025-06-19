@@ -79,7 +79,7 @@ export function cardMatchesFilters(card: Card, filters?: FilterOptions): boolean
     
     // Filter by types - copied from working search logic
     if (filters.types && filters.types.length > 0) {
-      const cardTypes = card.type_line.toLowerCase();
+      const cardTypes = card.type_line?.toLowerCase() || '';
       if (!filters.types.some((type: string) => cardTypes.includes(type.toLowerCase()))) {
         return false;
       }

@@ -14,6 +14,11 @@ const COLOR_MAPPING: Record<string, string> = {
 };
 
 export function CardTile({ card, onClick }: CardTileProps) {
+  // Basic validation to prevent crashes
+  if (!card || !card.type_line || !card.name) {
+    console.warn('CardTile received invalid card:', card);
+    return null;
+  }
   const getCardImage = () => {
     if (card.image_uris?.normal) {
       return card.image_uris.normal;
