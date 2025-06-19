@@ -349,19 +349,21 @@ export function FilterSidebar({ isOpen, filters, onFiltersChange, onClose }: Fil
                   <div>
                     <Label className="block text-xs text-slate-400 mb-1">Power</Label>
                     <Input
+                      type="number"
                       value={filters.power || ''}
                       onChange={(e) => updateFilters({ power: e.target.value || undefined })}
                       className="bg-slate-700 border-slate-600 text-sm"
-                      placeholder=">=3"
+                      placeholder="3"
                     />
                   </div>
                   <div>
                     <Label className="block text-xs text-slate-400 mb-1">Toughness</Label>
                     <Input
+                      type="number"
                       value={filters.toughness || ''}
                       onChange={(e) => updateFilters({ toughness: e.target.value || undefined })}
                       className="bg-slate-700 border-slate-600 text-sm"
-                      placeholder="<=2"
+                      placeholder="2"
                     />
                   </div>
                 </div>

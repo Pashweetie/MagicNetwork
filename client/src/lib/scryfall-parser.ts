@@ -112,6 +112,28 @@ export class ScryfallParser {
         if (!isNaN(cmc)) {
           filters.maxMv = cmc;
         }
+      } else if (part.startsWith('pow:')) {
+        const powerStr = part.substring(4);
+        filters.power = powerStr;
+      } else if (part.startsWith('tou:')) {
+        const toughnessStr = part.substring(4);
+        filters.toughness = toughnessStr;
+      } else if (part.startsWith('usd:')) {
+        const price = parseFloat(part.substring(4));
+        if (!isNaN(price)) {
+          filters.minPrice = price;
+          filters.maxPrice = price;
+        }
+      } else if (part.startsWith('usd>=')) {
+        const price = parseFloat(part.substring(5));
+        if (!isNaN(price)) {
+          filters.minPrice = price;
+        }
+      } else if (part.startsWith('usd<=')) {
+        const price = parseFloat(part.substring(5));
+        if (!isNaN(price)) {
+          filters.maxPrice = price;
+        }
       } else if (part.startsWith('id<=') || part.startsWith('id:')) {
         // Keep color identity filters in the query string for Scryfall
         remainingParts.push(part);

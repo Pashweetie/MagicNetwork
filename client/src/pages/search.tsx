@@ -98,10 +98,11 @@ export default function Search() {
     
     // Parse query and update filters
     if (query.trim()) {
-      const parsedFilters = ScryfallParser.parseQuery(query);
+      const parsedFilters = ScryfallQueryParser.parseQuery(query);
       setManualFilters(parsedFilters);
       setUseManualFilters(Object.keys(parsedFilters).length > 0);
     } else {
+      // Clear all filters when search is empty
       setUseManualFilters(false);
       setManualFilters({});
     }

@@ -134,14 +134,26 @@ export function cardMatchesFilters(card: Card, filters?: FilterOptions): boolean
       if (card.set !== filters.set) return false;
     }
 
-    // Power/Toughness filtering
+    // Power/Toughness filtering - handle numeric and string values
     if (filters.power !== undefined) {
-      const cardPower = card.power ? parseInt(card.power) : undefined;
-      if (cardPower !== filters.power) return false;
+      if (!card.power || card.power === '*') {
+        return false; // Skip cards with no power or variable power
+      }
+      const cardPower = parseInt(card.power);
+      const filterPower = parseInt(filters.power);
+      if (isNaN(cardPower) || isNaN(filterPower) || cardPower !== filterPower) {
+        return false;
+      }
     }
     if (filters.toughness !== undefined) {
-      const cardToughness = card.toughness ? parseInt(card.toughness) : undefined;
-      if (cardToughness !== filters.toughness) return false;
+      if (!card.toughness || card.toughness === '*') {
+        return false; // Skip cards with no toughness or variable toughness
+      }
+      const cardToughness = parseInt(card.toughness);
+      const filterToughness = parseInt(filters.toughness);
+      if (isNaN(cardToughness) || isNaN(filterToughness) || cardToughness !== filterToughness) {
+        return false;
+      }
     }
 
     // Oracle text search
