@@ -65,7 +65,7 @@ export function PersistentDeckDisplay() {
             onAdd={() => {}}
             onRemove={() => {}}
             onClick={() => {}}
-            showControls={false}
+
           />
         ))}
       </div>
