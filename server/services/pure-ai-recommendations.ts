@@ -3,7 +3,7 @@ import { db } from "../db";
 import { cardCache, cardThemes } from "@shared/schema";
 import { sql, eq } from "drizzle-orm";
 import { cardMatchesFilters } from "../utils/card-filters";
-import { PREDEFINED_THEMES, getClosestTheme, type PredefinedTheme } from "../utils/predefined-themes";
+// Removed predefined themes dependency
 
 export class PureAIRecommendationService {
   public textGenerator: any = null;

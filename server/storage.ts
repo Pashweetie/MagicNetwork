@@ -403,7 +403,7 @@ export class DatabaseStorage implements IStorage {
   async deleteDeck(id: number, userId: number): Promise<boolean> {
     const result = await db.delete(decks)
       .where(and(eq(decks.id, id), eq(decks.userId, userId)));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async getUserDeck(userId: string): Promise<{ deck: UserDeck | null, entries: DeckEntry[], commander?: Card }> {
