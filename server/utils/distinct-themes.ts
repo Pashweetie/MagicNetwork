@@ -181,5 +181,6 @@ export const DISTINCT_THEMES = [
 // Validation: Ensure we have exactly 150 distinct themes
 console.log(`Total distinct themes: ${DISTINCT_THEMES.length}`);
 
-// Export for use in AI theme generation
+// Export for use in AI theme generation and predefined themes
+export { DISTINCT_THEMES };
 export default DISTINCT_THEMES;

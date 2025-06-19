@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import { recommendationService } from "./services/recommendation";
 import { pureAIService } from "./services/pure-ai-recommendations";
 import { tagSystem } from "./services/tag-system";
@@ -11,6 +12,8 @@ import { z } from "zod";
 import { cardMatchesFilters } from "./utils/card-filters";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Auth middleware
+  await setupAuth(app);
   // Search cards endpoint
   app.get("/api/cards/search", async (req, res) => {
     try {
