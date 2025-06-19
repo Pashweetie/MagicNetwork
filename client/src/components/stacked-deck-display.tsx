@@ -122,6 +122,7 @@ function VerticalStackedCards({
           // Reverse algorithm: first card (index 0) goes furthest down, last card appears at top
           const translateY = (cards.length - 1 - index) * CARD_SPACING;
 
+
           return (
             <StackedCard
               key={entry.card.id}
@@ -307,7 +308,7 @@ export function StackedDeckDisplay({
 }: StackedDeckDisplayProps) {
   const [sortBy, setSortBy] = useState<SortOption>('type');
   const [categoryBy, setCategoryBy] = useState<CategoryOption>('type');
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Creatures', 'Lands', 'Instants', 'Sorceries']));
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Creatures', 'Lands', 'Instants', 'Sorceries', 'Enchantments', 'Artifacts', 'Planeswalkers', 'Other', 'Battles']));
 
   const categorizedCards = useMemo((): CategoryGroup[] => {
     if (categoryBy === 'none') {
