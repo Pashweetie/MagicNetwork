@@ -746,6 +746,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User deck management routes
+  app.get('/api/user/deck', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const deckData = await storage.getUserDeck(userId);
+      res.json(deckData);
+    } catch (error) {
+      console.error('Error fetching user deck:', error);
+      res.status(500).json({ message: 'Failed to fetch deck' });
+    }
+  });
+
+  app.put('/api/user/deck', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const deckData = req.body;
+      const savedDeck = await storage.saveUserDeck(userId, deckData);
+      res.json(savedDeck);
+    } catch (error) {
+      console.error('Error saving user deck:', error);
+      res.status(500).json({ message: 'Failed to save deck' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

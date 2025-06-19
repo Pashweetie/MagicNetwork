@@ -304,17 +304,33 @@ export type TagRelationship = typeof tagRelationships.$inferSelect;
 export type InsertTagRelationship = z.infer<typeof insertTagRelationshipSchema>;
 export type UserTagFeedback = typeof userTagFeedback.$inferSelect;
 export type InsertUserTagFeedback = z.infer<typeof insertUserTagFeedbackSchema>;
+export type UserDeck = typeof userDecks.$inferSelect;
+export type InsertUserDeck = z.infer<typeof insertUserDeckSchema>;
 export type CardTheme = typeof cardThemes.$inferSelect;
 export type InsertCardTheme = z.infer<typeof insertCardThemeSchema>;
 export type RecommendationFeedback = typeof recommendationFeedback.$inferSelect;
 export type InsertRecommendationFeedback = z.infer<typeof insertRecommendationFeedbackSchema>;
-// Temporarily comment out until table is created
-// export type RecommendationWeight = typeof recommendationWeights.$inferSelect;
-// export type InsertRecommendationWeight = z.infer<typeof insertRecommendationWeightSchema>;
-export type Deck = typeof decks.$inferSelect;
-export type InsertDeck = z.infer<typeof insertDeckSchema>;
+
+// Deck entry for UI components
+export type DeckEntry = {
+  card: Card;
+  quantity: number;
+};
+
+// Deck export format
+export type DeckExport = {
+  name: string;
+  format: string;
+  commander?: Card;
+  cards: Array<{
+    name: string;
+    quantity: number;
+    cardId?: string;
+  }>;
+  exportedAt: string;
+};
 
 export type UserVote = typeof userVotes.$inferSelect;
 export type InsertUserVote = z.infer<typeof insertUserVoteSchema>;
-// export type ThemeWeight = typeof themeWeights.$inferSelect;
-// export type InsertThemeWeight = z.infer<typeof insertThemeWeightSchema>;
+export type Deck = typeof decks.$inferSelect;
+export type InsertDeck = z.infer<typeof insertDeckSchema>;

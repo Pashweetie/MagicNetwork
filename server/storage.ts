@@ -13,9 +13,8 @@ export interface IStorage {
   getRandomCard(): Promise<Card>;
   
   // User methods
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(insertUser: InsertUser): Promise<User>;
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: any): Promise<User>;
   
   // Saved searches
   getSavedSearches(userId: number): Promise<SavedSearch[]>;
