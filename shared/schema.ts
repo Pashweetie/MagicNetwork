@@ -330,6 +330,17 @@ export type DeckExport = {
   exportedAt: string;
 };
 
+// Deck import format
+export type DeckImport = {
+  name?: string;
+  format?: string;
+  commander?: string; // Card name
+  cards: Array<{
+    name: string;
+    quantity: number;
+  }>;
+};
+
 export type UserVote = typeof userVotes.$inferSelect;
 export type InsertUserVote = z.infer<typeof insertUserVoteSchema>;
 export type Deck = typeof decks.$inferSelect;

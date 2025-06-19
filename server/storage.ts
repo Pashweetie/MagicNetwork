@@ -66,6 +66,9 @@ export interface IStorage {
   // User deck management (one deck per user)
   getUserDeck(userId: string): Promise<{ deck: UserDeck | null, entries: DeckEntry[], commander?: Card }>;
   saveUserDeck(userId: string, deckData: Partial<InsertUserDeck>): Promise<UserDeck>;
+  
+  // Deck import functionality
+  importDeckFromText(userId: string, deckText: string, format?: string): Promise<{ success: boolean, message: string, importedCards: number, failedCards: string[] }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -112,7 +115,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getUser(id: number): Promise<User | undefined> {
+  async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
   }
@@ -526,6 +529,106 @@ export class DatabaseStorage implements IStorage {
       console.error('Error saving user deck:', error);
       throw error;
     }
+  }
+
+  async importDeckFromText(userId: string, deckText: string, format: string = "Commander"): Promise<{ success: boolean, message: string, importedCards: number, failedCards: string[] }> {
+    const lines = deckText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    const failedCards: string[] = [];
+    const importedCards: Array<{ cardId: string, quantity: number }> = [];
+    let commanderId: string | null = null;
+    let deckName = "Imported Deck";
+
+    for (const line of lines) {
+      // Skip comments and empty lines
+      if (line.startsWith('//') || line.startsWith('#') || line.length === 0) {
+        continue;
+      }
+
+      // Check for deck name
+      if (line.toLowerCase().startsWith('deck:') || line.toLowerCase().startsWith('name:')) {
+        deckName = line.split(':')[1]?.trim() || deckName;
+        continue;
+      }
+
+      // Parse card line (format: "quantity cardname" or "quantity x cardname")
+      const cardMatch = line.match(/^(\d+)\s*(?:x\s*)?(.+?)(?:\s*\(.*\))?$/i);
+      if (!cardMatch) {
+        // Try without quantity (assume 1)
+        const simpleMatch = line.match(/^(.+?)(?:\s*\(.*\))?$/i);
+        if (simpleMatch) {
+          const cardName = simpleMatch[1].trim();
+          const cards = await this.searchCardsByName(cardName);
+          if (cards.length > 0) {
+            const isCommander = line.toLowerCase().includes('commander') || 
+                              line.toLowerCase().includes('*') ||
+                              (format.toLowerCase() === 'commander' && !commanderId);
+            
+            if (isCommander && format.toLowerCase() === 'commander') {
+              commanderId = cards[0].id;
+            } else {
+              importedCards.push({ cardId: cards[0].id, quantity: 1 });
+            }
+          } else {
+            failedCards.push(cardName);
+          }
+        }
+        continue;
+      }
+
+      const quantity = parseInt(cardMatch[1]);
+      const cardName = cardMatch[2].trim();
+
+      // Search for the card
+      const cards = await this.searchCardsByName(cardName);
+      if (cards.length > 0) {
+        const isCommander = line.toLowerCase().includes('commander') || 
+                          line.toLowerCase().includes('*') ||
+                          (format.toLowerCase() === 'commander' && !commanderId && quantity === 1);
+        
+        if (isCommander && format.toLowerCase() === 'commander') {
+          commanderId = cards[0].id;
+        } else {
+          importedCards.push({ cardId: cards[0].id, quantity });
+        }
+      } else {
+        failedCards.push(cardName);
+      }
+    }
+
+    // Save the imported deck
+    const deckData: Partial<InsertUserDeck> = {
+      name: deckName,
+      format: format,
+      commanderId: commanderId,
+      cards: importedCards
+    };
+
+    await this.saveUserDeck(userId, deckData);
+
+    return {
+      success: true,
+      message: `Imported ${importedCards.length} cards successfully${failedCards.length > 0 ? `, ${failedCards.length} cards failed to import` : ''}`,
+      importedCards: importedCards.length,
+      failedCards
+    };
+  }
+
+  private async searchCardsByName(cardName: string): Promise<Card[]> {
+    // First try exact name match
+    const exactResults = await db.select().from(cardCache)
+      .where(sql`LOWER(${cardCache.cardData}->>'name') = LOWER(${cardName})`)
+      .limit(1);
+    
+    if (exactResults.length > 0) {
+      return [exactResults[0].cardData];
+    }
+
+    // Try fuzzy search
+    const fuzzyResults = await db.select().from(cardCache)
+      .where(sql`LOWER(${cardCache.cardData}->>'name') LIKE LOWER(${'%' + cardName + '%'})`)
+      .limit(5);
+    
+    return fuzzyResults.map(result => result.cardData);
   }
 }
 

@@ -773,6 +773,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Import deck from text
+  app.post('/api/user/deck/import', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { deckText, format } = req.body;
+      
+      if (!deckText || typeof deckText !== 'string') {
+        return res.status(400).json({ message: 'Deck text is required' });
+      }
+
+      const result = await storage.importDeckFromText(userId, deckText, format);
+      res.json(result);
+    } catch (error) {
+      console.error('Error importing deck:', error);
+      res.status(500).json({ message: 'Failed to import deck' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

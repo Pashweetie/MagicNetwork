@@ -304,13 +304,21 @@ export default function Search() {
                       <span>Current Deck</span>
                       <Badge variant="secondary">{deck.totalCards} cards</Badge>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setShowDeckPanel(false)}
-                    >
-                      ✕
-                    </Button>
+                    <div className="flex items-center space-x-2">
+                      <DeckImportDialog>
+                        <Button size="sm" variant="outline">
+                          <Upload className="w-4 h-4 mr-1" />
+                          Import
+                        </Button>
+                      </DeckImportDialog>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setShowDeckPanel(false)}
+                      >
+                        ✕
+                      </Button>
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
