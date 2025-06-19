@@ -173,6 +173,7 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
 
   const clearDeck = useCallback(() => {
     setDeckEntries([]);
+    setCommander(null);
   }, []);
 
   const canAddCard = useCallback((card: Card): boolean => {
