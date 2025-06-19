@@ -82,7 +82,7 @@ const sortCards = (cards: DeckEntry[], sortBy: SortOption): DeckEntry[] => {
   });
 };
 
-interface HorizontalStackedCardsProps {
+interface VerticalStackedCardsProps {
   cards: DeckEntry[];
   onAdd: (card: Card) => void;
   onRemove: (cardId: string) => void;
@@ -93,7 +93,7 @@ interface HorizontalStackedCardsProps {
   getMaxCopies: (card: Card) => number;
 }
 
-function HorizontalStackedCards({
+function VerticalStackedCards({
   cards,
   onAdd,
   onRemove,
@@ -102,31 +102,31 @@ function HorizontalStackedCards({
   commander,
   canBeCommander,
   getMaxCopies
-}: HorizontalStackedCardsProps) {
+}: VerticalStackedCardsProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   
-  const CARD_WIDTH = 150;
-  const CARD_SPACING = 15; // Tight spacing when stacked
+  const CARD_HEIGHT = 300;
+  const CARD_SPACING = 25;
 
   return (
-    <div className="relative overflow-x-auto py-4">
+    <div className="relative overflow-y-auto py-4">
       <div 
-        className="flex relative"
+        className="flex flex-col relative"
         style={{ 
-          width: cards.length > 0 ? cards.length * CARD_SPACING + CARD_WIDTH : 0,
-          minHeight: '250px'
+          height: cards.length > 0 ? cards.length * CARD_SPACING + CARD_HEIGHT : 0,
+          minWidth: '220px'
         }}
       >
         {cards.map((entry, index) => {
           const isHovered = hoveredIndex === index;
-          const translateX = index * CARD_SPACING;
+          const translateY = index * CARD_SPACING;
 
           return (
             <StackedCard
               key={entry.card.id}
               entry={entry}
               index={index}
-              translateX={translateX}
+              translateY={translateY}
               isHovered={isHovered}
               onMouseEnter={() => setHoveredIndex(index)}
               onMouseLeave={() => setHoveredIndex(null)}
@@ -148,7 +148,7 @@ function HorizontalStackedCards({
 interface StackedCardProps {
   entry: DeckEntry;
   index: number;
-  translateX: number;
+  translateY: number;
   isHovered: boolean;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
@@ -164,7 +164,7 @@ interface StackedCardProps {
 function StackedCard({
   entry,
   index,
-  translateX,
+  translateY,
   isHovered,
   onMouseEnter,
   onMouseLeave,
@@ -185,16 +185,16 @@ function StackedCard({
     <div
       className="absolute transition-all duration-300 ease-out cursor-pointer"
       style={{
-        transform: `translateX(${translateX}px) ${isHovered ? 'translateY(-20px) translateZ(0)' : ''}`,
+        transform: `translateY(${translateY}px) ${isHovered ? 'translateX(30px) translateZ(0)' : ''}`,
         zIndex: isHovered ? 100 : 50 - index,
-        width: '150px'
+        width: '200px'
       }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
       <div className="relative group">
         <div 
-          className="w-[150px] aspect-[2.5/3.5] bg-slate-600 rounded-lg overflow-hidden shadow-lg"
+          className="w-[200px] aspect-[2.5/3.5] bg-slate-600 rounded-lg overflow-hidden shadow-lg"
           onClick={() => onClick(card)}
         >
           {card.image_uris?.normal ? (
@@ -243,22 +243,13 @@ function StackedCard({
           </Badge>
         )}
 
-        {card.cmc !== undefined && (
-          <Badge 
-            variant="outline" 
-            className="absolute bottom-2 right-2 bg-black/90 text-blue-400 border-blue-400/50 text-xs shadow-lg"
-          >
-            {card.cmc}
-          </Badge>
-        )}
-
         {isHovered && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center gap-2 rounded-lg">
+          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-2">
             {onSetCommander && canBeCommander && (
               <Button
                 size="sm"
                 variant={isCommander ? "default" : "secondary"}
-                className={`w-10 h-10 p-0 shadow-lg ${
+                className={`w-8 h-8 p-0 shadow-lg ${
                   isCommander ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-slate-600 hover:bg-slate-500'
                 }`}
                 onClick={(e) => {
@@ -266,41 +257,41 @@ function StackedCard({
                   onSetCommander(card);
                 }}
               >
-                <Crown className="w-4 h-4" />
+                <Crown className="w-3 h-3" />
               </Button>
             )}
             
             <Button
               size="sm"
               variant="destructive"
-              className="w-10 h-10 p-0 bg-red-600 hover:bg-red-700 shadow-lg"
+              className="w-8 h-8 p-0 bg-red-600 hover:bg-red-700 shadow-lg"
               onClick={(e) => {
                 e.stopPropagation();
                 onRemove(card.id);
               }}
               disabled={!canRemoveCard}
             >
-              <Minus className="w-4 h-4" />
+              <Minus className="w-3 h-3" />
             </Button>
             
             <Button
               size="sm"
               variant="default"
-              className="w-10 h-10 p-0 bg-green-600 hover:bg-green-700 shadow-lg"
+              className="w-8 h-8 p-0 bg-green-600 hover:bg-green-700 shadow-lg"
               onClick={(e) => {
                 e.stopPropagation();
                 onAdd(card);
               }}
               disabled={!canAddCard}
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3 h-3" />
             </Button>
           </div>
         )}
 
         {isHovered && (
-          <div className="absolute -bottom-8 left-0 right-0 text-center">
-            <h4 className="font-medium text-white text-sm truncate bg-black/80 rounded px-2 py-1">
+          <div className="absolute -right-10 top-0 text-left">
+            <h4 className="font-medium text-white text-sm bg-black/80 rounded px-2 py-1 whitespace-nowrap">
               {card.name}
             </h4>
           </div>
@@ -422,9 +413,9 @@ export function StackedDeckDisplay({
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className="flex flex-wrap gap-4">
         {categorizedCards.map(category => (
-          <UICard key={category.name} className="bg-slate-800 border-slate-700">
+          <UICard key={category.name} className="bg-slate-800 border-slate-700 flex-shrink-0">
             <Collapsible
               open={category.isExpanded}
               onOpenChange={() => toggleCategory(category.name)}
@@ -449,7 +440,7 @@ export function StackedDeckDisplay({
               
               <CollapsibleContent>
                 <CardContent className="pt-0">
-                  <HorizontalStackedCards
+                  <VerticalStackedCards
                     cards={category.cards}
                     onAdd={onAdd}
                     onRemove={onRemove}
