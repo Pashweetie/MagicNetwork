@@ -106,7 +106,7 @@ function VerticalStackedCards({
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   
   const CARD_HEIGHT = 300;
-  const CARD_SPACING = 60; // Show top portion of each card including title
+  const CARD_SPACING = 40; // Reduced spacing so titles are more visible
 
   return (
     <div className="relative overflow-y-auto py-4">
@@ -119,8 +119,10 @@ function VerticalStackedCards({
       >
         {cards.map((entry, index) => {
           const isHovered = hoveredIndex === index;
-          // New stacking: first card (index 0) at top, subsequent cards stack below
+          // Title-readable stacking: first card at top (translateY=0), subsequent cards below
           const translateY = index * CARD_SPACING;
+          // Higher z-index for cards that appear earlier in the list (at top)
+          const zIndex = isHovered ? 100 : (cards.length - index);
 
           return (
             <StackedCard
@@ -128,6 +130,7 @@ function VerticalStackedCards({
               entry={entry}
               index={index}
               translateY={translateY}
+              zIndex={zIndex}
               isHovered={isHovered}
               onMouseEnter={() => setHoveredIndex(index)}
               onMouseLeave={() => setHoveredIndex(null)}
@@ -150,6 +153,7 @@ interface StackedCardProps {
   entry: DeckEntry;
   index: number;
   translateY: number;
+  zIndex: number;
   isHovered: boolean;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
@@ -166,6 +170,7 @@ function StackedCard({
   entry,
   index,
   translateY,
+  zIndex,
   isHovered,
   onMouseEnter,
   onMouseLeave,
@@ -187,7 +192,7 @@ function StackedCard({
       className="absolute transition-all duration-300 ease-out cursor-pointer"
       style={{
         transform: `translateY(${translateY}px) ${isHovered ? 'translateX(30px) translateZ(0)' : ''}`,
-        zIndex: isHovered ? 100 : (50 - index), // Reverse z-index so first card appears on top
+        zIndex: isHovered ? 100 : zIndex,
         width: '200px'
       }}
       onMouseEnter={onMouseEnter}
