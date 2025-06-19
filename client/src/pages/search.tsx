@@ -6,6 +6,7 @@ import { CardGrid } from "@/components/card-grid";
 import { CardDetailModal } from "@/components/card-detail-modal";
 import { DeckImportDialog } from "@/components/DeckImportDialog";
 import { DeckCardTile } from "@/components/deck-card-tile";
+import { StackedDeckDisplay } from "@/components/stacked-deck-display";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,7 @@ export default function Search() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showDeckPanel, setShowDeckPanel] = useState(false);
+  const [deckViewMode, setDeckViewMode] = useState<"grid" | "stacked">("stacked");
   const [sortBy, setSortBy] = useState("relevance");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [manualFilters, setManualFilters] = useState<SearchFilters>({});
@@ -306,6 +308,24 @@ export default function Search() {
                       <Badge variant="secondary">{deck.totalCards} cards</Badge>
                     </div>
                     <div className="flex items-center space-x-2">
+                      <div className="flex bg-slate-700 rounded overflow-hidden">
+                        <Button
+                          variant={deckViewMode === "grid" ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => setDeckViewMode("grid")}
+                          className={deckViewMode === "grid" ? "bg-blue-600 text-white" : "text-slate-400 hover:text-white"}
+                        >
+                          <Grid className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant={deckViewMode === "stacked" ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => setDeckViewMode("stacked")}
+                          className={deckViewMode === "stacked" ? "bg-blue-600 text-white" : "text-slate-400 hover:text-white"}
+                        >
+                          <List className="h-4 w-4" />
+                        </Button>
+                      </div>
                       <DeckImportDialog>
                         <Button size="sm" variant="outline">
                           <Upload className="w-4 h-4 mr-1" />
@@ -329,7 +349,7 @@ export default function Search() {
                       <p>No cards in deck</p>
                       <p className="text-sm mt-1">Click + on cards to add them</p>
                     </div>
-                  ) : (
+                  ) : deckViewMode === "grid" ? (
                     <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 max-h-64 overflow-y-auto">
                       {deck.deckEntries.map(entry => (
                         <DeckCardTile
@@ -344,6 +364,18 @@ export default function Search() {
                           isCommander={deck.commander?.id === entry.card.id}
                         />
                       ))}
+                    </div>
+                  ) : (
+                    <div className="max-h-96 overflow-y-auto">
+                      <StackedDeckDisplay
+                        deckEntries={deck.deckEntries}
+                        onAdd={deck.addCard}
+                        onRemove={deck.removeCard}
+                        onClick={handleCardClick}
+                        onSetCommander={deck.format.name === 'Commander' ? deck.setCommanderFromCard : undefined}
+                        commander={deck.commander}
+                        getMaxCopies={deck.getMaxCopies}
+                      />
                     </div>
                   )}
                 </CardContent>
