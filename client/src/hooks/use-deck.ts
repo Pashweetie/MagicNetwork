@@ -22,7 +22,7 @@ export const FORMATS: DeckFormat[] = [
     allowMultipleBasics: true,
     specialRules: (card: Card) => {
       // Basic lands can have any number
-      if (card.type_line.includes("Basic Land")) return 999;
+      if (card.type_line?.includes("Basic Land")) return 999;
       // Cards that say "any number" in their text
       if (card.oracle_text?.includes("any number") || 
           card.oracle_text?.includes("A deck can have any number")) return 999;
@@ -40,7 +40,7 @@ export const FORMATS: DeckFormat[] = [
     isSingleton: false,
     allowMultipleBasics: true,
     specialRules: (card: Card) => {
-      if (card.type_line.includes("Basic Land")) return 999;
+      if (card.type_line?.includes("Basic Land")) return 999;
       return 4;
     }
   },
@@ -50,7 +50,7 @@ export const FORMATS: DeckFormat[] = [
     isSingleton: false,
     allowMultipleBasics: true,
     specialRules: (card: Card) => {
-      if (card.type_line.includes("Basic Land")) return 999;
+      if (card.type_line?.includes("Basic Land")) return 999;
       return 4;
     }
   },
@@ -60,7 +60,7 @@ export const FORMATS: DeckFormat[] = [
     isSingleton: false,
     allowMultipleBasics: true,
     specialRules: (card: Card) => {
-      if (card.type_line.includes("Basic Land")) return 999;
+      if (card.type_line?.includes("Basic Land")) return 999;
       return 4;
     }
   }
