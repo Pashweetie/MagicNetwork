@@ -70,6 +70,8 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
   const [deckEntries, setDeckEntries] = useState<DeckEntry[]>([]);
   const [format, setFormat] = useState<DeckFormat>(initialFormat);
   const [commander, setCommander] = useState<Card | null>(null);
+  const [deckName, setDeckName] = useState("My Deck");
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
 
   const getMaxCopies = useCallback((card: Card): number => {
     if (format.specialRules) {

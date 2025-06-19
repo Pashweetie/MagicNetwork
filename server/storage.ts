@@ -1,6 +1,6 @@
 import { db } from "./db";
-import { cardCache, searchCache, users, savedSearches, favoriteCards, cardRecommendations, userInteractions, recommendationFeedback, cardThemes, decks, cardTags, tagRelationships, userTagFeedback } from "@shared/schema";
-import { Card, SearchFilters, SearchResponse, User, InsertUser, SavedSearch, InsertSavedSearch, FavoriteCard, InsertFavoriteCard, CardRecommendation, InsertCardRecommendation, UserInteraction, InsertUserInteraction, InsertRecommendationFeedback, Deck, InsertDeck, CardTag, InsertCardTag, TagRelationship, InsertTagRelationship, UserTagFeedback, InsertUserTagFeedback } from "@shared/schema";
+import { cardCache, searchCache, users, savedSearches, favoriteCards, cardRecommendations, userInteractions, recommendationFeedback, cardThemes, decks, userDecks, cardTags, tagRelationships, userTagFeedback } from "@shared/schema";
+import { Card, SearchFilters, SearchResponse, User, InsertUser, SavedSearch, InsertSavedSearch, FavoriteCard, InsertFavoriteCard, CardRecommendation, InsertCardRecommendation, UserInteraction, InsertUserInteraction, InsertRecommendationFeedback, Deck, InsertDeck, UserDeck, InsertUserDeck, DeckEntry, CardTag, InsertCardTag, TagRelationship, InsertTagRelationship, UserTagFeedback, InsertUserTagFeedback } from "@shared/schema";
 import { eq, sql, and, desc, asc } from "drizzle-orm";
 import crypto from "crypto";
 import { scryfallService } from "./services/scryfall";
@@ -63,6 +63,10 @@ export interface IStorage {
   getDeck(id: number, userId: number): Promise<Deck | null>;
   updateDeck(id: number, userId: number, updates: Partial<InsertDeck>): Promise<Deck | null>;
   deleteDeck(id: number, userId: number): Promise<boolean>;
+  
+  // User deck management (one deck per user)
+  getUserDeck(userId: string): Promise<{ deck: UserDeck | null, entries: DeckEntry[], commander?: Card }>;
+  saveUserDeck(userId: string, deckData: Partial<InsertUserDeck>): Promise<UserDeck>;
 }
 
 export class DatabaseStorage implements IStorage {

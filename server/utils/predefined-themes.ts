@@ -1,7 +1,8 @@
-// Core Magic: The Gathering strategy themes for card categorization
-// Total: ~200 essential strategic categories covering major archetypes
+// Import distinct themes for better categorization
+import { DISTINCT_THEMES } from './distinct-themes';
 
-export const PREDEFINED_THEMES = [
+// Use distinct themes to avoid overlapping categories
+export const PREDEFINED_THEMES = DISTINCT_THEMES;
   // Core Archetypes (15 themes)
   "Aggro",
   "Control", 
@@ -212,4 +213,4 @@ export const PREDEFINED_THEMES = [
   "Symmetrical Effects"
 ];
 
-// Theme count validation: 200 essential Magic strategy categories
+// Theme count validation: 150 distinct Magic strategy categories
