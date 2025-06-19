@@ -332,61 +332,6 @@ export class DatabaseStorage implements IStorage {
     sourceThemes: Array<{theme: string, cards: Card[], confidence?: number, description?: string}>, 
     filters?: any
   ): Promise<Array<{card: Card, sharedThemes: Array<{theme: string, confidence: number}>, synergyScore: number, reason: string}>> {
-    return [];
-  }
-
-  // Tag system methods
-  async getCardTags(cardId: string): Promise<CardTag[]> {
-    return await db.select().from(cardTags).where(eq(cardTags.cardId, cardId));
-  }
-
-  async createCardTag(tag: InsertCardTag): Promise<CardTag> {
-    const [result] = await db.insert(cardTags).values(tag).returning();
-    return result;
-  }
-
-  async updateCardTagVotes(cardId: string, tag: string, upvotes: number, downvotes: number): Promise<void> {
-    await db.update(cardTags)
-      .set({ upvotes, downvotes })
-      .where(and(eq(cardTags.cardId, cardId), eq(cardTags.tag, tag)));
-  }
-
-  async findCardsByTags(tags: string[], filters?: any): Promise<Card[]> {
-    const taggedCards = await db.select({ cardId: cardTags.cardId })
-      .from(cardTags)
-      .where(sql`${cardTags.tag} = ANY(${tags})`);
-
-    const cardIds = taggedCards.map(tc => tc.cardId);
-    if (cardIds.length === 0) return [];
-
-    const cards: Card[] = [];
-    for (const cardId of cardIds) {
-      const card = await this.getCachedCard(cardId);
-      if (card && cardMatchesFilters(card, filters)) {
-        cards.push(card);
-      }
-    }
-    return cards;
-  }
-
-  async getTagRelationships(tag: string): Promise<TagRelationship[]> {
-    return await db.select().from(tagRelationships).where(eq(tagRelationships.sourceTag, tag));
-  }
-
-  async createTagRelationship(relationship: InsertTagRelationship): Promise<TagRelationship> {
-    const [result] = await db.insert(tagRelationships).values(relationship).returning();
-    return result;
-  }
-
-  async recordUserTagFeedback(feedback: InsertUserTagFeedback): Promise<void> {
-    await db.insert(userTagFeedback).values(feedback);
-  }
-
-  async findCardsBySharedThemes(
-    sourceCard: Card, 
-    sourceThemes: Array<{theme: string, cards: Card[], confidence?: number, description?: string}>, 
-    filters?: any
-  ): Promise<Array<{card: Card, sharedThemes: Array<{theme: string, confidence: number}>, synergyScore: number, reason: string}>> {
     try {
       const synergies: Array<{card: Card, sharedThemes: Array<{theme: string, confidence: number}>, synergyScore: number, reason: string}> = [];
       const cardThemeMap = new Map<string, Array<{theme: string, confidence: number}>>();
@@ -473,6 +418,53 @@ export class DatabaseStorage implements IStorage {
       console.error('Error finding cards by shared themes:', error);
       return [];
     }
+  }
+
+  // Tag system methods
+  async getCardTags(cardId: string): Promise<CardTag[]> {
+    return await db.select().from(cardTags).where(eq(cardTags.cardId, cardId));
+  }
+
+  async createCardTag(tag: InsertCardTag): Promise<CardTag> {
+    const [result] = await db.insert(cardTags).values(tag).returning();
+    return result;
+  }
+
+  async updateCardTagVotes(cardId: string, tag: string, upvotes: number, downvotes: number): Promise<void> {
+    await db.update(cardTags)
+      .set({ upvotes, downvotes })
+      .where(and(eq(cardTags.cardId, cardId), eq(cardTags.tag, tag)));
+  }
+
+  async findCardsByTags(tags: string[], filters?: any): Promise<Card[]> {
+    const taggedCards = await db.select({ cardId: cardTags.cardId })
+      .from(cardTags)
+      .where(sql`${cardTags.tag} = ANY(${tags})`);
+
+    const cardIds = taggedCards.map(tc => tc.cardId);
+    if (cardIds.length === 0) return [];
+
+    const cards: Card[] = [];
+    for (const cardId of cardIds) {
+      const card = await this.getCachedCard(cardId);
+      if (card && cardMatchesFilters(card, filters)) {
+        cards.push(card);
+      }
+    }
+    return cards;
+  }
+
+  async getTagRelationships(tag: string): Promise<TagRelationship[]> {
+    return await db.select().from(tagRelationships).where(eq(tagRelationships.sourceTag, tag));
+  }
+
+  async createTagRelationship(relationship: InsertTagRelationship): Promise<TagRelationship> {
+    const [result] = await db.insert(tagRelationships).values(relationship).returning();
+    return result;
+  }
+
+  async recordUserTagFeedback(feedback: InsertUserTagFeedback): Promise<void> {
+    await db.insert(userTagFeedback).values(feedback);
   }
 }
 
