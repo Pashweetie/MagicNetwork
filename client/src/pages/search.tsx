@@ -5,7 +5,6 @@ import { FilterSidebar } from "@/components/filter-sidebar";
 import { CardGrid } from "@/components/card-grid";
 import { CardDetailModal } from "@/components/card-detail-modal";
 import { DeckImportDialog } from "@/components/DeckImportDialog";
-
 import { DeckCardTile } from "@/components/deck-card-tile";
 
 import { Button } from "@/components/ui/button";
@@ -328,7 +327,7 @@ export default function Search() {
                     <div className="text-center py-8 text-slate-400">
                       <Package className="w-12 h-12 mx-auto mb-4 text-slate-600" />
                       <p>No cards in deck</p>
-                      <p className="text-sm mt-1">Click + on cards to add them or use import</p>
+                      <p className="text-sm mt-1">Click + on cards to add them</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 max-h-64 overflow-y-auto">
