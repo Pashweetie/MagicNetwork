@@ -4,13 +4,14 @@ import { Header } from "@/components/header";
 import { FilterSidebar } from "@/components/filter-sidebar";
 import { CardGrid } from "@/components/card-grid";
 import { CardDetailModal } from "@/components/card-detail-modal";
+import { DeckImportDialog } from "@/components/DeckImportDialog";
 import { DeckCardTile } from "@/components/deck-card-tile";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card as UICard, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Grid, List, Package, Settings, X, Crown, ChevronUp, ChevronDown } from "lucide-react";
+import { Grid, List, Package, Settings, X, Crown, ChevronUp, ChevronDown, Upload } from "lucide-react";
 import { useCardSearch } from "@/hooks/use-scryfall";
 import { useDeck, FORMATS } from "@/hooks/use-deck";
 import { ScryfallQueryParser, ScryfallParser } from "@/lib/scryfall-parser";

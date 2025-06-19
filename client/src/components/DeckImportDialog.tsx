@@ -22,10 +22,19 @@ export function DeckImportDialog({ children }: DeckImportDialogProps) {
 
   const importMutation = useMutation({
     mutationFn: async ({ deckText, format }: { deckText: string; format: string }) => {
-      return apiRequest('/api/user/deck/import', {
+      const response = await fetch('/api/user/deck/import', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ deckText, format })
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to import deck');
+      }
+      
+      return response.json();
     },
     onSuccess: (result) => {
       toast({
