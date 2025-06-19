@@ -4,13 +4,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Search from "@/pages/search";
-import DeckBuilder from "@/pages/deck-builder";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Search} />
-      <Route path="/deck-builder" component={DeckBuilder} />
       <Route component={() => <div className="flex items-center justify-center min-h-screen text-white">Page not found</div>} />
     </Switch>
   );
