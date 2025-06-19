@@ -106,7 +106,7 @@ function VerticalStackedCards({
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   
   const CARD_HEIGHT = 300;
-  const CARD_SPACING = 40; // Increased spacing to show more of each card
+  const CARD_SPACING = 60; // Show top portion of each card including title
 
   return (
     <div className="relative overflow-y-auto py-4">
@@ -289,11 +289,7 @@ function StackedCard({
           </div>
         )}
 
-        {/* Card name overlay - always visible at bottom */}
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2 pointer-events-none">
-          <p className="text-xs text-white font-medium truncate">{card.name}</p>
-          <p className="text-xs text-slate-300 truncate">{card.type_line}</p>
-        </div>
+
       </div>
     </div>
   );
