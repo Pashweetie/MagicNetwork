@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@shared/schema";
 
 export interface DeckEntry {
@@ -70,6 +71,31 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
   const [deckEntries, setDeckEntries] = useState<DeckEntry[]>([]);
   const [format, setFormat] = useState<DeckFormat>(initialFormat);
   const [commander, setCommander] = useState<Card | null>(null);
+  const queryClient = useQueryClient();
+
+  // Load deck from database
+  const { data: deckData, isLoading } = useQuery({
+    queryKey: ['/api/user/deck'],
+    queryFn: async () => {
+      const response = await fetch('/api/user/deck');
+      if (!response.ok) throw new Error('Failed to fetch deck');
+      return response.json();
+    }
+  });
+
+  // Sync database deck with local state
+  useEffect(() => {
+    if (deckData && deckData.entries) {
+      setDeckEntries(deckData.entries);
+      if (deckData.commander) {
+        setCommander(deckData.commander);
+      }
+      if (deckData.deck?.format) {
+        const deckFormat = FORMATS.find(f => f.name === deckData.deck.format) || FORMATS[0];
+        setFormat(deckFormat);
+      }
+    }
+  }, [deckData]);
   const [deckName, setDeckName] = useState("My Deck");
   const [isAutoSaving, setIsAutoSaving] = useState(false);
 
