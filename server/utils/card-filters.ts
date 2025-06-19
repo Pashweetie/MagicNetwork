@@ -30,6 +30,11 @@ export interface FilterOptions {
 export function cardMatchesFilters(card: Card, filters?: FilterOptions): boolean {
   if (!filters) return true;
   
+  // Basic validation - ensure card has required properties
+  if (!card || typeof card !== 'object' || !card.type_line || !card.name) {
+    return false;
+  }
+  
   try {
     // Parse query-based filters (like "id<=R" for commander color identity)
     if (filters.query && typeof filters.query === 'string') {
