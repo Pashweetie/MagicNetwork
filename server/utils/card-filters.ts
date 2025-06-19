@@ -19,6 +19,8 @@ export interface FilterOptions {
   oracleText?: string;
   includeMulticolored?: boolean;
   colorMode?: 'exact' | 'includes';
+  minPrice?: number;
+  maxPrice?: number;
 }
 
 /**
@@ -145,6 +147,28 @@ export function cardMatchesFilters(card: Card, filters?: FilterOptions): boolean
     // Oracle text search
     if (filters.oracleText) {
       if (!card.oracle_text?.toLowerCase().includes(filters.oracleText.toLowerCase())) {
+        return false;
+      }
+    }
+
+    // Price filtering
+    if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
+      const cardPrice = card.prices?.usd;
+      if (!cardPrice) {
+        // If no price data available, exclude from price-filtered results
+        return false;
+      }
+      
+      const priceValue = parseFloat(cardPrice);
+      if (isNaN(priceValue)) {
+        return false;
+      }
+      
+      if (filters.minPrice !== undefined && priceValue < filters.minPrice) {
+        return false;
+      }
+      
+      if (filters.maxPrice !== undefined && priceValue > filters.maxPrice) {
         return false;
       }
     }
