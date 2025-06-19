@@ -416,6 +416,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Theme upvote endpoint (alias for theme-vote)
+  app.post('/api/cards/:cardId/upvote-theme', async (req, res) => {
+    try {
+      const { cardId } = req.params;
+      const { theme, categoryName } = req.body;
+      const userId = 1;
+
+      const { db } = await import('./db');
+      const { sql } = await import('drizzle-orm');
+      
+      // Record the upvote for this theme category combination
+      await db.execute(sql`
+        INSERT INTO user_votes (user_id, target_type, target_id, vote)
+        VALUES (${userId}, 'theme_upvote', 0, 'up')
+      `);
+
+      // Update theme confidence based on upvote
+      await db.execute(sql`
+        INSERT INTO card_themes (card_id, theme_name, theme_category, confidence, description, upvotes, downvotes, user_votes_count)
+        VALUES (${cardId}, ${theme}, ${categoryName}, 75, 'User-upvoted theme', 1, 0, 1)
+        ON CONFLICT (card_id, theme_name) DO UPDATE SET
+          upvotes = COALESCE(upvotes, 0) + 1,
+          user_votes_count = COALESCE(user_votes_count, 0) + 1,
+          confidence = LEAST(100, COALESCE(confidence, 50) + 10)
+      `);
+
+      res.json({ 
+        success: true, 
+        message: `Theme "${theme}" upvoted for category "${categoryName}"!`
+      });
+    } catch (error) {
+      console.error('Error recording theme upvote:', error);
+      res.status(500).json({ error: 'Failed to record upvote' });
+    }
+  });
+
   // Card-theme relevance voting endpoint
   app.post('/api/cards/:cardId/theme-relevance-vote', async (req, res) => {
     try {
