@@ -51,10 +51,7 @@ export function DeckImportDialog({ children }: DeckImportDialogProps) {
         });
       }
       
-      // Refresh the deck data after import
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      queryClient.invalidateQueries({ queryKey: ['/api/user/deck'] });
       setIsOpen(false);
       setDeckText("");
     },

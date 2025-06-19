@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@shared/schema";
 
 export interface DeckEntry {
@@ -70,8 +71,28 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
   const [deckEntries, setDeckEntries] = useState<DeckEntry[]>([]);
   const [format, setFormat] = useState<DeckFormat>(initialFormat);
   const [commander, setCommander] = useState<Card | null>(null);
-  const [deckName, setDeckName] = useState("My Deck");
-  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Fetch deck data from backend
+  const { data: deckData } = useQuery({
+    queryKey: ['/api/user/deck'],
+    queryFn: async () => {
+      const response = await fetch('/api/user/deck');
+      if (!response.ok) throw new Error('Failed to fetch deck');
+      return response.json();
+    }
+  });
+
+  // Update local state when deck data changes
+  useEffect(() => {
+    if (deckData) {
+      setDeckEntries(deckData.entries || []);
+      setCommander(deckData.commander || null);
+      
+      const deckFormat = FORMATS.find(f => f.name === deckData.deck?.format) || FORMATS[0];
+      setFormat(deckFormat);
+    }
+  }, [deckData]);
 
   const getMaxCopies = useCallback((card: Card): number => {
     if (format.specialRules) {
@@ -103,22 +124,21 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
       return false; // Can't add more
     }
 
-    setDeckEntries(prev => {
-      const existingIndex = prev.findIndex(e => e.card.id === card.id);
-      
-      if (existingIndex >= 0) {
-        // Update existing entry
-        const updated = [...prev];
-        updated[existingIndex] = {
-          ...updated[existingIndex],
-          quantity: updated[existingIndex].quantity + 1
-        };
-        return updated;
-      } else {
-        // Add new entry
-        return [...prev, { card, quantity: 1 }];
-      }
-    });
+    const newEntries = deckEntries.slice();
+    const existingIndex = newEntries.findIndex(e => e.card.id === card.id);
+    
+    if (existingIndex >= 0) {
+      // Update existing entry
+      newEntries[existingIndex] = {
+        ...newEntries[existingIndex],
+        quantity: newEntries[existingIndex].quantity + 1
+      };
+    } else {
+      // Add new entry
+      newEntries.push({ card, quantity: 1 });
+    }
+    
+    setDeckEntries(newEntries);
     
     return true;
   }, [getCardQuantity, getMaxCopies, format, commander]);
@@ -130,28 +150,23 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
       return false; // Nothing to remove
     }
 
-    setDeckEntries(prev => {
-      const existingIndex = prev.findIndex(e => e.card.id === cardId);
-      
-      if (existingIndex >= 0) {
-        const updated = [...prev];
-        
-        if (updated[existingIndex].quantity <= 1) {
-          // Remove entry completely
-          updated.splice(existingIndex, 1);
-        } else {
-          // Decrease quantity
-          updated[existingIndex] = {
-            ...updated[existingIndex],
-            quantity: updated[existingIndex].quantity - 1
-          };
-        }
-        
-        return updated;
+    const newEntries = deckEntries.slice();
+    const existingIndex = newEntries.findIndex(e => e.card.id === cardId);
+    
+    if (existingIndex >= 0) {
+      if (newEntries[existingIndex].quantity <= 1) {
+        // Remove entry completely
+        newEntries.splice(existingIndex, 1);
+      } else {
+        // Decrease quantity
+        newEntries[existingIndex] = {
+          ...newEntries[existingIndex],
+          quantity: newEntries[existingIndex].quantity - 1
+        };
       }
       
-      return prev;
-    });
+      setDeckEntries(newEntries);
+    }
     
     return true;
   }, [getCardQuantity]);
