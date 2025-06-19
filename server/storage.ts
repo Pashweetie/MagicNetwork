@@ -329,7 +329,7 @@ export class DatabaseStorage implements IStorage {
 
   async findCardsBySharedThemes(
     sourceCard: Card, 
-    sourceThemes: Array<{theme: string, description: string, confidence: number, cards: Card[]}>, 
+    sourceThemes: Array<{theme: string, cards: Card[], confidence?: number, description?: string}>, 
     filters?: any
   ): Promise<Array<{card: Card, sharedThemes: Array<{theme: string, confidence: number}>, synergyScore: number, reason: string}>> {
     return [];
@@ -380,6 +380,99 @@ export class DatabaseStorage implements IStorage {
 
   async recordUserTagFeedback(feedback: InsertUserTagFeedback): Promise<void> {
     await db.insert(userTagFeedback).values(feedback);
+  }
+
+  async findCardsBySharedThemes(
+    sourceCard: Card, 
+    sourceThemes: Array<{theme: string, cards: Card[], confidence?: number, description?: string}>, 
+    filters?: any
+  ): Promise<Array<{card: Card, sharedThemes: Array<{theme: string, confidence: number}>, synergyScore: number, reason: string}>> {
+    try {
+      const synergies: Array<{card: Card, sharedThemes: Array<{theme: string, confidence: number}>, synergyScore: number, reason: string}> = [];
+      const cardThemeMap = new Map<string, Array<{theme: string, confidence: number}>>();
+      
+      // Extract all theme names from source card
+      const sourceThemeNames = sourceThemes.map(t => t.theme);
+      
+      // Collect all cards from theme groups and track their themes
+      console.log(`📋 Processing ${sourceThemes.length} source themes for synergy analysis`);
+      for (const themeGroup of sourceThemes) {
+        console.log(`  Theme: "${themeGroup.theme}" has ${themeGroup.cards.length} cards`);
+        for (const card of themeGroup.cards) {
+          if (card.id === sourceCard.id) continue; // Skip source card
+          
+          if (!cardThemeMap.has(card.id)) {
+            cardThemeMap.set(card.id, []);
+          }
+          
+          cardThemeMap.get(card.id)!.push({
+            theme: themeGroup.theme,
+            confidence: themeGroup.confidence || 50 // Default confidence if not provided
+          });
+        }
+      }
+      
+      console.log(`📊 Found ${cardThemeMap.size} unique cards across all themes`);
+      
+      // Calculate synergy scores based on shared themes
+      let processedCount = 0;
+      let filteredCount = 0;
+      
+      for (const [cardId, sharedThemes] of Array.from(cardThemeMap.entries())) {
+        if (sharedThemes.length === 0) continue;
+        
+        const card = await this.getCard(cardId);
+        if (!card) continue;
+        
+        processedCount++;
+        
+        // Apply filters with detailed logging
+        if (filters) {
+          const matchesFilter = cardMatchesFilters(card, filters);
+          if (!matchesFilter) {
+            filteredCount++;
+            continue;
+          }
+        }
+        
+        // Calculate synergy score
+        const averageConfidence = sharedThemes.reduce((sum: number, t: any) => sum + t.confidence, 0) / sharedThemes.length;
+        const themeOverlap = sharedThemes.length / sourceThemeNames.length;
+        const synergyScore = (averageConfidence / 100) * themeOverlap;
+        
+        // Generate reason
+        const themeNames = sharedThemes.map((t: any) => t.theme);
+        const reason = `Shares ${sharedThemes.length} theme${sharedThemes.length > 1 ? 's' : ''}: ${themeNames.slice(0, 3).join(', ')}${themeNames.length > 3 ? '...' : ''}`;
+        
+        synergies.push({
+          card,
+          sharedThemes,
+          synergyScore,
+          reason
+        });
+      }
+      
+      console.log(`🔍 Processed ${processedCount} cards, filtered out ${filteredCount}, kept ${synergies.length}`);
+      
+      // Sort by synergy score and theme count
+      const finalResults = synergies
+        .sort((a, b) => {
+          // Primary sort: synergy score
+          if (Math.abs(a.synergyScore - b.synergyScore) > 0.1) {
+            return b.synergyScore - a.synergyScore;
+          }
+          // Secondary sort: number of shared themes
+          return b.sharedThemes.length - a.sharedThemes.length;
+        })
+        .slice(0, 50); // Limit results
+        
+      console.log(`🎯 Final synergy results: ${finalResults.length} cards after filtering and sorting`);
+      return finalResults;
+        
+    } catch (error) {
+      console.error('Error finding cards by shared themes:', error);
+      return [];
+    }
   }
 }
 

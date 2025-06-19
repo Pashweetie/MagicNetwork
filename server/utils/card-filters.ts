@@ -140,7 +140,7 @@ export function cardMatchesFilters(card: Card, filters?: FilterOptions): boolean
         return false; // Skip cards with no power or variable power
       }
       const cardPower = parseInt(card.power);
-      const filterPower = parseInt(filters.power);
+      const filterPower = parseInt(filters.power.toString());
       if (isNaN(cardPower) || isNaN(filterPower) || cardPower !== filterPower) {
         return false;
       }
@@ -150,7 +150,7 @@ export function cardMatchesFilters(card: Card, filters?: FilterOptions): boolean
         return false; // Skip cards with no toughness or variable toughness
       }
       const cardToughness = parseInt(card.toughness);
-      const filterToughness = parseInt(filters.toughness);
+      const filterToughness = parseInt(filters.toughness.toString());
       if (isNaN(cardToughness) || isNaN(filterToughness) || cardToughness !== filterToughness) {
         return false;
       }
