@@ -166,9 +166,9 @@ export default function DeckBuilder() {
 
   const getMaxCopies = (card: Card): number => {
     if (deckFormat === 'commander') {
-      return card.type_line.toLowerCase().includes('basic land') ? 99 : 1;
+      return card.type_line?.toLowerCase().includes('basic land') ? 99 : 1;
     }
-    return card.type_line.toLowerCase().includes('basic land') ? 99 : 4;
+    return card.type_line?.toLowerCase().includes('basic land') ? 99 : 4;
   };
 
   const handleSaveDeck = () => {
