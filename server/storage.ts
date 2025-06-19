@@ -470,6 +470,64 @@ export class DatabaseStorage implements IStorage {
   async recordUserTagFeedback(feedback: InsertUserTagFeedback): Promise<void> {
     await db.insert(userTagFeedback).values(feedback);
   }
+
+  // User deck management implementation
+  async getUserDeck(userId: string): Promise<{ deck: UserDeck | null, entries: DeckEntry[], commander?: Card }> {
+    try {
+      const [deck] = await db.select().from(userDecks).where(eq(userDecks.userId, userId));
+      
+      if (!deck) {
+        return { deck: null, entries: [], commander: undefined };
+      }
+
+      const entries: DeckEntry[] = [];
+      const commander = deck.commanderId ? await this.getCard(deck.commanderId) : undefined;
+      
+      // Convert stored cards to deck entries
+      if (deck.cards && Array.isArray(deck.cards)) {
+        for (const cardData of deck.cards as Array<{cardId: string, quantity: number}>) {
+          const card = await this.getCard(cardData.cardId);
+          if (card) {
+            entries.push({ card, quantity: cardData.quantity });
+          }
+        }
+      }
+
+      return { 
+        deck, 
+        entries, 
+        commander: commander || undefined 
+      };
+    } catch (error) {
+      console.error('Error getting user deck:', error);
+      return { deck: null, entries: [], commander: undefined };
+    }
+  }
+
+  async saveUserDeck(userId: string, deckData: Partial<InsertUserDeck>): Promise<UserDeck> {
+    try {
+      const [deck] = await db
+        .insert(userDecks)
+        .values({
+          userId,
+          ...deckData,
+          updatedAt: new Date()
+        })
+        .onConflictDoUpdate({
+          target: userDecks.userId,
+          set: {
+            ...deckData,
+            updatedAt: new Date()
+          }
+        })
+        .returning();
+      
+      return deck;
+    } catch (error) {
+      console.error('Error saving user deck:', error);
+      throw error;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();

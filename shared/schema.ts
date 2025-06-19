@@ -251,6 +251,18 @@ export const userVotes = pgTable('user_votes', {
   targetIdx: index('user_votes_target_idx').on(table.targetType, table.targetId),
 }));
 
+// User deck storage table - one deck per user
+export const userDecks = pgTable("user_decks", {
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+  userId: text("user_id").notNull(),
+  name: text("name").notNull().default("My Deck"),
+  format: text("format").notNull().default("Commander"),
+  commanderId: text("commander_id"),
+  cards: jsonb("cards").notNull().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Deck persistence schema
 export const decks = pgTable('decks', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
@@ -267,9 +279,9 @@ export const decks = pgTable('decks', {
   nameIdx: index('decks_name_idx').on(table.name),
 }));
 
+export const insertUserDeckSchema = createInsertSchema(userDecks).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDeckSchema = createInsertSchema(decks).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertUserVoteSchema = createInsertSchema(userVotes).omit({ id: true, createdAt: true });
-// export const insertThemeWeightSchema = createInsertSchema(themeWeights).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
