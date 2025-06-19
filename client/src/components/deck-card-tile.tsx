@@ -26,6 +26,10 @@ export function DeckCardTile({
   isCommander = false,
   showControls = true 
 }: DeckCardTileProps) {
+  // Basic validation to prevent crashes
+  if (!card || !card.type_line || !card.name) {
+    return null;
+  }
   const canAdd = quantity < maxCopies;
   const canRemove = quantity > 0;
   
