@@ -141,7 +141,7 @@ export function DeckCardTile({
       {/* Card name overlay */}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
         <p className="text-xs text-white font-medium truncate">{card.name}</p>
-        <p className="text-xs text-slate-300">{card.type_line}</p>
+        <p className="text-xs text-slate-300">{card.type_line || 'Unknown Type'}</p>
         {quantity > 0 && (
           <p className="text-xs text-slate-400">
             {quantity}/{maxCopies === 999 ? "∞" : maxCopies}

@@ -384,7 +384,7 @@ export function CardDetailModal({ card, isOpen, onClose, onCardClick, onAddCard,
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-slate-400">Type:</span>
-                <span className="text-white">{card.type_line}</span>
+                <span className="text-white">{card.type_line || 'Unknown Type'}</span>
               </div>
               {card.mana_cost && (
                 <div className="flex justify-between">

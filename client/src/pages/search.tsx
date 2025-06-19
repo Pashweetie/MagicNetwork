@@ -348,7 +348,7 @@ export default function Search() {
           <div className="p-6">
             {viewMode === "grid" ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-                {allCards.map((card, index) => (
+                {allCards.filter(card => card && card.type_line && card.name).map((card, index) => (
                   <DeckCardTile
                     key={`${card.id}-${index}`}
                     card={card}

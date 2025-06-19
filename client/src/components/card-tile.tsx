@@ -74,7 +74,7 @@ export function CardTile({ card, onClick }: CardTileProps) {
             {card.name}
           </h3>
           <p className="text-xs text-slate-400 truncate">
-            {card.type_line}
+            {card.type_line || 'Unknown Type'}
           </p>
 
         </div>
