@@ -509,23 +509,27 @@ export class DatabaseStorage implements IStorage {
 
   async saveUserDeck(userId: string, deckData: Partial<InsertUserDeck>): Promise<UserDeck> {
     try {
-      const [deck] = await db
-        .insert(userDecks)
-        .values({
-          userId,
-          ...deckData,
-          updatedAt: new Date()
-        })
-        .onConflictDoUpdate({
-          target: userDecks.userId,
-          set: {
+      // Check if deck exists for this user
+      const [existingDeck] = await db.select().from(userDecks).where(eq(userDecks.userId, userId)).limit(1);
+      
+      if (existingDeck) {
+        // Update existing deck
+        const [updatedDeck] = await db.update(userDecks)
+          .set({ ...deckData, updatedAt: new Date() })
+          .where(eq(userDecks.userId, userId))
+          .returning();
+        return updatedDeck;
+      } else {
+        // Create new deck
+        const [newDeck] = await db.insert(userDecks)
+          .values({
+            userId,
             ...deckData,
             updatedAt: new Date()
-          }
-        })
-        .returning();
-      
-      return deck;
+          })
+          .returning();
+        return newDeck;
+      }
     } catch (error) {
       console.error('Error saving user deck:', error);
       throw error;
