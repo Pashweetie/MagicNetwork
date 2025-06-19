@@ -106,35 +106,20 @@ function HorizontalStackedCards({
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   
   const CARD_WIDTH = 150;
-  const CARD_SPACING = 20;
-  const HOVER_SPACING = 200;
+  const CARD_SPACING = 15; // Tight spacing when stacked
 
   return (
     <div className="relative overflow-x-auto py-4">
       <div 
-        className="flex relative transition-all duration-300 ease-out"
+        className="flex relative"
         style={{ 
-          width: cards.length > 0 ? 
-            (hoveredIndex !== null ? 
-              cards.length * HOVER_SPACING + CARD_WIDTH :
-              cards.length * CARD_SPACING + CARD_WIDTH) : 
-            0,
+          width: cards.length > 0 ? cards.length * CARD_SPACING + CARD_WIDTH : 0,
           minHeight: '250px'
         }}
       >
         {cards.map((entry, index) => {
           const isHovered = hoveredIndex === index;
-          
-          let translateX = 0;
-          if (hoveredIndex !== null) {
-            if (index <= hoveredIndex) {
-              translateX = index * HOVER_SPACING;
-            } else {
-              translateX = hoveredIndex * HOVER_SPACING + CARD_WIDTH + (index - hoveredIndex) * HOVER_SPACING;
-            }
-          } else {
-            translateX = index * CARD_SPACING;
-          }
+          const translateX = index * CARD_SPACING;
 
           return (
             <StackedCard
@@ -200,8 +185,8 @@ function StackedCard({
     <div
       className="absolute transition-all duration-300 ease-out cursor-pointer"
       style={{
-        transform: `translateX(${translateX}px) ${isHovered ? 'translateY(-10px) scale(1.05)' : ''}`,
-        zIndex: isHovered ? 50 : 40 - index,
+        transform: `translateX(${translateX}px) ${isHovered ? 'translateY(-20px) translateZ(0)' : ''}`,
+        zIndex: isHovered ? 100 : 50 - index,
         width: '150px'
       }}
       onMouseEnter={onMouseEnter}
