@@ -295,12 +295,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           SET vote = ${vote}, created_at = NOW()
           WHERE user_id = ${userId} AND target_type = 'theme' AND target_id = ${theme[0].id}
         `);
+        console.log(`Updated existing vote for user ${userId} on theme ${theme[0].id}`);
       } else {
         // Record new vote
         await db.execute(sql`
           INSERT INTO user_votes (user_id, target_type, target_id, vote)
           VALUES (${userId}, 'theme', ${theme[0].id}, ${vote})
         `);
+        console.log(`Created new vote for user ${userId} on theme ${theme[0].id}`);
       }
 
 
