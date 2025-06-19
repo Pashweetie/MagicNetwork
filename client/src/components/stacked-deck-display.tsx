@@ -223,7 +223,7 @@ export function StackedDeckDisplay({
               
               <CollapsibleContent>
                 <CardContent className="pt-0">
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                     {category.cards.map(entry => (
                       <StackedCardRow
                         key={entry.card.id}
@@ -275,58 +275,79 @@ function StackedCardRow({
   const price = getCardPrice(card);
 
   return (
-    <div className="flex items-center gap-3 p-3 bg-slate-750 rounded-lg hover:bg-slate-700 transition-colors group">
-      {/* Card Image */}
-      <div 
-        className="w-12 h-16 bg-slate-600 rounded overflow-hidden cursor-pointer flex-shrink-0"
-        onClick={() => onClick(card)}
-      >
-        {card.image_uris?.small ? (
-          <img
-            src={card.image_uris.small}
-            alt={card.name}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs text-center p-1">
-            {card.name}
-          </div>
-        )}
-      </div>
-
-      {/* Card Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <h4 
-            className="font-medium text-white truncate cursor-pointer hover:text-blue-400 transition-colors"
-            onClick={() => onClick(card)}
-          >
-            {card.name}
-          </h4>
-          {isCommander && (
-            <Crown className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+    <div className="relative group">
+      {/* Main Card Display */}
+      <div className="relative">
+        <div 
+          className="w-full aspect-[2.5/3.5] bg-slate-600 rounded-lg overflow-hidden cursor-pointer transition-transform hover:scale-105 hover:z-20"
+          onClick={() => onClick(card)}
+        >
+          {card.image_uris?.normal ? (
+            <img
+              src={card.image_uris.normal}
+              alt={card.name}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              onError={(e) => {
+                const img = e.target as HTMLImageElement;
+                img.style.display = 'none';
+                const parent = img.parentElement;
+                if (parent) {
+                  parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-slate-400 bg-slate-800 p-2"><span class="text-sm text-center">${card.name}</span></div>`;
+                }
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-800 p-2">
+              <span className="text-sm text-center">{card.name}</span>
+            </div>
           )}
         </div>
-        <div className="flex items-center gap-4 text-sm text-slate-400">
-          <span>{card.type_line}</span>
-          <span>CMC {card.cmc || 0}</span>
-          {price > 0 && <span>${price.toFixed(2)}</span>}
-        </div>
-      </div>
 
-      {/* Quantity and Controls */}
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <Badge variant="secondary" className="text-sm min-w-[3rem] text-center">
-          {quantity}x
-        </Badge>
-        
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Quantity Badge */}
+        {quantity > 1 && (
+          <Badge 
+            variant="secondary" 
+            className="absolute top-2 right-2 bg-black/80 text-white border-slate-600 text-sm px-2 py-1"
+          >
+            {quantity}x
+          </Badge>
+        )}
+
+        {/* Commander Crown */}
+        {isCommander && (
+          <div className="absolute top-2 left-2 bg-yellow-600 rounded-full p-1">
+            <Crown className="w-4 h-4 text-white" />
+          </div>
+        )}
+
+        {/* Price Badge */}
+        {price > 0 && (
+          <Badge 
+            variant="outline" 
+            className="absolute bottom-2 left-2 bg-black/80 text-green-400 border-green-400/50 text-xs"
+          >
+            ${price.toFixed(2)}
+          </Badge>
+        )}
+
+        {/* Mana Cost */}
+        {card.cmc !== undefined && (
+          <Badge 
+            variant="outline" 
+            className="absolute bottom-2 right-2 bg-black/80 text-blue-400 border-blue-400/50 text-xs"
+          >
+            {card.cmc}
+          </Badge>
+        )}
+
+        {/* Hover Controls */}
+        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
           {onSetCommander && canBeCommander && (
             <Button
               size="sm"
               variant={isCommander ? "default" : "secondary"}
-              className={`w-8 h-8 p-0 ${
+              className={`w-10 h-10 p-0 ${
                 isCommander ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-slate-600 hover:bg-slate-500'
               }`}
               onClick={(e) => {
@@ -334,36 +355,50 @@ function StackedCardRow({
                 onSetCommander(card);
               }}
             >
-              <Crown className="w-3 h-3" />
+              <Crown className="w-4 h-4" />
             </Button>
           )}
           
           <Button
             size="sm"
             variant="destructive"
-            className="w-8 h-8 p-0 bg-red-600 hover:bg-red-700"
+            className="w-10 h-10 p-0 bg-red-600 hover:bg-red-700"
             onClick={(e) => {
               e.stopPropagation();
               onRemove(card.id);
             }}
             disabled={!canRemoveCard}
           >
-            <Minus className="w-3 h-3" />
+            <Minus className="w-4 h-4" />
           </Button>
           
           <Button
             size="sm"
             variant="default"
-            className="w-8 h-8 p-0 bg-green-600 hover:bg-green-700"
+            className="w-10 h-10 p-0 bg-green-600 hover:bg-green-700"
             onClick={(e) => {
               e.stopPropagation();
               onAdd(card);
             }}
             disabled={!canAdd}
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-4 h-4" />
           </Button>
         </div>
+      </div>
+
+      {/* Card Name and Type (below image) */}
+      <div className="mt-2 text-center">
+        <h4 
+          className="font-medium text-white text-sm truncate cursor-pointer hover:text-blue-400 transition-colors"
+          onClick={() => onClick(card)}
+          title={card.name}
+        >
+          {card.name}
+        </h4>
+        <p className="text-xs text-slate-400 truncate" title={card.type_line}>
+          {card.type_line}
+        </p>
       </div>
     </div>
   );
