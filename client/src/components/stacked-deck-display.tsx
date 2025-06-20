@@ -93,7 +93,7 @@ interface VerticalStackedCardsProps {
   getMaxCopies: (card: Card) => number;
 }
 
-function VerticalStackedCards({
+function HorizontalStackedCards({
   cards,
   onAdd,
   onRemove,
@@ -105,31 +105,33 @@ function VerticalStackedCards({
 }: VerticalStackedCardsProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   
-  const CARD_HEIGHT = 300;
-  const CARD_SPACING = 40; // Reduced spacing so titles are more visible
+  const CARD_WIDTH = 300;
+  const CARD_OVERLAP = 250; // How much cards overlap horizontally
+  const CARD_HEIGHT = 80; // Height for the horizontal cards
 
   return (
-    <div className="relative overflow-y-auto py-4">
+    <div className="relative overflow-x-auto py-4">
       <div 
-        className="flex flex-col relative"
+        className="flex relative"
         style={{ 
-          height: cards.length > 0 ? cards.length * CARD_SPACING + CARD_HEIGHT : 0,
-          minWidth: '220px'
+          width: cards.length > 0 ? (cards.length - 1) * CARD_OVERLAP + CARD_WIDTH : 0,
+          height: CARD_HEIGHT,
+          minHeight: '80px'
         }}
       >
         {cards.map((entry, index) => {
           const isHovered = hoveredIndex === index;
-          // Title-readable stacking: first card at top (translateY=0), subsequent cards below
-          const translateY = index * CARD_SPACING;
-          // Higher z-index for cards that appear earlier in the list (at top)
-          const zIndex = isHovered ? 100 : (cards.length - index);
+          // Horizontal stacking: each card offset by CARD_OVERLAP
+          const translateX = index * CARD_OVERLAP;
+          // Higher z-index for cards that appear later in the list (rightmost on top)
+          const zIndex = isHovered ? 100 : index + 1;
 
           return (
-            <StackedCard
+            <HorizontalStackedCard
               key={entry.card.id}
               entry={entry}
               index={index}
-              translateY={translateY}
+              translateX={translateX}
               zIndex={zIndex}
               isHovered={isHovered}
               onMouseEnter={() => setHoveredIndex(index)}
