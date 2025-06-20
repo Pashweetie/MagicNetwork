@@ -83,6 +83,24 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
     }
   });
 
+  // Save deck mutation
+  const saveDeckMutation = useMutation({
+    mutationFn: async (deckData: any) => {
+      const response = await fetch('/api/user/deck', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(deckData),
+      });
+      if (!response.ok) throw new Error('Failed to save deck');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/user/deck'] });
+    },
+  });
+
   // Update local state when deck data changes
   useEffect(() => {
     if (deckData) {
@@ -93,6 +111,21 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
       setFormat(deckFormat);
     }
   }, [deckData]);
+
+  // Save deck changes to backend
+  const saveDeckChanges = useCallback((newEntries: DeckEntry[], newCommander: Card | null, newFormat: DeckFormat) => {
+    const cardsData = newEntries.map(entry => ({
+      cardId: entry.card.id,
+      quantity: entry.quantity
+    }));
+
+    saveDeckMutation.mutate({
+      name: "My Deck",
+      format: newFormat.name,
+      commanderId: newCommander?.id || null,
+      cards: cardsData
+    });
+  }, [saveDeckMutation]);
 
   const getMaxCopies = useCallback((card: Card): number => {
     if (format.specialRules) {
@@ -139,9 +172,10 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
     }
     
     setDeckEntries(newEntries);
+    saveDeckChanges(newEntries, commander, format);
     
     return true;
-  }, [getCardQuantity, getMaxCopies, format, commander]);
+  }, [getCardQuantity, getMaxCopies, format, commander, saveDeckChanges]);
 
   const removeCard = useCallback((cardId: string): boolean => {
     const currentQuantity = getCardQuantity(cardId);
@@ -166,15 +200,19 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
       }
       
       setDeckEntries(newEntries);
+      saveDeckChanges(newEntries, commander, format);
     }
     
     return true;
-  }, [getCardQuantity]);
+  }, [getCardQuantity, commander, format, saveDeckChanges]);
 
   const clearDeck = useCallback(() => {
-    setDeckEntries([]);
-    setCommander(null);
-  }, []);
+    const newEntries: DeckEntry[] = [];
+    const newCommander = null;
+    setDeckEntries(newEntries);
+    setCommander(newCommander);
+    saveDeckChanges(newEntries, newCommander, format);
+  }, [format, saveDeckChanges]);
 
   const canAddCard = useCallback((card: Card): boolean => {
     const currentQuantity = getCardQuantity(card.id);
@@ -193,6 +231,16 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
     return currentQuantity < maxAllowed;
   }, [getCardQuantity, getMaxCopies, format, commander]);
 
+  const setFormatAndSave = useCallback((newFormat: DeckFormat) => {
+    setFormat(newFormat);
+    saveDeckChanges(deckEntries, commander, newFormat);
+  }, [deckEntries, commander, saveDeckChanges]);
+
+  const setCommanderAndSave = useCallback((newCommander: Card | null) => {
+    setCommander(newCommander);
+    saveDeckChanges(deckEntries, newCommander, format);
+  }, [deckEntries, format, saveDeckChanges]);
+
   const setCommanderFromCard = useCallback((card: Card) => {
     const typeLine = card.type_line?.toLowerCase() || '';
     const isLegendary = typeLine.includes('legendary');
@@ -201,21 +249,23 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
     
     // Check if card can be a commander (legendary creature or planeswalker)
     if (isLegendary && (isCreature || isPlaneswalker)) {
+      let newEntries = deckEntries;
+      
       // Add card to deck if not already present
       const currentQuantity = getCardQuantity(card.id);
       if (currentQuantity === 0) {
-        addCard(card);
+        newEntries = [...deckEntries, { card, quantity: 1 }];
+        setDeckEntries(newEntries);
       }
       
-      if (commander?.id === card.id) {
-        setCommander(null); // Remove if already commander
-      } else {
-        setCommander(card); // Set as new commander
-      }
+      const newCommander = commander?.id === card.id ? null : card;
+      setCommander(newCommander);
+      saveDeckChanges(newEntries, newCommander, format);
+      
       return true;
     }
     return false;
-  }, [commander, getCardQuantity, addCard]);
+  }, [commander, getCardQuantity, deckEntries, format, saveDeckChanges]);
 
   const totalCards = deckEntries.reduce((sum, entry) => sum + entry.quantity, 0);
   const uniqueCards = deckEntries.length;
@@ -226,9 +276,9 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
   return {
     deckEntries,
     format,
-    setFormat,
+    setFormat: setFormatAndSave,
     commander,
-    setCommander,
+    setCommander: setCommanderAndSave,
     setCommanderFromCard,
     addCard,
     removeCard,
