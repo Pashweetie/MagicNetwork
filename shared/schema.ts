@@ -119,25 +119,30 @@ export const searchCache = pgTable('search_cache', {
 
 
 
-// Centralized theme system - single source of truth for all theme-based features
+// Simplified card themes storage for AI-generated themes
 export const cardThemes = pgTable('card_themes', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
-  card_id: text('card_id').references(() => cardCache.id).notNull(),
+  card_id: text('card_id').notNull(),
   theme_name: text('theme_name').notNull(),
-  theme_category: text('theme_category').notNull(), // 'strategy', 'archetype', 'mechanic', 'synergy'  
-  base_confidence: integer('base_confidence').notNull(), // AI-generated confidence 0-100
-  user_upvotes: integer('user_upvotes').default(0),
-  user_downvotes: integer('user_downvotes').default(0),
-  final_score: integer('final_score').default(0), // Calculated from base + votes, used for all sorting
-  keywords: text('keywords').array(), // Keywords that triggered this theme
-  description: text('description'),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  last_updated: timestamp('last_updated').defaultNow().notNull(),
+  confidence: integer('confidence').notNull(), // 1-100 scale
+  created_at: timestamp('created_at').defaultNow(),
 }, (table) => ({
-  cardThemeIdx: index('card_theme_idx').on(table.card_id, table.theme_name),
-  themeNameIdx: index('theme_name_idx').on(table.theme_name),
-  finalScoreIdx: index('theme_final_score_idx').on(table.final_score), // Sort by this unified score
-  cardScoreIdx: index('card_score_idx').on(table.card_id, table.final_score), // Card's theme rankings
+  cardThemeIdx: index('card_themes_card_idx').on(table.card_id),
+  themeIdx: index('card_themes_theme_idx').on(table.theme_name),
+  uniqueCardTheme: index('card_themes_unique_idx').on(table.card_id, table.theme_name),
+}));
+
+// Theme voting table for user feedback
+export const themeVotes = pgTable('theme_votes', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  card_id: text('card_id').notNull(),
+  theme_name: text('theme_name').notNull(),
+  user_id: integer('user_id').references(() => users.id).notNull(),
+  vote: text('vote').notNull(), // 'up' or 'down'
+  created_at: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  cardThemeUserIdx: index('theme_votes_card_theme_user_idx').on(table.card_id, table.theme_name, table.user_id),
+  cardThemeIdx: index('theme_votes_card_theme_idx').on(table.card_id, table.theme_name),
 }));
 
 
@@ -177,7 +182,8 @@ export const insertCardCacheSchema = createInsertSchema(cardCache).omit({ lastUp
 export const insertSearchCacheSchema = createInsertSchema(searchCache).omit({ id: true, createdAt: true, lastAccessed: true, accessCount: true });
 
 
-export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, created_at: true, last_updated: true });
+export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, created_at: true });
+export const insertThemeVoteSchema = createInsertSchema(themeVotes).omit({ id: true, created_at: true });
 
 export const insertUserThemeFeedbackSchema = createInsertSchema(userThemeFeedback).omit({ id: true, createdAt: true });
 export const insertCardThemeFeedbackSchema = createInsertSchema(cardThemeFeedback).omit({ id: true, createdAt: true });
@@ -240,6 +246,8 @@ export type UserDeck = typeof userDecks.$inferSelect;
 export type InsertUserDeck = z.infer<typeof insertUserDeckSchema>;
 export type CardTheme = typeof cardThemes.$inferSelect;
 export type InsertCardTheme = z.infer<typeof insertCardThemeSchema>;
+export type ThemeVote = typeof themeVotes.$inferSelect;
+export type InsertThemeVote = z.infer<typeof insertThemeVoteSchema>;
 
 export type UserThemeFeedback = typeof userThemeFeedback.$inferSelect;
 export type InsertUserThemeFeedback = z.infer<typeof insertUserThemeFeedbackSchema>;
