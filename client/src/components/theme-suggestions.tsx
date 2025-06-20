@@ -61,17 +61,17 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
 
   const handleCardThemeVote = async (targetCard: Card, themeName: string, vote: 'up' | 'down') => {
     try {
-      const response = await fetch(`/api/cards/${targetCard.id}/theme-relevance-vote`, {
+      const response = await fetch(`/api/cards/${targetCard.id}/theme-vote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           themeName, 
-          vote, 
-          sourceCardId: card.id 
+          vote
         })
       });
       
       if (response.ok) {
+        const result = await response.json();
         setCardVotes(prev => ({
           ...prev,
           [targetCard.id]: {
@@ -79,9 +79,12 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
             [themeName]: vote
           }
         }));
+        
+        UIUtils.showToast(`Theme confidence updated to ${Math.round(result.newScore)}%`);
       }
     } catch (error) {
-      console.error('Failed to vote on card theme relevance:', error);
+      console.error('Failed to vote on card theme:', error);
+      UIUtils.showToast('Failed to record vote', 'error');
     }
   };
 
