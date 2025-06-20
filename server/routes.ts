@@ -332,8 +332,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const downvotes = Number(updatedTheme.rows[0]?.downvotes) || 0;
       const totalVotes = upvotes + downvotes;
       const positiveRatio = totalVotes > 0 ? upvotes / totalVotes : 0.5;
+      
+      // Base confidence on the specific card-theme relationship
       const baseConfidence = theme[0].confidence;
-      const adjustedConfidence = Math.max(10, Math.min(100, Math.round(baseConfidence * (0.7 + 0.6 * positiveRatio))));
+      // Card-specific confidence: stronger impact from votes since it's about this specific card
+      const adjustedConfidence = Math.max(10, Math.min(100, Math.round(baseConfidence * (0.5 + 1.0 * positiveRatio))));
 
       await db.execute(sql`
         UPDATE card_themes SET confidence = ${adjustedConfidence} WHERE id = ${theme[0].id}

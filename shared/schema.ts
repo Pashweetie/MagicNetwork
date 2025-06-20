@@ -195,6 +195,20 @@ export const userThemeFeedback = pgTable('user_theme_feedback', {
   userCardThemeIdx: index('user_theme_feedback_idx').on(table.userId, table.cardId, table.themeName),
 }));
 
+// Card-theme relevance feedback for theme suggestions
+export const cardThemeFeedback = pgTable('card_theme_feedback', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  cardId: text('card_id').notNull(),
+  themeName: text('theme_name').notNull(),
+  sourceCardId: text('source_card_id').notNull(), // The card that suggested this theme
+  feedbackType: text('feedback_type').notNull(), // 'relevant', 'irrelevant'
+  userId: integer('user_id').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  cardThemeSourceIdx: index('card_theme_feedback_idx').on(table.cardId, table.themeName, table.sourceCardId, table.userId),
+  themeRelevanceIdx: index('theme_relevance_idx').on(table.themeName, table.feedbackType),
+}));
+
 // User feedback for improving recommendations
 export const recommendationFeedback = pgTable('recommendation_feedback', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
@@ -221,6 +235,7 @@ export const insertUserInteractionSchema = createInsertSchema(userInteractions).
 export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, created_at: true, last_updated: true });
 export const insertThemeRelationshipSchema = createInsertSchema(themeRelationships).omit({ id: true, createdAt: true, lastUpdated: true });
 export const insertUserThemeFeedbackSchema = createInsertSchema(userThemeFeedback).omit({ id: true, createdAt: true });
+export const insertCardThemeFeedbackSchema = createInsertSchema(cardThemeFeedback).omit({ id: true, createdAt: true });
 export const insertRecommendationFeedbackSchema = createInsertSchema(recommendationFeedback).omit({ id: true, createdAt: true });
 // User votes tracking for recommendations and themes
 export const userVotes = pgTable('user_votes', {
@@ -287,6 +302,8 @@ export type ThemeRelationship = typeof themeRelationships.$inferSelect;
 export type InsertThemeRelationship = z.infer<typeof insertThemeRelationshipSchema>;
 export type UserThemeFeedback = typeof userThemeFeedback.$inferSelect;
 export type InsertUserThemeFeedback = z.infer<typeof insertUserThemeFeedbackSchema>;
+export type CardThemeFeedback = typeof cardThemeFeedback.$inferSelect;
+export type InsertCardThemeFeedback = z.infer<typeof insertCardThemeFeedbackSchema>;
 export type RecommendationFeedback = typeof recommendationFeedback.$inferSelect;
 export type InsertRecommendationFeedback = z.infer<typeof insertRecommendationFeedbackSchema>;
 

@@ -22,12 +22,14 @@ interface ThemeGroup {
 
 export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters }: ThemeSuggestionsProps) {
   const [userHasVoted, setUserHasVoted] = useState<{[theme: string]: boolean}>({});
+  const [cardVotes, setCardVotes] = useState<{[cardId: string]: {[themeName: string]: 'up' | 'down'}}>({});
   
   // Reset vote state when card changes
   const [currentCardId, setCurrentCardId] = useState(card.id);
   if (currentCardId !== card.id) {
     setCurrentCardId(card.id);
     setUserHasVoted({});
+    setCardVotes({});
   }
   
   const { data: themeGroups, isLoading, error } = useQuery({
@@ -54,6 +56,32 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
     if (result) {
       UIUtils.updateConfidenceDisplay(themeName, result.newConfidence);
       UIUtils.disableVoteButtons(`[data-theme="${themeName}"]`);
+    }
+  };
+
+  const handleCardThemeVote = async (targetCard: Card, themeName: string, vote: 'up' | 'down') => {
+    try {
+      const response = await fetch(`/api/cards/${targetCard.id}/theme-relevance-vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          themeName, 
+          vote, 
+          sourceCardId: card.id 
+        })
+      });
+      
+      if (response.ok) {
+        setCardVotes(prev => ({
+          ...prev,
+          [targetCard.id]: {
+            ...prev[targetCard.id],
+            [themeName]: vote
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to vote on card theme relevance:', error);
     }
   };
 
@@ -132,20 +160,57 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
                 Similar Cards ({group.cards.length})
               </h5>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                {group.cards.slice(0, 12).map((card) => (
-                  <div key={card.id} className="relative">
+                {group.cards.slice(0, 12).map((themeCard) => (
+                  <div key={themeCard.id} className="relative group">
                     <SharedCardTile
                       variant="search"
-                      card={card}
+                      card={themeCard}
                       onClick={onCardClick}
                     />
+                    
+                    {/* Vote buttons for theme relevance to this card */}
+                    <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className={`w-5 h-5 p-0 rounded-full ${
+                          cardVotes[themeCard.id]?.[group.theme] === 'up'
+                            ? 'bg-green-600 text-white'
+                            : 'bg-black/60 text-green-400 hover:bg-green-600'
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCardThemeVote(themeCard, group.theme, 'up');
+                        }}
+                        title={`This card fits the ${group.theme} theme`}
+                      >
+                        <ThumbsUp className="w-2.5 h-2.5" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className={`w-5 h-5 p-0 rounded-full ${
+                          cardVotes[themeCard.id]?.[group.theme] === 'down'
+                            ? 'bg-red-600 text-white'
+                            : 'bg-black/60 text-red-400 hover:bg-red-600'
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCardThemeVote(themeCard, group.theme, 'down');
+                        }}
+                        title={`This card doesn't fit the ${group.theme} theme`}
+                      >
+                        <ThumbsDown className="w-2.5 h-2.5" />
+                      </Button>
+                    </div>
+
                     {onAddCard && (
                       <Button
                         size="sm"
                         className="absolute bottom-1 right-1 w-6 h-6 p-0 bg-blue-600 hover:bg-blue-700 z-10"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onAddCard(card);
+                          onAddCard(themeCard);
                         }}
                       >
                         <Plus className="w-3 h-3" />

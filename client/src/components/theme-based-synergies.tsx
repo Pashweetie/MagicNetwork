@@ -125,26 +125,26 @@ export function ThemeBasedSynergies({ cardId, onCardClick, onAddCard, currentFil
               </div>
             </div>
 
-            {/* Synergy details overlay */}
-            <div className="absolute top-3 right-3 bg-black/90 rounded-md px-3 py-2 border border-blue-400/30">
-              <div className="text-sm text-blue-300 font-bold">
+            {/* Synergy details overlay - smaller */}
+            <div className="absolute top-2 right-2 bg-black/90 rounded px-2 py-1 border border-blue-400/30">
+              <div className="text-xs text-blue-300 font-bold">
                 {Math.round(synergy.synergyScore * 100)}%
               </div>
             </div>
 
-            {/* Theme badges overlay */}
-            <div className="absolute top-3 left-3 flex flex-col gap-2">
-              {synergy.sharedThemes.slice(0, 2).map((theme, themeIndex) => (
+            {/* Theme badges overlay - smaller and compact */}
+            <div className="absolute top-2 left-2 flex flex-col gap-1">
+              {synergy.sharedThemes.slice(0, 1).map((theme, themeIndex) => (
                 <span
                   key={themeIndex}
-                  className="text-sm bg-purple-600/90 text-white px-3 py-1 rounded-md font-medium border border-purple-400/30"
+                  className="text-xs bg-purple-600/90 text-white px-2 py-0.5 rounded font-medium border border-purple-400/30"
                 >
                   {theme.theme}
                 </span>
               ))}
-              {synergy.sharedThemes.length > 2 && (
-                <span className="text-sm bg-slate-600/90 text-white px-3 py-1 rounded-md border border-slate-400/30">
-                  +{synergy.sharedThemes.length - 2}
+              {synergy.sharedThemes.length > 1 && (
+                <span className="text-xs bg-slate-600/90 text-white px-2 py-0.5 rounded border border-slate-400/30">
+                  +{synergy.sharedThemes.length - 1}
                 </span>
               )}
             </div>
