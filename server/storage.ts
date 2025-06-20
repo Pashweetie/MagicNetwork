@@ -264,20 +264,15 @@ export class DatabaseStorage implements IStorage {
 
 
 
-  async getCardRecommendations(cardId: string, type: 'synergy' | 'functional_similarity', limit: number = 10, filters?: any): Promise<CardRecommendation[]> {
-    return db.select()
-      .from(cardRecommendations)
-      .where(and(
-        eq(cardRecommendations.sourceCardId, cardId),
-        eq(cardRecommendations.recommendationType, type)
-      ))
-      .orderBy(desc(cardRecommendations.score))
-      .limit(limit);
+  async getCardRecommendations(cardId: string, type: 'synergy' | 'functional_similarity', limit: number = 10, filters?: any): Promise<any[]> {
+    // Placeholder for recommendations - using AI service instead
+    return [];
   }
 
-  async recordRecommendationFeedback(feedback: InsertRecommendationFeedback): Promise<void> {
+  async recordRecommendationFeedback(feedback: any): Promise<void> {
     try {
-      await db.insert(recommendationFeedback).values(feedback);
+      // Placeholder for recommendation feedback
+      console.log('Recording recommendation feedback:', feedback);
     } catch (error) {
       console.error('Record recommendation feedback error:', error);
     }

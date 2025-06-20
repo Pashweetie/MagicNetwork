@@ -3,11 +3,13 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { aiRecommendationService } from "./services/ai-recommendation-service";
-import { searchFiltersSchema, cardCache, cardThemes, themeVotes } from "@shared/schema";
+import { searchFiltersSchema, cardCache, cardThemes, themeVotes, userDecks, decks, insertUserDeckSchema, insertDeckSchema, DeckEntry, DeckExport, DeckImport } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, count } from "drizzle-orm";
 import { z } from "zod";
 import { cardMatchesFilters } from "./utils/card-filters";
+import { registerCardAdminRoutes } from "./routes/card-admin";
+import { cardDatabaseService } from "./services/card-database-service";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Register card admin routes
