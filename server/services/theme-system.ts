@@ -59,7 +59,7 @@ export class ThemeSystem {
       }
 
       const model = pureAIService.textGenerator.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const prompt = `Analyze this Magic: The Gathering card and identify its strategic themes:
+      const prompt = `Analyze this Magic: The Gathering card and identify ALL strategic themes it supports:
 
 Card Name: ${card.name}
 Type: ${card.type_line}
@@ -67,23 +67,23 @@ Mana Cost: ${card.mana_cost || 'N/A'}
 Oracle Text: ${card.oracle_text || 'N/A'}
 Power/Toughness: ${card.power && card.toughness ? `${card.power}/${card.toughness}` : 'N/A'}
 
-Identify 3-5 strategic themes this card supports. For each theme, provide:
-1. Theme name (concise, strategic focus)
-2. Brief description (how this card fits the theme)
-3. Confidence score (0.0-1.0)
-4. Category (strategy, archetype, mechanic, synergy)
+CRITICAL RULES:
+- Only identify themes directly supported by this card's mechanics, abilities, or characteristics
+- Theme names must be clean text without markdown, numbers, or special formatting
+- Confidence must be a decimal between 0.1 and 1.0
+- Generate all themes the card actually supports (could be 1-8+ themes)
 
-Format as JSON array:
+Required JSON format (no additional text):
 [
   {
-    "theme": "Aggro",
-    "description": "Low-cost efficient creature for early pressure",
-    "confidence": 0.85,
-    "category": "strategy"
+    "theme": "Flying",
+    "description": "Has flying ability for evasion",
+    "confidence": 0.95,
+    "category": "mechanic"
   }
 ]
 
-Focus on strategic themes that help with deck building and synergies.`;
+Categories: strategy, archetype, mechanic, synergy`;
 
       const result = await model.generateContent(prompt);
       const response = result.response.text() || '';
@@ -93,8 +93,15 @@ Focus on strategic themes that help with deck building and synergies.`;
         if (jsonMatch) {
           const themes = JSON.parse(jsonMatch[0]);
           return themes.filter((t: any) => 
-            t.theme && t.description && typeof t.confidence === 'number' && t.category
-          );
+            t.theme && t.description && typeof t.confidence === 'number' && t.category &&
+            t.confidence >= 0.1 && t.confidence <= 1.0 && // Valid confidence range
+            !isNaN(t.confidence) && // Ensure not NaN
+            typeof t.theme === 'string' && t.theme.trim().length > 0 // Valid theme name
+          ).map((t: any) => ({
+            ...t,
+            theme: t.theme.replace(/^\*+\s*\d*\.?\s*/, '').trim(), // Clean formatting
+            confidence: Math.max(0.1, Math.min(1.0, t.confidence)) // Clamp confidence
+          }));
         }
       } catch (parseError) {
         console.error('AI theme parsing failed:', parseError);

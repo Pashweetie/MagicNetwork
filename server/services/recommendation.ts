@@ -93,6 +93,7 @@ export class RecommendationService {
           // Only use database themes - no fallback generation
           if (similarThemeCards.length === 0) {
             console.log(`No cards found in database for theme: ${themeData.theme}`);
+            continue; // Skip this theme if no cards found
           }
           
           // Get the actual card data from cache

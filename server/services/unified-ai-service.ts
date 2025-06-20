@@ -138,14 +138,43 @@ For TAGS, focus on:
       // Store themes in database
       for (const themeData of analysis.themes || []) {
         try {
-          const confidenceScore = isNaN(themeData.confidence) ? 80 : Math.round(themeData.confidence * 100);
+          // Clean and validate theme data
+          let themeName = themeData.theme;
+          if (typeof themeName !== 'string' || !themeName.trim()) {
+            console.error('Invalid theme name:', themeName);
+            continue;
+          }
+          
+          // Clean theme name of formatting artifacts
+          themeName = themeName
+            .replace(/^\*+\s*\d*\.?\s*/, '') // Remove markdown and numbering
+            .replace(/^\d+\.\s*/, '') // Remove numbering
+            .replace(/\*+/g, '') // Remove asterisks
+            .trim();
+          
+          if (!themeName) {
+            console.error('Empty theme name after cleaning');
+            continue;
+          }
+          
+          // Ensure valid confidence score
+          let confidence = themeData.confidence;
+          if (typeof confidence !== 'number' || isNaN(confidence) || confidence < 0.1 || confidence > 1.0) {
+            console.error('Invalid confidence score:', confidence, 'for theme:', themeName);
+            confidence = 0.8; // Default fallback
+          }
+          const confidenceScore = Math.round(confidence * 100);
+          
+          // Validate other fields
+          const category = themeData.category || 'strategy';
+          const description = themeData.description || 'Theme description';
           
           await db.insert(cardThemes).values({
             card_id: card.id,
-            theme_name: themeData.theme,
-            theme_category: themeData.category,
-            confidence: confidenceScore, // Convert 0-1 to 0-100
-            description: themeData.description,
+            theme_name: themeName,
+            theme_category: category,
+            confidence: confidenceScore,
+            description: description,
             keywords: []
           }).onConflictDoNothing();
         } catch (error) {
