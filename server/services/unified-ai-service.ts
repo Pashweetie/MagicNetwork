@@ -2,7 +2,7 @@ import { Card } from "@shared/schema";
 import { AIUtils } from "@shared/utils/ai-utils";
 import { CardUtils } from "@shared/utils/card-utils";
 import { db } from "../db";
-import { cardThemes, cardTags } from "@shared/schema";
+import { cardThemes } from "@shared/schema";
 import { sql, eq } from "drizzle-orm";
 
 // Unified AI service that consolidates theme and tag generation

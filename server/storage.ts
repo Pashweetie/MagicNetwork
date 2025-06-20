@@ -34,14 +34,15 @@ export interface IStorage {
   // Theme-based synergy system
   findCardsBySharedThemes(sourceCard: Card, sourceThemes: Array<{theme: string, description: string, confidence: number, cards: Card[]}>, filters?: any): Promise<Array<{card: Card, sharedThemes: Array<{theme: string, confidence: number}>, synergyScore: number, reason: string}>>;
   
-  // Tag system
-  getCardTags(cardId: string): Promise<CardTag[]>;
-  createCardTag(tag: InsertCardTag): Promise<CardTag>;
-  updateCardTagVotes(cardId: string, tag: string, upvotes: number, downvotes: number): Promise<void>;
-  findCardsByTags(tags: string[], filters?: any): Promise<Card[]>;
-  getTagRelationships(tag: string): Promise<TagRelationship[]>;
-  createTagRelationship(relationship: InsertTagRelationship): Promise<TagRelationship>;
-  recordUserTagFeedback(feedback: InsertUserTagFeedback): Promise<void>;
+  // Enhanced theme system
+  getCardThemes(cardId: string): Promise<CardTheme[]>;
+  createCardTheme(theme: InsertCardTheme): Promise<CardTheme>;
+  updateCardThemeVotes(cardId: string, themeName: string, upvotes: number, downvotes: number): Promise<void>;
+  findCardsByThemes(themes: string[], filters?: any): Promise<Card[]>;
+  getThemeRelationships(theme: string): Promise<ThemeRelationship[]>;
+  createThemeRelationship(relationship: InsertThemeRelationship): Promise<ThemeRelationship>;
+  recordUserThemeFeedback(feedback: InsertUserThemeFeedback): Promise<void>;
+  calculateThemeSynergyScore(sourceThemes: string[], targetThemes: string[]): Promise<{score: number, reason: string}>;
   
   // Feedback system
   recordRecommendationFeedback(feedback: InsertRecommendationFeedback): Promise<void>;
@@ -324,52 +325,106 @@ export class DatabaseStorage implements IStorage {
     return synergies.sort((a, b) => b.synergyScore - a.synergyScore);
   }
 
-  async getCardTags(cardId: string): Promise<CardTag[]> {
+  async getCardThemes(cardId: string): Promise<CardTheme[]> {
     return db.select()
-      .from(cardTags)
-      .where(eq(cardTags.cardId, cardId));
+      .from(cardThemes)
+      .where(eq(cardThemes.cardId, cardId))
+      .orderBy(desc(cardThemes.confidence));
   }
 
-  async createCardTag(tag: InsertCardTag): Promise<CardTag> {
-    const [result] = await db.insert(cardTags).values(tag).returning();
+  async createCardTheme(theme: InsertCardTheme): Promise<CardTheme> {
+    const [result] = await db.insert(cardThemes).values(theme).returning();
     return result;
   }
 
-  async updateCardTagVotes(cardId: string, tag: string, upvotes: number, downvotes: number): Promise<void> {
-    await db.update(cardTags)
-      .set({ upvotes, downvotes })
-      .where(and(eq(cardTags.cardId, cardId), eq(cardTags.tag, tag)));
+  async updateCardThemeVotes(cardId: string, themeName: string, upvotes: number, downvotes: number): Promise<void> {
+    await db.update(cardThemes)
+      .set({ upvotes, downvotes, lastUpdated: new Date() })
+      .where(and(eq(cardThemes.cardId, cardId), eq(cardThemes.themeName, themeName)));
   }
 
-  async findCardsByTags(tags: string[], filters?: any): Promise<Card[]> {
-    const cardIds = await db.select({ cardId: cardTags.cardId })
-      .from(cardTags)
-      .where(sql`${cardTags.tag} = ANY(${tags})`);
+  async findCardsByThemes(themes: string[], filters?: any): Promise<Card[]> {
+    if (themes.length === 0) return [];
     
-    const cards: Card[] = [];
-    for (const { cardId } of cardIds) {
-      const card = await this.getCard(cardId);
-      if (card) {
-        cards.push(card);
-      }
+    const cardIds = await db.select({ 
+      cardId: cardThemes.cardId,
+      confidence: sql<number>`AVG(${cardThemes.confidence})`.as('avg_confidence')
+    })
+      .from(cardThemes)
+      .where(inArray(cardThemes.themeName, themes))
+      .groupBy(cardThemes.cardId)
+      .having(sql`COUNT(DISTINCT ${cardThemes.themeName}) >= ${Math.min(themes.length, 2)}`)
+      .orderBy(desc(sql`AVG(${cardThemes.confidence})`));
+    
+    if (cardIds.length === 0) return [];
+    
+    const cachedCards = await db.select()
+      .from(cardCache)
+      .where(inArray(cardCache.id, cardIds.map(c => c.cardId)));
+    
+    let cards = cachedCards.map(c => c.cardData);
+    
+    if (filters) {
+      cards = cards.filter(card => cardMatchesFilters(card, filters));
     }
     
     return cards;
   }
 
-  async getTagRelationships(tag: string): Promise<TagRelationship[]> {
+  async getThemeRelationships(theme: string): Promise<ThemeRelationship[]> {
     return db.select()
-      .from(tagRelationships)
-      .where(eq(tagRelationships.sourceTag, tag));
+      .from(themeRelationships)
+      .where(or(eq(themeRelationships.sourceTheme, theme), eq(themeRelationships.targetTheme, theme)))
+      .orderBy(desc(themeRelationships.synergyScore));
   }
 
-  async createTagRelationship(relationship: InsertTagRelationship): Promise<TagRelationship> {
-    const [result] = await db.insert(tagRelationships).values(relationship).returning();
+  async createThemeRelationship(relationship: InsertThemeRelationship): Promise<ThemeRelationship> {
+    const [result] = await db.insert(themeRelationships).values(relationship).returning();
     return result;
   }
 
-  async recordUserTagFeedback(feedback: InsertUserTagFeedback): Promise<void> {
-    await db.insert(userTagFeedback).values(feedback);
+  async recordUserThemeFeedback(feedback: InsertUserThemeFeedback): Promise<void> {
+    await db.insert(userThemeFeedback).values(feedback);
+  }
+
+  async calculateThemeSynergyScore(sourceThemes: string[], targetThemes: string[]): Promise<{score: number, reason: string}> {
+    if (sourceThemes.length === 0 || targetThemes.length === 0) {
+      return { score: 0, reason: "No themes to compare" };
+    }
+
+    // Find shared themes
+    const sharedThemes = sourceThemes.filter(theme => targetThemes.includes(theme));
+    
+    if (sharedThemes.length > 0) {
+      const sharedScore = sharedThemes.length / Math.max(sourceThemes.length, targetThemes.length);
+      return { 
+        score: Math.min(sharedScore * 1.5, 1.0), 
+        reason: `Shares ${sharedThemes.length} theme(s): ${sharedThemes.join(', ')}` 
+      };
+    }
+
+    // Check theme relationships
+    let maxSynergyScore = 0;
+    let bestRelationship = '';
+    
+    for (const sourceTheme of sourceThemes) {
+      const relationships = await this.getThemeRelationships(sourceTheme);
+      
+      for (const relationship of relationships) {
+        const relatedTheme = relationship.sourceTheme === sourceTheme ? 
+          relationship.targetTheme : relationship.sourceTheme;
+        
+        if (targetThemes.includes(relatedTheme) && relationship.synergyScore > maxSynergyScore) {
+          maxSynergyScore = relationship.synergyScore;
+          bestRelationship = `${sourceTheme} synergizes with ${relatedTheme}`;
+        }
+      }
+    }
+
+    return { 
+      score: maxSynergyScore, 
+      reason: bestRelationship || "No theme synergy found" 
+    };
   }
 
   async createDeck(deck: InsertDeck): Promise<Deck> {

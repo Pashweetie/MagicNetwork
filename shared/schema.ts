@@ -144,58 +144,55 @@ export const userInteractions = pgTable('user_interactions', {
 
 
 
-// Card tags system for improved recommendations
-export const cardTags = pgTable('card_tags', {
+// Enhanced themes system for synergy analysis
+export const cardThemes = pgTable('card_themes', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
-  cardId: text('card_id').notNull(),
-  tag: text('tag').notNull(),
-  confidence: real('confidence').default(0.8),
+  cardId: text('card_id').references(() => cardCache.id).notNull(),
+  themeName: text('theme_name').notNull(),
+  themeCategory: text('theme_category').notNull(), // 'strategy', 'archetype', 'mechanic', 'synergy'  
+  confidence: real('confidence').notNull(), // 0-1 confidence score
+  keywords: text('keywords').array(), // Keywords that triggered this theme
+  description: text('description'),
   aiGenerated: boolean('ai_generated').default(true),
   upvotes: integer('upvotes').default(0),
   downvotes: integer('downvotes').default(0),
-  createdAt: timestamp('created_at').defaultNow(),
-  lastUpdated: timestamp('last_updated').defaultNow()
-});
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+}, (table) => ({
+  cardThemeIdx: index('card_theme_idx').on(table.cardId, table.themeName),
+  themeNameIdx: index('theme_name_idx').on(table.themeName),
+  confidenceIdx: index('theme_confidence_idx').on(table.confidence),
+}));
 
-// Tag relationships for synergy analysis
-export const tagRelationships = pgTable('tag_relationships', {
+// Theme relationships for synergy analysis
+export const themeRelationships = pgTable('theme_relationships', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
-  sourceTag: text('source_tag').notNull(),
-  targetTag: text('target_tag').notNull(),
-  synergyScore: real('synergy_score').default(0.5),
-  relationshipType: text('relationship_type').notNull(),
+  sourceTheme: text('source_theme').notNull(),
+  targetTheme: text('target_theme').notNull(),
+  synergyScore: real('synergy_score').default(0.5), // 0-1 synergy strength
+  relationshipType: text('relationship_type').notNull(), // 'synergy', 'neutral', 'antagony'
   userFeedbackScore: real('user_feedback_score').default(0),
   aiGenerated: boolean('ai_generated').default(true),
   upvotes: integer('upvotes').default(0),
   downvotes: integer('downvotes').default(0),
-  createdAt: timestamp('created_at').defaultNow(),
-  lastUpdated: timestamp('last_updated').defaultNow()
-});
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+}, (table) => ({
+  sourceThemeIdx: index('theme_rel_source_idx').on(table.sourceTheme),
+  targetThemeIdx: index('theme_rel_target_idx').on(table.targetTheme),
+  synergyIdx: index('theme_rel_synergy_idx').on(table.synergyScore),
+}));
 
-// User tag feedback
-export const userTagFeedback = pgTable('user_tag_feedback', {
+// User theme feedback
+export const userThemeFeedback = pgTable('user_theme_feedback', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
   userId: integer('user_id').references(() => users.id),
   cardId: text('card_id').notNull(),
-  tag: text('tag').notNull(),
-  vote: text('vote').notNull(),
-  createdAt: timestamp('created_at').defaultNow()
-});
-
-// Legacy themes table
-export const cardThemes = pgTable('card_themes', {
-  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
-  card_id: text('card_id').references(() => cardCache.id).notNull(),
-  theme_name: text('theme_name').notNull(),
-  theme_category: text('theme_category').notNull(), // 'strategy', 'archetype', 'mechanic', 'synergy'  
-  confidence: real('confidence').notNull(), // 0-1 confidence score
-  keywords: text('keywords').array(), // Keywords that triggered this theme
-  description: text('description'),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  last_updated: timestamp('last_updated').defaultNow().notNull(),
+  themeName: text('theme_name').notNull(),
+  vote: text('vote').notNull(), // 'up', 'down'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
-  cardThemeIdx: index('card_theme_idx').on(table.card_id, table.theme_name),
-  themeNameIdx: index('theme_name_idx').on(table.theme_name),
+  userCardThemeIdx: index('user_theme_feedback_idx').on(table.userId, table.cardId, table.themeName),
 }));
 
 // User feedback for improving recommendations
@@ -221,10 +218,9 @@ export const insertSearchCacheSchema = createInsertSchema(searchCache).omit({ id
 export const insertCardRecommendationSchema = createInsertSchema(cardRecommendations).omit({ id: true, createdAt: true });
 export const insertUserInteractionSchema = createInsertSchema(userInteractions).omit({ id: true, createdAt: true });
 
-export const insertCardTagSchema = createInsertSchema(cardTags).omit({ id: true, createdAt: true, lastUpdated: true });
-export const insertTagRelationshipSchema = createInsertSchema(tagRelationships).omit({ id: true, createdAt: true, lastUpdated: true });
-export const insertUserTagFeedbackSchema = createInsertSchema(userTagFeedback).omit({ id: true, createdAt: true });
-export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, created_at: true, last_updated: true });
+export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, createdAt: true, lastUpdated: true });
+export const insertThemeRelationshipSchema = createInsertSchema(themeRelationships).omit({ id: true, createdAt: true, lastUpdated: true });
+export const insertUserThemeFeedbackSchema = createInsertSchema(userThemeFeedback).omit({ id: true, createdAt: true });
 export const insertRecommendationFeedbackSchema = createInsertSchema(recommendationFeedback).omit({ id: true, createdAt: true });
 // User votes tracking for recommendations and themes
 export const userVotes = pgTable('user_votes', {
@@ -283,16 +279,14 @@ export type InsertCardRecommendation = z.infer<typeof insertCardRecommendationSc
 export type UserInteraction = typeof userInteractions.$inferSelect;
 export type InsertUserInteraction = z.infer<typeof insertUserInteractionSchema>;
 
-export type CardTag = typeof cardTags.$inferSelect;
-export type InsertCardTag = z.infer<typeof insertCardTagSchema>;
-export type TagRelationship = typeof tagRelationships.$inferSelect;
-export type InsertTagRelationship = z.infer<typeof insertTagRelationshipSchema>;
-export type UserTagFeedback = typeof userTagFeedback.$inferSelect;
-export type InsertUserTagFeedback = z.infer<typeof insertUserTagFeedbackSchema>;
 export type UserDeck = typeof userDecks.$inferSelect;
 export type InsertUserDeck = z.infer<typeof insertUserDeckSchema>;
 export type CardTheme = typeof cardThemes.$inferSelect;
 export type InsertCardTheme = z.infer<typeof insertCardThemeSchema>;
+export type ThemeRelationship = typeof themeRelationships.$inferSelect;
+export type InsertThemeRelationship = z.infer<typeof insertThemeRelationshipSchema>;
+export type UserThemeFeedback = typeof userThemeFeedback.$inferSelect;
+export type InsertUserThemeFeedback = z.infer<typeof insertUserThemeFeedbackSchema>;
 export type RecommendationFeedback = typeof recommendationFeedback.$inferSelect;
 export type InsertRecommendationFeedback = z.infer<typeof insertRecommendationFeedbackSchema>;
 
