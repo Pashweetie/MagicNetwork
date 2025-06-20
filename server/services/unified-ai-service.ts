@@ -116,40 +116,48 @@ For TAGS, focus on:
   }
 
   // Get cached tags or generate new ones
-  async getCardTags(card: Card): Promise<Array<{tag: string, confidence: number}>> {
+  async getCardThemes(card: Card): Promise<Array<{theme: string, description: string, confidence: number, category: string}>> {
     try {
-      const existingTags = await db
+      const existingThemes = await db
         .select()
-        .from(cardTags)
-        .where(eq(cardTags.cardId, card.id))
+        .from(cardThemes)
+        .where(eq(cardThemes.cardId, card.id))
         .limit(8);
 
-      if (existingTags.length > 0) {
-        return existingTags.map(t => ({tag: t.tag, confidence: t.confidence || 0.8}));
+      if (existingThemes.length > 0) {
+        return existingThemes.map(t => ({
+          theme: t.themeName,
+          description: t.description || '',
+          confidence: t.confidence,
+          category: t.themeCategory
+        }));
       }
 
       const analysis = await this.analyzeCard(card);
       
-      // Store tags in database
-      for (const tagData of analysis.tags) {
+      // Store themes in database
+      for (const themeData of analysis.themes || []) {
         try {
-          await db.insert(cardTags).values({
+          await db.insert(cardThemes).values({
             cardId: card.id,
-            tag: tagData.tag,
-            confidence: tagData.confidence,
+            themeName: themeData.theme,
+            themeCategory: themeData.category,
+            confidence: themeData.confidence,
+            description: themeData.description,
+            keywords: [],
             aiGenerated: true,
             upvotes: 0,
             downvotes: 0
           }).onConflictDoNothing();
         } catch (error) {
-          console.error('Failed to store tag:', error);
+          console.error('Failed to store theme:', error);
         }
       }
 
-      return analysis.tags;
+      return analysis.themes;
     } catch (error) {
-      console.error('Error getting card tags:', error);
-      return this.getFallbackTags(card);
+      console.error('Error getting card themes:', error);
+      return this.getFallbackThemes(card);
     }
   }
 

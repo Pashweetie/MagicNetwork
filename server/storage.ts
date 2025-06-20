@@ -1,7 +1,7 @@
 import { db } from "./db";
-import { cardCache, searchCache, users, cardRecommendations, userInteractions, recommendationFeedback, cardThemes, decks, userDecks, cardTags, tagRelationships, userTagFeedback } from "@shared/schema";
-import { Card, SearchFilters, SearchResponse, User, InsertUser, CardRecommendation, InsertCardRecommendation, UserInteraction, InsertUserInteraction, InsertRecommendationFeedback, Deck, InsertDeck, UserDeck, InsertUserDeck, DeckEntry, CardTag, InsertCardTag, TagRelationship, InsertTagRelationship, UserTagFeedback, InsertUserTagFeedback } from "@shared/schema";
-import { eq, sql, and, desc, asc } from "drizzle-orm";
+import { cardCache, searchCache, users, cardRecommendations, userInteractions, recommendationFeedback, cardThemes, themeRelationships, userThemeFeedback, decks, userDecks } from "@shared/schema";
+import { Card, SearchFilters, SearchResponse, User, InsertUser, CardRecommendation, InsertCardRecommendation, UserInteraction, InsertUserInteraction, InsertRecommendationFeedback, Deck, InsertDeck, UserDeck, InsertUserDeck, DeckEntry, CardTheme, InsertCardTheme, ThemeRelationship, InsertThemeRelationship, UserThemeFeedback, InsertUserThemeFeedback } from "@shared/schema";
+import { eq, sql, and, desc, asc, inArray, or } from "drizzle-orm";
 import crypto from "crypto";
 import { scryfallService } from "./services/scryfall";
 import { cardMatchesFilters } from "./utils/card-filters";
