@@ -292,122 +292,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Update theme confidence based on votes
-      await updateThemeConfidenceFromVotes(cardId, themeName);
+      // Calculate new confidence using your specified algorithm
+      const allVotes = await db
+        .select()
+        .from(themeVotes)
+        .where(and(
+          eq(themeVotes.card_id, cardId),
+          eq(themeVotes.theme_name, themeName)
+        ));
 
-      res.json({ success: true });
-    } catch (error) {
-      console.error('Theme vote error:', error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
+      const upVotes = allVotes.filter(v => v.vote === 'up').length;
+      const downVotes = allVotes.filter(v => v.vote === 'down').length;
+      const totalVotes = upVotes + downVotes;
 
-  // Theme voting endpoint
-  app.post('/api/cards/:cardId/theme-vote', async (req, res) => {
-    try {
-      const { cardId } = req.params;
-      const { themeName, vote } = req.body;
-      const userId = 1;
-
-      const { db } = await import('./db');
-      const { cardThemes } = await import('@shared/schema');
-      const { eq, and, sql } = await import('drizzle-orm');
-      
-      const theme = await db.select().from(cardThemes)
-        .where(and(eq(cardThemes.card_id, cardId), eq(cardThemes.theme_name, themeName)))
+      // Get current confidence from card_themes
+      const currentTheme = await db
+        .select()
+        .from(cardThemes)
+        .where(and(
+          eq(cardThemes.card_id, cardId),
+          eq(cardThemes.theme_name, themeName)
+        ))
         .limit(1);
 
-      if (!theme.length) {
-        // Theme doesn't exist in database yet, create it
-        await db.execute(sql`
-          INSERT INTO card_themes (card_id, theme_name, theme_category, confidence, description, upvotes, downvotes, user_votes_count)
-          VALUES (${cardId}, ${themeName}, 'ai_generated', 50, 'AI-identified theme', 0, 0, 0)
-        `);
-        
-        // Retry fetching the theme
-        const newTheme = await db.select().from(cardThemes)
-          .where(and(eq(cardThemes.card_id, cardId), eq(cardThemes.theme_name, themeName)))
-          .limit(1);
-          
-        if (!newTheme.length) {
-          return res.status(500).json({ error: 'Failed to create theme entry' });
-        }
-        
-        theme.push(newTheme[0]);
+      if (currentTheme.length === 0) {
+        return res.status(404).json({ error: 'Theme not found' });
       }
 
-      // Check if user already voted on this specific card-theme combination
-      const existingVote = await db.execute(sql`
-        SELECT id FROM user_votes 
-        WHERE user_id = ${userId} AND target_type = 'theme' AND target_id = ${theme[0].id}
-      `);
+      let newConfidence = currentTheme[0].confidence;
 
-      if (existingVote.rows.length > 0) {
-        // Allow users to change their vote by updating existing record
-        await db.execute(sql`
-          UPDATE user_votes 
-          SET vote = ${vote}, created_at = NOW()
-          WHERE user_id = ${userId} AND target_type = 'theme' AND target_id = ${theme[0].id}
-        `);
-        console.log(`Updated existing vote for user ${userId} on theme ${theme[0].id}`);
-      } else {
-        // Record new vote
-        await db.execute(sql`
-          INSERT INTO user_votes (user_id, target_type, target_id, vote)
-          VALUES (${userId}, 'theme', ${theme[0].id}, ${vote})
-        `);
-        console.log(`Created new vote for user ${userId} on theme ${theme[0].id}`);
-      }
-
-
-
-      // Update vote counts using raw SQL since schema may not have these columns yet
-      const voteIncrement = vote === 'up' ? 1 : 0;
-      const downvoteIncrement = vote === 'down' ? 1 : 0;
-      
-      await db.execute(sql`
-        UPDATE card_themes 
-        SET user_upvotes = COALESCE(user_upvotes, 0) + ${voteIncrement},
-            user_downvotes = COALESCE(user_downvotes, 0) + ${downvoteIncrement},
-            last_updated = NOW()
-        WHERE id = ${theme[0].id}
-      `);
-
-      // Get updated theme data
-      const updatedTheme = await db.execute(sql`
-        SELECT user_upvotes, user_downvotes, base_confidence FROM card_themes WHERE id = ${theme[0].id}
-      `);
-      
-      const upvotes = Number(updatedTheme.rows[0]?.user_upvotes) || 0;
-      const downvotes = Number(updatedTheme.rows[0]?.user_downvotes) || 0;
-      const baseConfidence = Number(updatedTheme.rows[0]?.base_confidence) || 50;
-      
-      // Unified scoring system: base AI confidence + user vote impact
-      const totalVotes = upvotes + downvotes;
-      const netVotes = upvotes - downvotes;
-      
-      // Each vote contributes at least 1%, with diminishing returns
-      let voteImpact = 0;
+      // Apply your voting algorithm: max(1%, 10%/votes) adjustment
       if (totalVotes > 0) {
-        const diminishingFactor = Math.max(0.1, 1 / Math.sqrt(totalVotes)); // Minimum 10% effectiveness
-        voteImpact = netVotes * Math.max(1, 10 * diminishingFactor); // Each vote worth at least 1%
+        const adjustmentPerVote = Math.max(1, 10 / totalVotes);
+        const netVotes = upVotes - downVotes;
+        newConfidence = Math.max(0, Math.min(100, currentTheme[0].confidence + (netVotes * adjustmentPerVote)));
       }
-      
-      const finalScore = Math.max(0, Math.min(100, Math.round(baseConfidence + voteImpact)));
 
-      await db.execute(sql`
-        UPDATE card_themes SET final_score = ${finalScore} WHERE id = ${theme[0].id}
-      `);
+      // Update confidence in database
+      await db
+        .update(cardThemes)
+        .set({ confidence: newConfidence })
+        .where(and(
+          eq(cardThemes.card_id, cardId),
+          eq(cardThemes.theme_name, themeName)
+        ));
 
-      res.json({ 
-        success: true, 
-        message: `Vote recorded! Theme score updated.`,
-        newScore: finalScore,
-        upvotes: upvotes,
-        downvotes: downvotes
-      });
+      res.json({ success: true, newScore: newConfidence });
     } catch (error) {
-      console.error('Error recording theme vote:', error);
+      console.error('Theme vote error:', error);
       res.status(500).json({ error: 'Failed to record vote' });
     }
   });
