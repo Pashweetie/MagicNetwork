@@ -285,7 +285,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .limit(1);
 
       if (existingVote.length > 0) {
-        // User already voted, update their existing vote
+        // Check if user is trying to vote the same way again
+        if (existingVote[0].vote === vote) {
+          return res.status(400).json({ 
+            error: `You already voted ${vote} on this theme`,
+            sameVote: true
+          });
+        }
+        
+        // User already voted differently, update their existing vote
         await db
           .update(themeVotes)
           .set({ vote: vote })

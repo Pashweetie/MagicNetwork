@@ -115,9 +115,15 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
         } else {
           UIUtils.showToast(`Theme confidence updated to ${Math.round(result.newScore)}%`);
         }
-      } else {
+      } else if (response.status === 400) {
         const error = await response.json();
-        UIUtils.showToast(error.error || 'Failed to record vote', 'error');
+        if (error.sameVote) {
+          UIUtils.showToast(error.error, 'warning');
+        } else {
+          UIUtils.showToast(error.error || 'Failed to record vote', 'error');
+        }
+      } else {
+        UIUtils.showToast('Failed to record vote', 'error');
       }
     } catch (error) {
       console.error('Failed to vote on card theme:', error);
