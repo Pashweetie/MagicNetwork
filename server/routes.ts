@@ -2,12 +2,10 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { recommendationService } from "./services/recommendation";
-import { pureAIService } from "./services/pure-ai-recommendations";
-import { tagSystem } from "./services/tag-system";
-import { searchFiltersSchema, cardCache } from "@shared/schema";
+import { aiRecommendationService } from "./services/ai-recommendation-service";
+import { searchFiltersSchema, cardCache, cardThemes, themeVotes } from "@shared/schema";
 import { db } from "./db";
-import { desc } from "drizzle-orm";
+import { desc, eq, and, count } from "drizzle-orm";
 import { z } from "zod";
 import { cardMatchesFilters } from "./utils/card-filters";
 
@@ -205,7 +203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Theme suggestions endpoint (AI-powered)
+  // Theme suggestions endpoint - get themes for a card with example cards
   app.get("/api/cards/:id/theme-suggestions", async (req, res) => {
     try {
       const { id } = req.params;
@@ -215,16 +213,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (filters && typeof filters === 'string') {
         try {
           filterObj = JSON.parse(filters);
-          console.log(`🎯 Theme suggestions for ${id} with filters:`, filterObj);
         } catch (e) {
           console.warn('Invalid filters JSON:', filters);
         }
       }
       
-      const themeGroups = await recommendationService.getThemeSuggestions(id, filterObj);
+      // Get the card first
+      const card = await storage.getCard(id);
+      if (!card) {
+        return res.status(404).json({ message: "Card not found" });
+      }
+
+      // Generate themes if they don't exist
+      await aiRecommendationService.generateCardThemes(card);
       
-      console.log(`📊 Returning ${themeGroups.length} filtered theme groups:`, 
-        themeGroups.map(t => ({ theme: t.theme, cards: t.cards.length })));
+      // Get card's themes
+      const cardThemes = await db
+        .select()
+        .from(cardThemes)
+        .where(eq(cardThemes.card_id, id));
+
+      const themeGroups = [];
+      
+      // For each theme, get example cards
+      for (const theme of cardThemes) {
+        const cards = await aiRecommendationService.getCardsForTheme(
+          theme.theme_name, 
+          id, 
+          filterObj
+        );
+        
+        themeGroups.push({
+          theme: theme.theme_name,
+          description: `${theme.theme_name} strategy`,
+          confidence: theme.confidence,
+          cards: cards
+        });
+      }
       
       res.json(themeGroups);
     } catch (error) {
@@ -233,21 +258,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get card tags
-  app.get('/api/cards/:cardId/tags', async (req, res) => {
+  // Theme voting endpoint
+  app.post('/api/cards/:cardId/theme-vote', async (req, res) => {
     try {
       const { cardId } = req.params;
-      
-      const card = await storage.getCard(cardId);
-      if (!card) {
-        return res.status(404).json({ error: 'Card not found' });
+      const { themeName, vote } = req.body;
+      const userId = 1; // Default user for now
+
+      // Check if user already voted on this theme
+      const existingVote = await db
+        .select()
+        .from(themeVotes)
+        .where(and(
+          eq(themeVotes.card_id, cardId),
+          eq(themeVotes.theme_name, themeName),
+          eq(themeVotes.user_id, userId)
+        ))
+        .limit(1);
+
+      if (existingVote.length > 0) {
+        // Update existing vote
+        await db
+          .update(themeVotes)
+          .set({ vote: vote, created_at: new Date() })
+          .where(eq(themeVotes.id, existingVote[0].id));
+      } else {
+        // Create new vote
+        await db.insert(themeVotes).values({
+          card_id: cardId,
+          theme_name: themeName,
+          user_id: userId,
+          vote: vote
+        });
       }
 
-      const tags = await tagSystem.generateCardTags(card);
-      res.json(tags);
+      // Update theme confidence based on votes
+      await updateThemeConfidence(cardId, themeName);
+
+      res.json({ success: true });
     } catch (error) {
-      console.error('Card tags error:', error);
-      res.status(500).json({ error: 'Failed to get card tags' });
+      console.error('Theme vote error:', error);
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 
@@ -543,8 +594,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { cardId } = req.params;
       const { filters } = req.query;
       
-      console.log(`🔍 Getting theme synergies for card: ${cardId}`);
-      
       // Get the source card
       const sourceCard = await storage.getCard(cardId);
       if (!sourceCard) {
@@ -561,20 +610,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Get themes for source card
-      const sourceThemes = await recommendationService.getThemeSuggestions(cardId, parsedFilters);
-      if (!sourceThemes || sourceThemes.length === 0) {
-        console.log('❌ No source themes found for synergy analysis');
-        return res.json([]);
-      }
+      // Generate themes if they don't exist
+      await aiRecommendationService.generateCardThemes(sourceCard);
       
-      console.log(`📋 Found ${sourceThemes.length} source themes for synergy analysis`);
+      // Find synergy recommendations using new algorithm
+      const synergies = await aiRecommendationService.findSynergyRecommendations(
+        cardId, 
+        parsedFilters
+      );
       
-      // Find cards that share themes
-      const synergies = await storage.findCardsBySharedThemes(sourceCard, sourceThemes, parsedFilters);
+      // Format for frontend
+      const formattedSynergies = synergies.map(synergy => ({
+        card: synergy.card,
+        sharedThemes: [], // We'll populate this if needed
+        synergyScore: synergy.synergyScore,
+        reason: `${Math.round(synergy.synergyScore)}% theme match`
+      }));
       
-      console.log(`🎯 Returning ${synergies.length} synergy cards`);
-      res.json(synergies);
+      res.json(formattedSynergies);
     } catch (error) {
       console.error('Theme synergies error:', error);
       res.status(500).json({ message: "Internal server error" });

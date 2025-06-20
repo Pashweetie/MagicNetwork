@@ -1,9 +1,7 @@
 import { storage } from "../storage";
 import { Card } from "@shared/schema";
-import { pureAIService } from "./pure-ai-recommendations";
-import { themeSystem } from "./theme-system";
+import { aiRecommendationService } from "./ai-recommendation-service";
 import { cardMatchesFilters } from "../utils/card-filters";
-import { and, ne, sql } from "drizzle-orm";
 
 export class RecommendationService {
   
@@ -47,7 +45,14 @@ export class RecommendationService {
       if (existingThemes.length === 0) {
         // Generate themes if none exist
         console.log(`No existing themes found, generating AI themes for ${card.name}`);
-        aiThemes = await pureAIService.analyzeCardThemes(card);
+        await aiRecommendationService.generateCardThemes(card);
+        
+        // Get the newly generated themes
+        const newThemes = await storage.getCardThemes(cardId);
+        aiThemes = newThemes.map(t => ({
+          theme: t.theme_name,
+          description: `${t.theme_name} strategy`
+        }));
         console.log(`AI identified ${aiThemes.length} themes for ${card.name}`);
         
         // Trigger storage of themes (this happens in analyzeCardThemes via unifiedAIService)
