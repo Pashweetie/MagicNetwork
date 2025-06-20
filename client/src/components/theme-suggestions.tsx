@@ -182,56 +182,61 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
                       onClick={onCardClick}
                     />
                     
-                    {/* Vote buttons for theme relevance - positioned on bottom left */}
-                    <div className="absolute bottom-1 left-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className={`w-4 h-4 p-0 rounded-full ${
-                          cardVotes[themeCard.id]?.[group.theme] === 'up'
-                            ? 'bg-green-600 text-white'
-                            : 'bg-black/70 text-green-400 hover:bg-green-600'
-                        }`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCardThemeVote(themeCard, group.theme, 'up');
-                        }}
-                        title={`This card fits the ${group.theme} theme`}
-                      >
-                        <ThumbsUp className="w-2 h-2" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className={`w-4 h-4 p-0 rounded-full ${
-                          cardVotes[themeCard.id]?.[group.theme] === 'down'
-                            ? 'bg-red-600 text-white'
-                            : 'bg-black/70 text-red-400 hover:bg-red-600'
-                        }`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCardThemeVote(themeCard, group.theme, 'down');
-                        }}
-                        title={`This card doesn't fit the ${group.theme} theme`}
-                      >
-                        <ThumbsDown className="w-2 h-2" />
-                      </Button>
-                    </div>
+                    {/* Interactive overlay section at bottom */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-between">
+                        {/* Vote buttons for theme relevance */}
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className={`w-5 h-5 p-0 rounded-full ${
+                              cardVotes[themeCard.id]?.[group.theme] === 'up'
+                                ? 'bg-green-600 text-white'
+                                : 'bg-black/50 text-green-400 hover:bg-green-600'
+                            }`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCardThemeVote(themeCard, group.theme, 'up');
+                            }}
+                            title={`This card fits the ${group.theme} theme`}
+                          >
+                            <ThumbsUp className="w-2.5 h-2.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className={`w-5 h-5 p-0 rounded-full ${
+                              cardVotes[themeCard.id]?.[group.theme] === 'down'
+                                ? 'bg-red-600 text-white'
+                                : 'bg-black/50 text-red-400 hover:bg-red-600'
+                            }`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCardThemeVote(themeCard, group.theme, 'down');
+                            }}
+                            title={`This card doesn't fit the ${group.theme} theme`}
+                          >
+                            <ThumbsDown className="w-2.5 h-2.5" />
+                          </Button>
+                        </div>
 
-                    {/* Add to deck button - positioned in bottom right */}
-                    {onAddCard && (
-                      <Button
-                        size="sm"
-                        className="absolute bottom-1 right-1 w-5 h-5 p-0 bg-blue-600 hover:bg-blue-700 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onAddCard(themeCard);
-                        }}
-                        title="Add to deck"
-                      >
-                        <Plus className="w-2.5 h-2.5" />
-                      </Button>
-                    )}
+                        {/* Add to deck button */}
+                        {onAddCard && (
+                          <Button
+                            size="sm"
+                            className="w-6 h-6 p-0 bg-blue-600 hover:bg-blue-700 rounded-full"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAddCard(themeCard);
+                            }}
+                            title="Add to deck"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>

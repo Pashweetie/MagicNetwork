@@ -74,16 +74,18 @@ function SearchVariant({
               <span className="text-slate-400 text-sm">No Image</span>
             </div>
           )}
-          {price && (
-            <div className="absolute top-2 right-2 bg-black/75 text-white text-xs px-2 py-1 rounded">
-              {price}
-            </div>
-          )}
         </div>
         <div className="p-3">
-          <h3 className="text-sm font-medium text-white truncate">
-            {card.name}
-          </h3>
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <h3 className="text-sm font-medium text-white truncate flex-1">
+              {card.name}
+            </h3>
+            {price && (
+              <span className="text-xs text-green-400 font-medium bg-slate-700 px-2 py-0.5 rounded">
+                {price}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-400 truncate">
             {card.type_line || 'Unknown Type'}
           </p>
