@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card as UICard, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Grid, List, Package, Settings, X, Crown, ChevronUp, ChevronDown, Upload } from "lucide-react";
+import { Grid, List, Package, Settings, X, Crown, ChevronUp, ChevronDown, Upload, Trash2 } from "lucide-react";
 import { useCardSearch } from "@/hooks/use-scryfall";
 import { useDeck, FORMATS } from "@/hooks/use-deck";
 import { ScryfallQueryParser, ScryfallParser } from "@/lib/scryfall-parser";
@@ -332,6 +332,20 @@ export default function Search() {
                           Import
                         </Button>
                       </DeckImportDialog>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          if (confirm('Are you sure you want to clear your entire deck?')) {
+                            deck.clearDeck();
+                          }
+                        }}
+                        className="text-red-400 border-red-500/50 hover:bg-red-900/20 hover:border-red-400"
+                        disabled={deck.totalCards === 0}
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Clear
+                      </Button>
                       <Button
                         size="sm"
                         variant="ghost"
