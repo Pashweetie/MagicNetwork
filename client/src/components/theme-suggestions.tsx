@@ -57,17 +57,100 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
       UIUtils.disableVoteButtons(`[data-theme="${themeName}"]`);
     }
   };
-      console.error('Failed to submit feedback:', error);
-      // Show error toast
-      const toast = document.createElement('div');
-      toast.className = 'fixed top-4 right-4 bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-      toast.textContent = 'Failed to record vote. Please try again.';
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 2000);
-    }
-  };
 
-  const handleCardThemeVote = async (cardId: string, themeName: string, vote: 'up' | 'down') => {
+  if (isLoading) {
+    return UIUtils.createLoadingState('Loading theme suggestions...');
+  }
+
+  if (error) {
+    return UIUtils.createErrorState('Failed to load theme suggestions');
+  }
+
+  if (!themeGroups || themeGroups.length === 0) {
+    return UIUtils.createEmptyState(
+      'No theme suggestions found',
+      'Try adjusting your search filters',
+      <Sparkles className="w-12 h-12" />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Sparkles className="w-5 h-5 text-purple-400" />
+        <h3 className="text-lg font-semibold text-white">AI Theme Analysis</h3>
+      </div>
+
+      {themeGroups.map((group: ThemeGroup, index: number) => (
+        <div key={index} className="bg-slate-800 rounded-lg p-4 border border-slate-700" data-theme={group.theme}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <h4 className="text-white font-medium">{group.theme}</h4>
+              <span className="confidence-display text-sm text-slate-300 bg-slate-700 px-2 py-1 rounded">
+                {Math.round(group.confidence * 100)}%
+              </span>
+            </div>
+            
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0 hover:bg-green-600"
+                onClick={() => handleThemeVote(group.theme, 'up')}
+                title="Vote theme as helpful"
+              >
+                <ThumbsUp className="w-3 h-3" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0 hover:bg-red-600"
+                onClick={() => handleThemeVote(group.theme, 'down')}
+                title="Vote theme as not helpful"
+              >
+                <ThumbsDown className="w-3 h-3" />
+              </Button>
+            </div>
+          </div>
+          
+          <p className="text-sm text-slate-400 mb-4">{group.description}</p>
+          
+          {group.cards && group.cards.length > 0 && (
+            <div>
+              <h5 className="text-sm font-medium text-slate-300 mb-2 flex items-center gap-1">
+                <Users className="w-4 h-4" />
+                Similar Cards ({group.cards.length})
+              </h5>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                {group.cards.slice(0, 12).map((card) => (
+                  <div key={card.id} className="relative">
+                    <SharedCardTile
+                      variant="search"
+                      card={card}
+                      onClick={onCardClick}
+                    />
+                    {onAddCard && (
+                      <Button
+                        size="sm"
+                        className="absolute bottom-1 right-1 w-6 h-6 p-0 bg-blue-600 hover:bg-blue-700 z-10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddCard(card);
+                        }}
+                      >
+                        <Plus className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
     const voteKey = `${cardId}-${themeName}`;
     if (userHasVoted[voteKey]) {
       const toast = document.createElement('div');

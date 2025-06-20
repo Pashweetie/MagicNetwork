@@ -4,8 +4,9 @@ import { Card } from "@shared/schema";
 import { Loader2, GitMerge, ThumbsUp, ThumbsDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CardTile } from "./card-tile";
+import { SharedCardTile } from "./shared-card-tile";
 import { queryClient } from "@/lib/queryClient";
+import { UIUtils, VoteHandler } from "@shared/utils/ui-utils";
 
 interface ThemeBasedSynergiesProps {
   cardId: string;
@@ -46,58 +47,40 @@ export function ThemeBasedSynergies({ cardId, onCardClick, onAddCard, currentFil
   });
 
   const handleFeedback = async (recommendedCardId: string, helpful: boolean) => {
-    try {
-      const response = await fetch(`/api/cards/${cardId}/recommendation-feedback`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          recommendedCardId,
-          type: 'theme_synergy',
-          helpful: helpful ? 'helpful' : 'not_helpful'
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to record feedback');
-      }
-      
+    const result = await VoteHandler.handleVote(
+      cardId,
+      'recommendation-feedback',
+      {
+        recommendedCardId,
+        type: 'theme_synergy',
+        helpful: helpful ? 'helpful' : 'not_helpful'
+      },
+      feedback,
+      setFeedback,
+      recommendedCardId
+    );
+    
+    if (result) {
       setFeedback(prev => ({
         ...prev,
         [recommendedCardId]: helpful ? 'helpful' : 'not_helpful'
       }));
-    } catch (error) {
-      console.error('Failed to record feedback:', error);
     }
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
-        <span className="ml-2 text-slate-400">Finding theme synergies...</span>
-      </div>
-    );
+    return UIUtils.createLoadingState('Finding theme synergies...');
   }
 
   if (error) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-slate-400">Failed to load theme synergies</p>
-      </div>
-    );
+    return UIUtils.createErrorState('Failed to load theme synergies');
   }
 
   if (!synergyData || synergyData.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <GitMerge className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-        <p className="text-slate-400">No theme synergies found</p>
-        <p className="text-sm text-slate-500 mt-2">
-          Try adjusting your search filters
-        </p>
-      </div>
+    return UIUtils.createEmptyState(
+      'No theme synergies found',
+      'Try adjusting your search filters',
+      <GitMerge className="w-12 h-12" />
     );
   }
 

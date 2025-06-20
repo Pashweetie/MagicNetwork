@@ -8,50 +8,7 @@ export class TagSystem {
     return unifiedAIService.getCardTags(card);
   }
 
-  private async generateTagsWithAI(card: Card): Promise<Array<{tag: string, confidence: number}>> {
-    if (!pureAIService.isReady) {
-      await pureAIService.initializeAI();
-      if (!pureAIService.isReady) {
-        return this.getFallbackTags(card);
-      }
-    }
-
-    try {
-      const cardContext = `Card: ${card.name}
-Type: ${card.type_line}
-Mana Cost: ${card.mana_cost || 'None'}
-Oracle Text: ${card.oracle_text || 'No text'}
-Power/Toughness: ${card.power && card.toughness ? `${card.power}/${card.toughness}` : 'N/A'}`;
-
-      if (pureAIService.textGenerator?.getGenerativeModel) {
-        const model = pureAIService.textGenerator.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const prompt = `Analyze this Magic: The Gathering card and generate 5-8 strategic tags that describe its mechanics, themes, and deck archetypes.
-
-${cardContext}
-
-Return tags as a comma-separated list of single words or short phrases (2-3 words max). Focus on:
-- Mechanical keywords (flying, trample, etc.)
-- Strategic archetypes (aggro, control, combo, midrange)
-- Tribal types (if relevant)
-- Resource types (artifacts, enchantments, etc.)
-- Win conditions (burn, mill, voltron, etc.)
-
-Example: flying, aggro, tempo, evasion, tribal-birds, early-game
-
-Tags:`;
-
-        const result = await model.generateContent(prompt);
-        const response = result.response.text() || '';
-        
-        return this.parseAITagResponse(response);
-      }
-    } catch (error) {
-      console.error('AI tag generation failed:', error);
-    }
-
-    return this.getFallbackTags(card);
-  }
-
+  // Legacy methods kept for any remaining direct calls
   private parseAITagResponse(response: string): Array<{tag: string, confidence: number}> {
     const tags: Array<{tag: string, confidence: number}> = [];
     
