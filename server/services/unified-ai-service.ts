@@ -63,7 +63,7 @@ Rules:
 
       const response = await AIUtils.generateWithAI(this.textGenerator, this.provider, prompt);
       if (response) {
-        return this.parseUnifiedResponse(response, card);
+        return await this.parseUnifiedResponse(response, card);
       }
     } catch (error) {
       console.error('Unified AI analysis failed:', error);
