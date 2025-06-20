@@ -38,30 +38,28 @@ export class UnifiedAIService {
 
     try {
       const cardContext = CardUtils.getCardContext(card);
-      const prompt = `Analyze this Magic: The Gathering card and provide both strategic themes and gameplay tags.
+      const { PREDEFINED_THEMES } = await import('@shared/predefined-themes');
+      const themeList = PREDEFINED_THEMES.join(', ');
+      
+      const prompt = `Analyze this Magic: The Gathering card and identify which themes it fits from this EXACT list:
 
+${themeList}
+
+Card Details:
 ${cardContext}
 
 Provide your analysis in this exact format:
 
 THEMES:
-[Theme 1]: [Description of theme strategy]
-[Theme 2]: [Description of theme strategy]
-[Theme 3]: [Description of theme strategy]
+[Theme from list]: [Why this card fits this theme]
+[Theme from list]: [Why this card fits this theme]
+[Theme from list]: [Why this card fits this theme]
 
-TAGS:
-[tag1, tag2, tag3, tag4, tag5, tag6]
-
-For THEMES, focus on:
-- Deck archetypes this card enables (aggro, control, combo, midrange)
-- Strategic synergies and build-around potential
-- Win condition strategies
-
-For TAGS, focus on:
-- Mechanical keywords (flying, trample, etc.)
-- Strategic categories (removal, ramp, draw, etc.)
-- Tribal types and artifact/enchantment synergies
-- Single words or short phrases only`;
+Rules:
+- Only use themes from the provided list above
+- Choose 1-3 most relevant themes
+- Each theme must be spelled exactly as shown in the list
+- Explain why the card fits each theme`;
 
       const response = await AIUtils.generateWithAI(this.textGenerator, this.provider, prompt);
       if (response) {

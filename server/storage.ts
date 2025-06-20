@@ -303,36 +303,50 @@ export class DatabaseStorage implements IStorage {
   ): Promise<Array<{card: Card, sharedThemes: Array<{theme: string, score: number}>, synergyScore: number, reason: string}>> {
     const synergies: Array<{card: Card, sharedThemes: Array<{theme: string, score: number}>, synergyScore: number, reason: string}> = [];
     
-    // Get source card's theme scores for comparison
+    // Get source card's theme scores
     const sourceCardThemes = await this.getCardThemes(sourceCard.id);
-    const sourceThemeScores = Object.fromEntries(
-      sourceCardThemes.map(t => [t.theme_name, t.final_score])
-    );
+    const sourceThemeMap = new Map(sourceCardThemes.map(t => [t.theme_name, t.final_score]));
     
+    // Collect all unique cards from all themes
+    const cardMap = new Map<string, Card>();
     for (const theme of sourceThemes) {
       for (const card of theme.cards) {
-        if (card.id === sourceCard.id) continue;
-        
-        // Get target card's theme scores
-        const targetCardThemes = await this.getCardThemes(card.id);
-        const targetThemeScore = targetCardThemes.find(t => t.theme_name === theme.theme)?.final_score || 0;
-        const sourceThemeScore = sourceThemeScores[theme.theme] || 0;
-        
-        // Calculate dynamic synergy score: average of both cards' theme scores
-        const dynamicScore = (targetThemeScore + sourceThemeScore) / 2;
-        
-        const existingEntry = synergies.find(s => s.card.id === card.id);
-        if (existingEntry) {
-          existingEntry.sharedThemes.push({ theme: theme.theme, score: dynamicScore });
-          existingEntry.synergyScore += dynamicScore;
-        } else {
-          synergies.push({
-            card,
-            sharedThemes: [{ theme: theme.theme, score: dynamicScore }],
-            synergyScore: dynamicScore,
-            reason: `Shares ${theme.theme} theme`
-          });
+        if (card.id !== sourceCard.id) {
+          cardMap.set(card.id, card);
         }
+      }
+    }
+    
+    // Calculate synergy for each card
+    for (const [cardId, card] of cardMap) {
+      const targetCardThemes = await this.getCardThemes(cardId);
+      const targetThemeMap = new Map(targetCardThemes.map(t => [t.theme_name, t.final_score]));
+      
+      const sharedThemes: Array<{theme: string, score: number}> = [];
+      let totalSynergyScore = 0;
+      
+      // Find matching themes and calculate scores
+      for (const [themeName, sourceScore] of sourceThemeMap) {
+        const targetScore = targetThemeMap.get(themeName);
+        if (targetScore !== undefined) {
+          // Average the scores for shared themes
+          const avgScore = (sourceScore + targetScore) / 2;
+          sharedThemes.push({ theme: themeName, score: avgScore });
+          totalSynergyScore += avgScore;
+        }
+      }
+      
+      // Only include cards with shared themes
+      if (sharedThemes.length > 0) {
+        // Calculate final synergy: percentage based on theme overlap
+        const finalScore = totalSynergyScore / sharedThemes.length;
+        
+        synergies.push({
+          card,
+          sharedThemes,
+          synergyScore: finalScore,
+          reason: `Shares ${sharedThemes.length} theme${sharedThemes.length > 1 ? 's' : ''}`
+        });
       }
     }
     
