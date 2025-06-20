@@ -17,7 +17,7 @@ interface ThemeBasedSynergiesProps {
 
 interface ThemeMatch {
   theme: string;
-  confidence: number;
+  score: number; // Changed from confidence to score for unified system
 }
 
 interface SynergyCard {
@@ -125,19 +125,20 @@ export function ThemeBasedSynergies({ cardId, onCardClick, onAddCard, currentFil
               </div>
             </div>
 
-            {/* Synergy details overlay - smaller */}
+            {/* Synergy score overlay - now based on unified theme scores */}
             <div className="absolute top-2 right-2 bg-black/90 rounded px-2 py-1 border border-blue-400/30">
               <div className="text-xs text-blue-300 font-bold">
-                {Math.round(synergy.synergyScore * 100)}%
+                {Math.round(synergy.synergyScore)}
               </div>
             </div>
 
-            {/* Theme badges overlay - smaller and compact */}
+            {/* Theme badges overlay - showing theme scores */}
             <div className="absolute top-2 left-2 flex flex-col gap-1">
               {synergy.sharedThemes.slice(0, 1).map((theme, themeIndex) => (
                 <span
                   key={themeIndex}
                   className="text-xs bg-purple-600/90 text-white px-2 py-0.5 rounded font-medium border border-purple-400/30"
+                  title={`Theme score: ${Math.round(theme.score || 0)}`}
                 >
                   {theme.theme}
                 </span>
@@ -155,7 +156,11 @@ export function ThemeBasedSynergies({ cardId, onCardClick, onAddCard, currentFil
                 <p className="text-sm font-medium mb-3">{synergy.reason}</p>
                 <div className="flex flex-wrap gap-2 justify-center mb-4">
                   {synergy.sharedThemes.map((theme, idx) => (
-                    <span key={idx} className="text-sm bg-purple-500/90 px-3 py-1 rounded-md border border-purple-400/30">
+                    <span 
+                      key={idx} 
+                      className="text-sm bg-purple-500/90 px-3 py-1 rounded-md border border-purple-400/30"
+                      title={`Score: ${Math.round(theme.score || 0)}`}
+                    >
                       {theme.theme}
                     </span>
                   ))}
@@ -176,38 +181,7 @@ export function ThemeBasedSynergies({ cardId, onCardClick, onAddCard, currentFil
                     </Button>
                   )}
                   
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleFeedback(synergy.card.id, true);
-                      }}
-                      className={`h-8 w-8 p-0 ${
-                        feedback[synergy.card.id] === 'helpful' 
-                          ? 'text-green-400 bg-green-400/20' 
-                          : 'text-slate-400 hover:text-green-400'
-                      }`}
-                    >
-                      <ThumbsUp className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleFeedback(synergy.card.id, false);
-                      }}
-                      className={`h-8 w-8 p-0 ${
-                        feedback[synergy.card.id] === 'not_helpful' 
-                          ? 'text-red-400 bg-red-400/20' 
-                          : 'text-slate-400 hover:text-red-400'
-                      }`}
-                    >
-                      <ThumbsDown className="w-4 h-4" />
-                    </Button>
-                  </div>
+                  {/* Removed synergy voting buttons - all voting now theme-based */}
                 </div>
               </div>
             </div>

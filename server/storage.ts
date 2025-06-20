@@ -300,22 +300,36 @@ export class DatabaseStorage implements IStorage {
     sourceCard: Card, 
     sourceThemes: Array<{theme: string, description: string, confidence: number, cards: Card[]}>, 
     filters?: any
-  ): Promise<Array<{card: Card, sharedThemes: Array<{theme: string, confidence: number}>, synergyScore: number, reason: string}>> {
-    const synergies: Array<{card: Card, sharedThemes: Array<{theme: string, confidence: number}>, synergyScore: number, reason: string}> = [];
+  ): Promise<Array<{card: Card, sharedThemes: Array<{theme: string, score: number}>, synergyScore: number, reason: string}>> {
+    const synergies: Array<{card: Card, sharedThemes: Array<{theme: string, score: number}>, synergyScore: number, reason: string}> = [];
+    
+    // Get source card's theme scores for comparison
+    const sourceCardThemes = await this.getCardThemes(sourceCard.id);
+    const sourceThemeScores = Object.fromEntries(
+      sourceCardThemes.map(t => [t.theme_name, t.final_score])
+    );
     
     for (const theme of sourceThemes) {
       for (const card of theme.cards) {
         if (card.id === sourceCard.id) continue;
         
+        // Get target card's theme scores
+        const targetCardThemes = await this.getCardThemes(card.id);
+        const targetThemeScore = targetCardThemes.find(t => t.theme_name === theme.theme)?.final_score || 0;
+        const sourceThemeScore = sourceThemeScores[theme.theme] || 0;
+        
+        // Calculate dynamic synergy score: average of both cards' theme scores
+        const dynamicScore = (targetThemeScore + sourceThemeScore) / 2;
+        
         const existingEntry = synergies.find(s => s.card.id === card.id);
         if (existingEntry) {
-          existingEntry.sharedThemes.push({ theme: theme.theme, confidence: theme.confidence });
-          existingEntry.synergyScore += theme.confidence * 10;
+          existingEntry.sharedThemes.push({ theme: theme.theme, score: dynamicScore });
+          existingEntry.synergyScore += dynamicScore;
         } else {
           synergies.push({
             card,
-            sharedThemes: [{ theme: theme.theme, confidence: theme.confidence }],
-            synergyScore: theme.confidence * 10,
+            sharedThemes: [{ theme: theme.theme, score: dynamicScore }],
+            synergyScore: dynamicScore,
             reason: `Shares ${theme.theme} theme`
           });
         }
@@ -329,7 +343,7 @@ export class DatabaseStorage implements IStorage {
     return db.select()
       .from(cardThemes)
       .where(eq(cardThemes.card_id, cardId))
-      .orderBy(desc(cardThemes.confidence));
+      .orderBy(desc(cardThemes.final_score)); // Sort by unified score
   }
 
   async createCardTheme(theme: InsertCardTheme): Promise<CardTheme> {

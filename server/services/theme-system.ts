@@ -16,7 +16,7 @@ export class ThemeSystem {
         return existingThemes.map(t => ({
           theme: t.theme_name,
           description: t.description || '',
-          confidence: t.confidence / 100, // Convert from 0-100 to 0-1
+          confidence: t.final_score / 100, // Use unified final_score
           category: t.theme_category
         }));
       }
@@ -243,7 +243,7 @@ Categories: strategy, archetype, mechanic, synergy`;
     const matchingTheme = cardThemes.find(t => t.theme_name.toLowerCase() === theme.theme.toLowerCase());
     
     if (matchingTheme) {
-      return matchingTheme.confidence / 100; // Convert from 0-100 to 0-1
+      return matchingTheme.final_score / 100; // Use unified final_score
     }
     
     // No fallback scoring - return 0 if no database match

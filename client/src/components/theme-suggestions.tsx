@@ -54,7 +54,7 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
     );
     
     if (result) {
-      UIUtils.updateConfidenceDisplay(themeName, result.newConfidence);
+      UIUtils.updateConfidenceDisplay(themeName, result.newScore);
       UIUtils.disableVoteButtons(`[data-theme="${themeName}"]`);
     }
   };
@@ -125,7 +125,7 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
             <div className="flex items-center gap-3">
               <h4 className="text-white font-medium">{group.theme}</h4>
               <span className="confidence-display text-sm text-slate-300 bg-slate-700 px-2 py-1 rounded">
-                {Math.round(group.confidence * 100)}%
+                {Math.round(group.confidence * 100)}
               </span>
             </div>
             

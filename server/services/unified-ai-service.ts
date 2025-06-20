@@ -173,7 +173,8 @@ For TAGS, focus on:
             card_id: card.id,
             theme_name: themeName,
             theme_category: category,
-            confidence: confidenceScore,
+            base_confidence: confidenceScore,
+            final_score: confidenceScore, // Initialize final_score to base_confidence
             description: description,
             keywords: []
           }).onConflictDoNothing();

@@ -144,24 +144,25 @@ export const userInteractions = pgTable('user_interactions', {
 
 
 
-// Enhanced themes system for synergy analysis
+// Centralized theme system - single source of truth for all theme-based features
 export const cardThemes = pgTable('card_themes', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
   card_id: text('card_id').references(() => cardCache.id).notNull(),
   theme_name: text('theme_name').notNull(),
   theme_category: text('theme_category').notNull(), // 'strategy', 'archetype', 'mechanic', 'synergy'  
-  confidence: integer('confidence').notNull(), // 0-100 confidence score (existing schema uses integer)
+  base_confidence: integer('base_confidence').notNull(), // AI-generated confidence 0-100
+  user_upvotes: integer('user_upvotes').default(0),
+  user_downvotes: integer('user_downvotes').default(0),
+  final_score: integer('final_score').default(0), // Calculated from base + votes, used for all sorting
   keywords: text('keywords').array(), // Keywords that triggered this theme
   description: text('description'),
   created_at: timestamp('created_at').defaultNow().notNull(),
   last_updated: timestamp('last_updated').defaultNow().notNull(),
-  upvotes: integer('upvotes').default(0),
-  downvotes: integer('downvotes').default(0),
-  user_votes_count: integer('user_votes_count').default(0),
 }, (table) => ({
   cardThemeIdx: index('card_theme_idx').on(table.card_id, table.theme_name),
   themeNameIdx: index('theme_name_idx').on(table.theme_name),
-  confidenceIdx: index('theme_confidence_idx').on(table.confidence),
+  finalScoreIdx: index('theme_final_score_idx').on(table.final_score), // Sort by this unified score
+  cardScoreIdx: index('card_score_idx').on(table.card_id, table.final_score), // Card's theme rankings
 }));
 
 // Theme relationships for synergy analysis

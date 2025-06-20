@@ -325,27 +325,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get updated theme data
       const updatedTheme = await db.execute(sql`
-        SELECT upvotes, downvotes, confidence FROM card_themes WHERE id = ${theme[0].id}
+        SELECT user_upvotes, user_downvotes, base_confidence FROM card_themes WHERE id = ${theme[0].id}
       `);
       
-      const upvotes = Number(updatedTheme.rows[0]?.upvotes) || 0;
-      const downvotes = Number(updatedTheme.rows[0]?.downvotes) || 0;
-      const totalVotes = upvotes + downvotes;
-      const positiveRatio = totalVotes > 0 ? upvotes / totalVotes : 0.5;
+      const upvotes = Number(updatedTheme.rows[0]?.user_upvotes) || 0;
+      const downvotes = Number(updatedTheme.rows[0]?.user_downvotes) || 0;
+      const baseConfidence = Number(updatedTheme.rows[0]?.base_confidence) || 50;
       
-      // Base confidence on the specific card-theme relationship
-      const baseConfidence = theme[0].confidence;
-      // Card-specific confidence: stronger impact from votes since it's about this specific card
-      const adjustedConfidence = Math.max(10, Math.min(100, Math.round(baseConfidence * (0.5 + 1.0 * positiveRatio))));
+      // Unified scoring system: base AI confidence + user vote impact
+      const totalVotes = upvotes + downvotes;
+      const voteImpact = totalVotes > 0 ? ((upvotes - downvotes) / Math.sqrt(totalVotes + 1)) * 20 : 0;
+      const finalScore = Math.max(0, Math.min(100, Math.round(baseConfidence + voteImpact)));
 
       await db.execute(sql`
-        UPDATE card_themes SET confidence = ${adjustedConfidence} WHERE id = ${theme[0].id}
+        UPDATE card_themes SET final_score = ${finalScore} WHERE id = ${theme[0].id}
       `);
 
       res.json({ 
         success: true, 
-        message: `Vote recorded! Theme confidence updated.`,
-        newConfidence: adjustedConfidence,
+        message: `Vote recorded! Theme score updated.`,
+        newScore: finalScore,
         upvotes: upvotes,
         downvotes: downvotes
       });
