@@ -2,7 +2,7 @@ import { Card } from "@shared/schema";
 import { AIUtils } from "@shared/utils/ai-utils";
 import { db } from "../db";
 import { cardThemes, cardCache } from "@shared/schema";
-import { eq, and, ne, sql, inArray } from "drizzle-orm";
+import { eq, and, ne, sql, inArray, desc } from "drizzle-orm";
 import { cardMatchesFilters } from "../utils/card-filters";
 
 export class AIRecommendationService {
@@ -207,7 +207,7 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
         eq(cardThemes.theme_name, themeName),
         ne(cardThemes.card_id, sourceCardId)
       ))
-      .orderBy(sql`${cardThemes.confidence} DESC`)
+      .orderBy(desc(cardThemes.confidence))
       .limit(20);
 
     const cards: Card[] = [];
@@ -216,7 +216,7 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
       const cardData = await db
         .select()
         .from(cardCache)
-        .where(eq(cardCache.cardId, themeCard.card_id))
+        .where(eq(cardCache.id, themeCard.card_id))
         .limit(1);
 
       if (cardData.length > 0) {
