@@ -285,21 +285,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .limit(1);
 
       if (existingVote.length > 0) {
-        // User already voted, return error
-        return res.status(400).json({ 
-          error: 'You have already voted on this theme',
-          alreadyVoted: true,
-          previousVote: existingVote[0].vote
+        // User already voted, update their existing vote
+        await db
+          .update(themeVotes)
+          .set({ vote: vote })
+          .where(eq(themeVotes.id, existingVote[0].id));
+      } else {
+        // Create new vote
+        await db.insert(themeVotes).values({
+          card_id: cardId,
+          theme_name: themeName,
+          user_id: userId,
+          vote: vote
         });
       }
-
-      // Create new vote
-      await db.insert(themeVotes).values({
-        card_id: cardId,
-        theme_name: themeName,
-        user_id: userId,
-        vote: vote
-      });
 
       // Calculate new confidence using your specified algorithm
       const allVotes = await db

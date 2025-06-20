@@ -115,21 +115,9 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
         } else {
           UIUtils.showToast(`Theme confidence updated to ${Math.round(result.newScore)}%`);
         }
-      } else if (response.status === 400) {
+      } else {
         const error = await response.json();
-        if (error.alreadyVoted) {
-          UIUtils.showToast(`You already voted ${error.previousVote} on this theme`, 'warning');
-          // Mark this card-theme as already voted in state
-          setCardVotes(prev => ({
-            ...prev,
-            [targetCard.id]: {
-              ...prev[targetCard.id],
-              [themeName]: error.previousVote
-            }
-          }));
-        } else {
-          UIUtils.showToast(error.error || 'Failed to record vote', 'error');
-        }
+        UIUtils.showToast(error.error || 'Failed to record vote', 'error');
       }
     } catch (error) {
       console.error('Failed to vote on card theme:', error);
