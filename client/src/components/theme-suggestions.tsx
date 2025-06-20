@@ -182,6 +182,13 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
                       onClick={onCardClick}
                     />
                     
+                    {/* Theme confidence rating in center */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="bg-black/75 text-white text-sm font-bold px-3 py-2 rounded-full border-2 border-purple-400">
+                        {Math.round(group.confidence)}%
+                      </div>
+                    </div>
+                    
                     {/* Compact button overlay at bottom */}
                     <div className="absolute bottom-1 left-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <div className="flex items-center justify-between">
