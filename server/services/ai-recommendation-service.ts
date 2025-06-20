@@ -106,43 +106,31 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
   // Calculate synergy percentage between two cards using your algorithm
   calculateSynergy(cardAThemes: Array<{theme: string, confidence: number}>, 
                    cardBThemes: Array<{theme: string, confidence: number}>): number {
-    console.log('Card A themes:', cardAThemes);
-    console.log('Card B themes:', cardBThemes);
-    
     if (cardAThemes.length === 0 || cardBThemes.length === 0) {
-      console.log('One card has no themes, returning 0');
       return 0;
     }
 
     // Use lower theme count as denominator
     const denominator = Math.min(cardAThemes.length, cardBThemes.length);
-    console.log('Denominator (min theme count):', denominator);
     
     // Create maps for easy lookup
     const themeMapA = new Map(cardAThemes.map(t => [t.theme, t.confidence]));
     const themeMapB = new Map(cardBThemes.map(t => [t.theme, t.confidence]));
     
     let totalSimilarity = 0;
-    let sharedThemes = 0;
     
     // Find shared themes and calculate confidence similarity
     for (const [theme, confidenceA] of themeMapA) {
       const confidenceB = themeMapB.get(theme);
       if (confidenceB !== undefined) {
-        sharedThemes++;
         // Calculate similarity: 1 - |confidenceA - confidenceB|/100
         const similarity = 1 - Math.abs(confidenceA - confidenceB) / 100;
         totalSimilarity += similarity;
-        console.log(`Shared theme "${theme}": ${confidenceA}% vs ${confidenceB}% = ${similarity} similarity`);
       }
     }
     
-    console.log(`Shared themes: ${sharedThemes}, Total similarity: ${totalSimilarity}`);
-    
     // Convert to percentage
-    const result = (totalSimilarity / denominator) * 100;
-    console.log(`Final synergy score: ${result}%`);
-    return result;
+    return (totalSimilarity / denominator) * 100;
   }
 
   // Find synergy recommendations for a card
@@ -184,10 +172,8 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
         candidateThemes.map(t => ({ theme: t.theme_name, confidence: t.confidence }))
       );
 
-      console.log(`Synergy between ${cardId} and ${candidateCardId}: ${synergyScore}%`);
-      
-      // Only include if synergy is 60% or higher
-      if (synergyScore >= 60) {
+      // Only include if synergy is 25% or higher
+      if (synergyScore >= 25) {
         // Get the actual card data
         const cardData = await db
           .select()
