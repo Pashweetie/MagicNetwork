@@ -1,6 +1,7 @@
 import { storage } from "../storage";
 import { Card } from "@shared/schema";
 import { pureAIService } from "./pure-ai-recommendations";
+import { themeSystem } from "./theme-system";
 import { cardMatchesFilters } from "../utils/card-filters";
 
 export class RecommendationService {
@@ -54,77 +55,41 @@ export class RecommendationService {
       
       console.log(`Retrieved card: ${card.name} (${card.type_line})`);
       
-      // Get AI-generated themes
-      const aiThemes = await pureAIService.analyzeCardThemes(card);
-      console.log(`AI identified ${aiThemes.length} themes for ${card.name}`);
-      
-      // Get theme confidence from database and find similar cards
-      const { db } = await import('../db');
-      const { cardThemes, cardCache } = await import('@shared/schema');
-      const { eq, and, ne, sql, desc } = await import('drizzle-orm');
-      
-      const dbThemes = await db
-        .select()
-        .from(cardThemes)
-        .where(eq(cardThemes.card_id, cardId));
-      
-      const themeGroups = [];
-      for (const theme of aiThemes) {
-        const dbTheme = dbThemes.find(t => t.theme_name === theme.theme);
-        const confidence = dbTheme?.confidence || 0.5;
-        
-        // Find cards with the same theme
-        const similarThemeCards = await db
-          .select({
-            cardId: cardThemes.card_id,
-            confidence: cardThemes.confidence
-          })
-          .from(cardThemes)
-          .where(and(
-            eq(cardThemes.theme_name, theme.theme),
-            ne(cardThemes.card_id, cardId)
-          ))
-          .orderBy(desc(cardThemes.confidence))
-          .limit(12);
-        
-        // Get the actual card data from cache
-        const cards: Card[] = [];
-        for (const themeCard of similarThemeCards) {
-          const cached = await db
-            .select()
-            .from(cardCache)
-            .where(eq(cardCache.id, themeCard.cardId))
-            .limit(1);
-          
-          if (cached.length > 0) {
-            let cardData: Card;
-            
-            // Handle both string and object cardData
-            if (typeof cached[0].cardData === 'string') {
-              cardData = JSON.parse(cached[0].cardData) as Card;
-            } else {
-              cardData = cached[0].cardData as Card;
-            }
-            
-            if (cardData && cardMatchesFilters(cardData, filters)) {
-              cards.push(cardData);
-            }
-          }
-        }
-        
-        console.log(`Found ${cards.length} cards for theme "${theme.theme}" with ${confidence}% confidence`);
-        
-        themeGroups.push({
-          theme: theme.theme,
-          description: theme.description,
-          confidence: confidence,
-          cards: cards
-        });
+      // Generate themes using the new theme system
+      const cardThemes = await themeSystem.generateCardThemes(card);
+      console.log(`Generated ${cardThemes.length} themes for ${card.name}`);
+
+      if (cardThemes.length === 0) {
+        console.log('No themes found for card');
+        return [];
       }
+
+      const themeSuggestions = [];
       
-      console.log(`Returning ${themeGroups.length} theme groups with cards and confidence`);
-      console.log('Theme groups:', themeGroups.map(g => ({ theme: g.theme, confidence: g.confidence, cardCount: g.cards.length })));
-      return themeGroups;
+      for (const themeData of cardThemes.slice(0, 3)) { // Limit to top 3 themes
+        try {
+          console.log(`Finding cards for theme: ${themeData.theme}`);
+          
+          // Find cards that match this theme
+          const themeCards = await themeSystem.findCardsForTheme(themeData, card, filters);
+          
+          if (themeCards.length > 0) {
+            themeSuggestions.push({
+              theme: themeData.theme,
+              description: themeData.description,
+              confidence: Math.min(themeData.confidence || 0.8, 1.0),
+              cards: themeCards.slice(0, 8) // Limit cards per theme
+            });
+            
+            console.log(`Added theme "${themeData.theme}" with ${themeCards.length} cards`);
+          }
+        } catch (themeError) {
+          console.error(`Theme processing error for ${themeData.theme}:`, themeError);
+        }
+      }
+
+      console.log(`Returning ${themeSuggestions.length} theme suggestions`);
+      return themeSuggestions.sort((a, b) => b.confidence - a.confidence);
       
     } catch (error) {
       console.error('Error getting theme suggestions:', error);
