@@ -352,8 +352,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateCardThemeVotes(cardId: string, themeName: string, upvotes: number, downvotes: number): Promise<void> {
+    // Calculate new final score
+    const baseConfidence = 50; // Default fallback
+    const totalVotes = upvotes + downvotes;
+    const voteImpact = totalVotes > 0 ? ((upvotes - downvotes) / Math.sqrt(totalVotes + 1)) * 20 : 0;
+    const finalScore = Math.max(0, Math.min(100, Math.round(baseConfidence + voteImpact)));
+    
     await db.update(cardThemes)
-      .set({ last_updated: new Date() })
+      .set({ 
+        user_upvotes: upvotes,
+        user_downvotes: downvotes,
+        final_score: finalScore,
+        last_updated: new Date() 
+      })
       .where(and(eq(cardThemes.card_id, cardId), eq(cardThemes.theme_name, themeName)));
   }
 

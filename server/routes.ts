@@ -316,9 +316,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await db.execute(sql`
         UPDATE card_themes 
-        SET upvotes = COALESCE(upvotes, 0) + ${voteIncrement},
-            downvotes = COALESCE(downvotes, 0) + ${downvoteIncrement},
-            user_votes_count = COALESCE(user_votes_count, 0) + 1,
+        SET user_upvotes = COALESCE(user_upvotes, 0) + ${voteIncrement},
+            user_downvotes = COALESCE(user_downvotes, 0) + ${downvoteIncrement},
             last_updated = NOW()
         WHERE id = ${theme[0].id}
       `);
