@@ -24,7 +24,7 @@ export class UIUtils {
   static updateConfidenceDisplay(theme: string, newConfidence: number) {
     const confidenceElement = document.querySelector(`[data-theme="${theme}"] .confidence-display`);
     if (confidenceElement) {
-      confidenceElement.textContent = `${newConfidence}%`;
+      confidenceElement.textContent = `${Math.round(newConfidence)}%`;
     }
   }
 
