@@ -10,6 +10,18 @@ import { z } from "zod";
 import { cardMatchesFilters } from "./utils/card-filters";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Register card admin routes
+  registerCardAdminRoutes(app);
+
+  // Initialize card database migration and download in background
+  console.log("Starting card database setup...");
+  import("./services/card-migration-service").then(({ cardMigrationService }) => {
+    cardMigrationService.createCardsTablesIfNeeded().then(() => {
+      return cardDatabaseService.initializeDatabase();
+    }).catch(error => {
+      console.error("Failed to initialize card database:", error);
+    });
+  });
   // Auth middleware
   await setupAuth(app);
   // Search cards endpoint

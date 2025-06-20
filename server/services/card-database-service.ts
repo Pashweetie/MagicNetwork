@@ -26,8 +26,13 @@ export class CardDatabaseService {
   }
 
   async getCardCount(): Promise<number> {
-    const result = await db.select({ count: sql<number>`count(*)` }).from(cards);
-    return result[0]?.count || 0;
+    try {
+      const result = await db.select({ count: sql<number>`count(*)` }).from(cards);
+      return result[0]?.count || 0;
+    } catch (error) {
+      console.log("Cards table not ready, returning 0");
+      return 0;
+    }
   }
 
   async downloadAllCards(): Promise<void> {
