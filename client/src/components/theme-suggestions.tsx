@@ -97,10 +97,15 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
           UIUtils.showToast(result.message || 'Theme removed', 'warning');
           setTimeout(() => window.location.reload(), 1000);
         } else {
-          UIUtils.showToast(`Theme confidence updated to ${Math.round(result.newScore)}%`);
-          // Update confidence display for main theme headers
-          UIUtils.updateConfidenceDisplay(themeName, result.newScore);
-          UIUtils.disableVoteButtons(`[data-theme="${themeName}"]`);
+          // Only update main theme confidence display if voting on the main card
+          if (targetCard.id === card.id) {
+            UIUtils.showToast(`Theme confidence updated to ${Math.round(result.newScore)}%`);
+            UIUtils.updateConfidenceDisplay(themeName, result.newScore);
+            UIUtils.disableVoteButtons(`[data-theme="${themeName}"]`);
+          } else {
+            // For similar cards, show a different message
+            UIUtils.showToast(`Vote recorded for similar card`);
+          }
         }
       } else if (response.status === 400) {
         const error = await response.json();
