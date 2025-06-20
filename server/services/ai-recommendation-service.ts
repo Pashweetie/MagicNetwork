@@ -177,7 +177,7 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
         const cardData = await db
           .select()
           .from(cardCache)
-          .where(eq(cardCache.cardId, candidateCardId))
+          .where(eq(cardCache.id, candidateCardId))
           .limit(1);
 
         if (cardData.length > 0) {
