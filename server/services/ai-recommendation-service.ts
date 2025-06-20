@@ -2,7 +2,7 @@ import { Card } from "@shared/schema";
 import { AIUtils } from "@shared/utils/ai-utils";
 import { db } from "../db";
 import { cardThemes, cardCache } from "@shared/schema";
-import { eq, and, ne, sql } from "drizzle-orm";
+import { eq, and, ne, sql, inArray } from "drizzle-orm";
 import { cardMatchesFilters } from "../utils/card-filters";
 
 export class AIRecommendationService {
@@ -150,7 +150,7 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
       .select({ card_id: cardThemes.card_id })
       .from(cardThemes)
       .where(and(
-        sql`${cardThemes.theme_name} IN (${sharedThemeNames.map(t => `'${t}'`).join(',')})`,
+        inArray(cardThemes.theme_name, sharedThemeNames),
         ne(cardThemes.card_id, cardId)
       ));
 
