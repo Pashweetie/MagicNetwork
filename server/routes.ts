@@ -632,13 +632,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timestamp: new Date().toISOString()
       });
       
-      await storage.recordRecommendationFeedback({
+      await storage.recordCardThemeFeedback({
         userId: 1,
+        cardId: id,
+        themeName: themeName,
         sourceCardId: id,
-        recommendedCardId: themeName, // Store theme name
-        recommendationType: 'theme',
-        feedback,
-        userComment: reason
+        feedbackType: feedback === 'helpful' ? 'relevant' : 'irrelevant'
       });
       
       console.log(`✅ Theme feedback recorded - AI will learn from this to improve theme identification`);

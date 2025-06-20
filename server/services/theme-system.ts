@@ -1,9 +1,9 @@
 import { db } from "../db";
-import { cardThemes, themeRelationships, userThemeFeedback } from "@shared/schema";
+import { cardThemes, userThemeFeedback } from "@shared/schema";
 import { storage } from "../storage";
 import { pureAIService } from "./pure-ai-recommendations";
 import { eq, and, inArray, desc, sql, or } from "drizzle-orm";
-import { Card, CardTheme, InsertCardTheme, ThemeRelationship, InsertThemeRelationship } from "@shared/schema";
+import { Card, CardTheme, InsertCardTheme } from "@shared/schema";
 
 export class ThemeSystem {
   constructor() {}

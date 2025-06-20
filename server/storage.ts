@@ -1,6 +1,6 @@
 import { db } from "./db";
-import { cardCache, searchCache, users, cardRecommendations, userInteractions, recommendationFeedback, cardThemes, themeRelationships, userThemeFeedback, decks, userDecks } from "@shared/schema";
-import { Card, SearchFilters, SearchResponse, User, InsertUser, CardRecommendation, InsertCardRecommendation, UserInteraction, InsertUserInteraction, InsertRecommendationFeedback, Deck, InsertDeck, UserDeck, InsertUserDeck, DeckEntry, CardTheme, InsertCardTheme, ThemeRelationship, InsertThemeRelationship, UserThemeFeedback, InsertUserThemeFeedback } from "@shared/schema";
+import { cardCache, searchCache, users, cardThemes, userThemeFeedback, cardThemeFeedback, decks, userDecks } from "@shared/schema";
+import { Card, SearchFilters, SearchResponse, User, InsertUser, Deck, InsertDeck, UserDeck, InsertUserDeck, DeckEntry, CardTheme, InsertCardTheme, UserThemeFeedback, InsertUserThemeFeedback, CardThemeFeedback, InsertCardThemeFeedback } from "@shared/schema";
 import { eq, sql, and, desc, asc, inArray, or } from "drizzle-orm";
 import crypto from "crypto";
 import { scryfallService } from "./services/scryfall";
@@ -24,29 +24,15 @@ export interface IStorage {
   getCachedSearchResults(filters: SearchFilters, page: number): Promise<SearchResponse | null>;
   cleanupOldCache(): Promise<void>;
   
-  // User interactions for recommendations
-  recordUserInteraction(interaction: InsertUserInteraction): Promise<void>;
-  getUserInteractions(userId: number, limit?: number): Promise<UserInteraction[]>;
-  
-  // Recommendation system (simplified)
-  getCardRecommendations(cardId: string, type: 'synergy' | 'functional_similarity', limit?: number, filters?: any): Promise<CardRecommendation[]>;
-  
-  // Theme-based synergy system
-  findCardsBySharedThemes(sourceCard: Card, sourceThemes: Array<{theme: string, description: string, confidence: number, cards: Card[]}>, filters?: any): Promise<Array<{card: Card, sharedThemes: Array<{theme: string, confidence: number}>, synergyScore: number, reason: string}>>;
-  
-  // Enhanced theme system
+  // Theme system - core functionality
   getCardThemes(cardId: string): Promise<CardTheme[]>;
   createCardTheme(theme: InsertCardTheme): Promise<CardTheme>;
   updateCardThemeVotes(cardId: string, themeName: string, upvotes: number, downvotes: number): Promise<void>;
   findCardsByThemes(themes: string[], filters?: any): Promise<Card[]>;
-  getThemeRelationships(theme: string): Promise<ThemeRelationship[]>;
-  createThemeRelationship(relationship: InsertThemeRelationship): Promise<ThemeRelationship>;
   recordUserThemeFeedback(feedback: InsertUserThemeFeedback): Promise<void>;
-  calculateThemeSynergyScore(sourceThemes: string[], targetThemes: string[]): Promise<{score: number, reason: string}>;
   
-  // Feedback system
-  recordRecommendationFeedback(feedback: InsertRecommendationFeedback): Promise<void>;
-  getRecommendationWeights(): Promise<{[key: string]: number}>;
+  // Theme feedback system
+  recordCardThemeFeedback(feedback: InsertCardThemeFeedback): Promise<void>;
   
   // Deck persistence
   createDeck(deck: InsertDeck): Promise<Deck>;
@@ -417,17 +403,7 @@ export class DatabaseStorage implements IStorage {
     return cards;
   }
 
-  async getThemeRelationships(theme: string): Promise<ThemeRelationship[]> {
-    return db.select()
-      .from(themeRelationships)
-      .where(or(eq(themeRelationships.sourceTheme, theme), eq(themeRelationships.targetTheme, theme)))
-      .orderBy(desc(themeRelationships.synergyScore));
-  }
 
-  async createThemeRelationship(relationship: InsertThemeRelationship): Promise<ThemeRelationship> {
-    const [result] = await db.insert(themeRelationships).values(relationship).returning();
-    return result;
-  }
 
   async recordUserThemeFeedback(feedback: InsertUserThemeFeedback): Promise<void> {
     await db.insert(userThemeFeedback).values(feedback);

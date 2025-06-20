@@ -13,20 +13,8 @@ export class RecommendationService {
   }
 
   async getCardRecommendations(cardId: string, limit: number = 10) {
-    const recommendations = await storage.getCardRecommendations(cardId, 'synergy', limit);
-    
-    // Get the actual card data for each recommendation
-    const cardData = await Promise.all(
-      recommendations.map(async (rec) => {
-        const card = await storage.getCachedCard(rec.recommendedCardId);
-        return {
-          ...rec,
-          card
-        };
-      })
-    );
-
-    return cardData.filter(rec => rec.card !== null);
+    // All recommendations now calculated by frontend using theme-based synergy
+    return [];
   }
 
   // Get personalized recommendations based on user interactions
@@ -36,12 +24,8 @@ export class RecommendationService {
 
   // Track user interaction for learning
   async trackUserInteraction(userId: number, cardId: string, interactionType: string, metadata?: any): Promise<void> {
-    await storage.recordUserInteraction({
-      userId,
-      cardId,
-      interactionType,
-      metadata
-    });
+    // User interactions now handled by frontend theme voting system
+    console.log(`User ${userId} interacted with card ${cardId}: ${interactionType}`);
   }
 
   async getThemeSuggestions(cardId: string, filters?: any): Promise<Array<{theme: string, description: string, confidence: number, cards: Card[]}>> {
