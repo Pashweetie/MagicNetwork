@@ -352,8 +352,9 @@ export default function Search() {
                   ) : deckViewMode === "grid" ? (
                     <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 max-h-64 overflow-y-auto">
                       {deck.deckEntries.map(entry => (
-                        <DeckCardTile
+                        <SharedCardTile
                           key={entry.card.id}
+                          variant="deck"
                           card={entry.card}
                           quantity={entry.quantity}
                           maxCopies={deck.getMaxCopies(entry.card)}
@@ -390,8 +391,9 @@ export default function Search() {
             {viewMode === "grid" ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
                 {allCards.filter(card => card && card.type_line && card.name).map((card, index) => (
-                  <DeckCardTile
+                  <SharedCardTile
                     key={`${card.id}-${index}`}
+                    variant="deck"
                     card={card}
                     quantity={deck.getCardQuantity(card.id)}
                     maxCopies={deck.getMaxCopies(card)}
