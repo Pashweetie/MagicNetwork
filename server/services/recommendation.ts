@@ -56,9 +56,29 @@ export class RecommendationService {
       
       console.log(`Retrieved card: ${card.name} (${card.type_line})`);
       
-      // Get AI-generated themes using pure AI service (fallback to rule-based)
-      const aiThemes = await pureAIService.analyzeCardThemes(card);
-      console.log(`AI identified ${aiThemes.length} themes for ${card.name}`);
+      // Check if themes already exist in database
+      const existingThemes = await storage.getCardThemes(cardId);
+      
+      let aiThemes = [];
+      if (existingThemes.length === 0) {
+        // Generate themes if none exist
+        console.log(`No existing themes found, generating AI themes for ${card.name}`);
+        aiThemes = await pureAIService.analyzeCardThemes(card);
+        console.log(`AI identified ${aiThemes.length} themes for ${card.name}`);
+        
+        // Trigger storage of themes (this happens in analyzeCardThemes via unifiedAIService)
+        if (aiThemes.length > 0) {
+          // Re-fetch the newly stored themes
+          const newlyStoredThemes = await storage.getCardThemes(cardId);
+          console.log(`Stored ${newlyStoredThemes.length} themes in database`);
+        }
+      } else {
+        console.log(`Using ${existingThemes.length} existing themes from database`);
+        aiThemes = existingThemes.map(t => ({
+          theme: t.theme_name,
+          description: t.description || ''
+        }));
+      }
 
       if (aiThemes.length === 0) {
         console.log('No themes found for card');
@@ -80,14 +100,14 @@ export class RecommendationService {
           let similarThemeCards = await db
             .select({
               cardId: cardThemes.card_id,
-              confidence: cardThemes.confidence
+              finalScore: cardThemes.final_score
             })
             .from(cardThemes)
             .where(and(
               eq(cardThemes.theme_name, themeData.theme),
               ne(cardThemes.card_id, cardId)
             ))
-            .orderBy(desc(cardThemes.confidence))
+            .orderBy(desc(cardThemes.final_score))
             .limit(12);
           
           // Only use database themes - no fallback generation
@@ -122,10 +142,14 @@ export class RecommendationService {
           }
           
           if (cards.length > 0) {
+            // Use the theme's actual final_score from database if it exists for this card
+            const cardTheme = existingThemes.find(t => t.theme_name === themeData.theme);
+            const confidence = cardTheme ? cardTheme.final_score / 100 : 0.5;
+            
             themeSuggestions.push({
               theme: themeData.theme,
               description: themeData.description,
-              confidence: Math.min(themeData.confidence || 0.8, 1.0),
+              confidence: confidence,
               cards: cards.slice(0, 8) // Limit cards per theme
             });
             

@@ -380,13 +380,13 @@ export class DatabaseStorage implements IStorage {
     
     const cardIds = await db.select({ 
       cardId: cardThemes.card_id,
-      confidence: sql<number>`AVG(${cardThemes.confidence})`.as('avg_confidence')
+      avgScore: sql<number>`AVG(${cardThemes.final_score})`.as('avg_score')
     })
       .from(cardThemes)
       .where(inArray(cardThemes.theme_name, themes))
       .groupBy(cardThemes.card_id)
       .having(sql`COUNT(DISTINCT ${cardThemes.theme_name}) >= ${Math.min(themes.length, 2)}`)
-      .orderBy(desc(sql`AVG(${cardThemes.confidence})`));
+      .orderBy(desc(sql`AVG(${cardThemes.final_score})`));
     
     if (cardIds.length === 0) return [];
     

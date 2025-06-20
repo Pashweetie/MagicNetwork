@@ -19,7 +19,10 @@ export class PureAIRecommendationService {
 
   // AI-powered theme generation with database caching
   async analyzeCardThemes(card: Card): Promise<Array<{theme: string, description: string}>> {
-    return unifiedAIService.getCardThemes(card);
+    console.log(`PureAI analyzing themes for: ${card.name}`);
+    const themes = await unifiedAIService.getCardThemes(card);
+    console.log(`PureAI generated ${themes.length} themes:`, themes.map(t => t.theme));
+    return themes;
   }
 
   // AI-powered card matching for themes
