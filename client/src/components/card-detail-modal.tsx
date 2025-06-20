@@ -119,7 +119,7 @@ function SynergyRecommendations({ cardId, onCardClick, onAddCard, currentFilters
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {availableCards.map((rec: any, index: number) => (
             <div key={`synergy-${rec.card.id}-${index}`} className="relative group">
-              <CardTile card={rec.card} onClick={onCardClick} />
+              <SharedCardTile variant="search" card={rec.card} onClick={onCardClick} />
               
               {/* Add to deck button */}
               {onAddCard && (
@@ -265,7 +265,7 @@ function SimilarRecommendations({ cardId, onCardClick, onAddCard, currentFilters
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {availableCards.map((rec: any, index: number) => (
             <div key={`similar-${rec.card.id}-${index}`} className="relative group">
-              <CardTile card={rec.card} onClick={onCardClick} />
+              <SharedCardTile variant="search" card={rec.card} onClick={onCardClick} />
               
               {/* Add to Deck Button */}
               {onAddCard && (

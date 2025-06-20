@@ -5,7 +5,7 @@ import { FilterSidebar } from "@/components/filter-sidebar";
 import { CardGrid } from "@/components/card-grid";
 import { CardDetailModal } from "@/components/card-detail-modal";
 import { DeckImportDialog } from "@/components/DeckImportDialog";
-import { DeckCardTile } from "@/components/deck-card-tile";
+import { SharedCardTile } from "@/components/shared-card-tile";
 import { StackedDeckDisplay } from "@/components/stacked-deck-display";
 
 import { Button } from "@/components/ui/button";
