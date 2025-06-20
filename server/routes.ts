@@ -333,7 +333,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Unified scoring system: base AI confidence + user vote impact
       const totalVotes = upvotes + downvotes;
-      const voteImpact = totalVotes > 0 ? ((upvotes - downvotes) / Math.sqrt(totalVotes + 1)) * 20 : 0;
+      const netVotes = upvotes - downvotes;
+      
+      // Each vote contributes at least 1%, with diminishing returns
+      let voteImpact = 0;
+      if (totalVotes > 0) {
+        const diminishingFactor = Math.max(0.1, 1 / Math.sqrt(totalVotes)); // Minimum 10% effectiveness
+        voteImpact = netVotes * Math.max(1, 10 * diminishingFactor); // Each vote worth at least 1%
+      }
+      
       const finalScore = Math.max(0, Math.min(100, Math.round(baseConfidence + voteImpact)));
 
       await db.execute(sql`

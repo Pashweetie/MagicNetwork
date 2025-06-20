@@ -352,10 +352,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateCardThemeVotes(cardId: string, themeName: string, upvotes: number, downvotes: number): Promise<void> {
-    // Calculate new final score
-    const baseConfidence = 50; // Default fallback
+    // Calculate new final score using the same logic as routes
+    const baseConfidence = 50;
     const totalVotes = upvotes + downvotes;
-    const voteImpact = totalVotes > 0 ? ((upvotes - downvotes) / Math.sqrt(totalVotes + 1)) * 20 : 0;
+    const netVotes = upvotes - downvotes;
+    
+    let voteImpact = 0;
+    if (totalVotes > 0) {
+      const diminishingFactor = Math.max(0.1, 1 / Math.sqrt(totalVotes));
+      voteImpact = netVotes * Math.max(1, 10 * diminishingFactor);
+    }
+    
     const finalScore = Math.max(0, Math.min(100, Math.round(baseConfidence + voteImpact)));
     
     await db.update(cardThemes)

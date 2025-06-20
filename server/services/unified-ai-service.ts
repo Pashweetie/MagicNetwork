@@ -157,13 +157,8 @@ For TAGS, focus on:
             continue;
           }
           
-          // Ensure valid confidence score
-          let confidence = themeData.confidence;
-          if (typeof confidence !== 'number' || isNaN(confidence) || confidence < 0.1 || confidence > 1.0) {
-            console.error('Invalid confidence score:', confidence, 'for theme:', themeName);
-            confidence = 0.8; // Default fallback
-          }
-          const confidenceScore = Math.round(confidence * 100);
+          // AI always sets default confidence of 50 for consistency
+          const confidenceScore = 50;
           
           // Validate other fields
           const category = themeData.category || 'strategy';
