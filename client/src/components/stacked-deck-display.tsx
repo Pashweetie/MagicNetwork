@@ -101,64 +101,21 @@ function VerticalStackedCards({
   canBeCommander,
   getMaxCopies
 }: VerticalStackedCardsProps) {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  
-  const COLLAPSED_HEIGHT = 40;
-  const EXPANDED_HEIGHT = 300;
-
-  // Calculate positions with spacing for hovered card
-  const calculatePositions = () => {
-    let currentY = 0;
-    return cards.map((_, index) => {
-      const position = currentY;
-      if (index === hoveredIndex) {
-        currentY += EXPANDED_HEIGHT + 10; // Extra spacing for expanded card
-      } else {
-        currentY += COLLAPSED_HEIGHT + 2; // Minimal spacing for collapsed cards
-      }
-      return position;
-    });
-  };
-
-  const positions = calculatePositions();
-  const totalHeight = positions[positions.length - 1] + (hoveredIndex === cards.length - 1 ? EXPANDED_HEIGHT : COLLAPSED_HEIGHT);
-
   return (
-    <div className="relative overflow-y-auto py-4">
-      <div 
-        className="relative transition-all duration-300"
-        style={{ 
-          height: totalHeight,
-          minHeight: '200px',
-          width: '100%'
-        }}
-      >
-        {cards.map((entry, index) => {
-          const isHovered = hoveredIndex === index;
-          const translateY = positions[index];
-          const zIndex = isHovered ? 100 : index + 1;
-
-          return (
-            <VerticalStackedCard
-              key={entry.card.id}
-              entry={entry}
-              index={index}
-              translateY={translateY}
-              zIndex={zIndex}
-              isHovered={isHovered}
-              onMouseEnter={() => setHoveredIndex(index)}
-              onMouseLeave={() => setHoveredIndex(null)}
-              onAdd={onAdd}
-              onRemove={onRemove}
-              onClick={onClick}
-              onSetCommander={onSetCommander}
-              isCommander={commander?.id === entry.card.id}
-              canBeCommander={canBeCommander(entry.card)}
-              maxCopies={getMaxCopies(entry.card)}
-            />
-          );
-        })}
-      </div>
+    <div className="space-y-1">
+      {cards.map((entry) => (
+        <VerticalStackedCard
+          key={entry.card.id}
+          entry={entry}
+          onAdd={onAdd}
+          onRemove={onRemove}
+          onClick={onClick}
+          onSetCommander={onSetCommander}
+          isCommander={commander?.id === entry.card.id}
+          canBeCommander={canBeCommander(entry.card)}
+          maxCopies={getMaxCopies(entry.card)}
+        />
+      ))}
     </div>
   );
 }
