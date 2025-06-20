@@ -90,37 +90,14 @@ export class RecommendationService {
             .orderBy(desc(cardThemes.confidence))
             .limit(12);
           
-          // If no exact matches, try fuzzy matching with similar themes
+          // Only use database themes - no fallback generation
           if (similarThemeCards.length === 0) {
-            const fuzzyThemes = this.getFuzzyThemes(themeData.theme);
-            for (const fuzzyTheme of fuzzyThemes) {
-              const fuzzyResults = await db
-                .select({
-                  cardId: cardThemes.card_id,
-                  confidence: cardThemes.confidence
-                })
-                .from(cardThemes)
-                .where(and(
-                  eq(cardThemes.theme_name, fuzzyTheme),
-                  ne(cardThemes.card_id, cardId)
-                ))
-                .orderBy(desc(cardThemes.confidence))
-                .limit(6);
-              
-              similarThemeCards.push(...fuzzyResults);
-              if (similarThemeCards.length >= 8) break;
-            }
-          }
-          
-          // If still no results, generate theme-based cards using rule-based matching
-          if (similarThemeCards.length === 0) {
-            console.log(`No database themes found, generating rule-based matches for ${themeData.theme}`);
-            similarThemeCards = await this.generateThemeBasedCards(card, themeData, filters);
+            console.log(`No cards found in database for theme: ${themeData.theme}`);
           }
           
           // Get the actual card data from cache
           const cards: Card[] = [];
-          for (const themeCard of similarThemeCards.slice(0, 8)) {
+          for (const themeCard of similarThemeCards) {
             const cached = await db
               .select()
               .from(cardCache)
@@ -168,85 +145,7 @@ export class RecommendationService {
     }
   }
 
-  private getFuzzyThemes(theme: string): string[] {
-    const themeMap: Record<string, string[]> = {
-      'Initiative Control': ['Control', 'Late Game', 'Control Deck'],
-      'Bird Tribal': ['Flying', 'Tribal', 'Creature Synergy'],
-      'Early Game Pressure': ['Aggro', 'Early Game', 'Fast Aggro'],
-      'Aggro': ['Early Game Pressure', 'Fast Aggro', 'Aggressive'],
-      'Control': ['Initiative Control', 'Late Game', 'Control Deck'],
-      'Flying': ['Bird Tribal', 'Evasive', 'Aerial'],
-      'Artifacts': ['Artifact Synergy', 'Artifact Deck', 'Metalcraft'],
-      'Graveyard': ['Graveyard Value', 'Recursion', 'Dredge'],
-      'Counters': ['+1/+1 Counters', 'Counter Synergy', 'Proliferate']
-    };
-    
-    return themeMap[theme] || [];
-  }
 
-  private async generateThemeBasedCards(sourceCard: Card, theme: {theme: string, description: string}, filters?: any): Promise<Array<{cardId: string, confidence: number}>> {
-    const { db } = await import('../db');
-    const { cardCache } = await import('@shared/schema');
-    const { sql, ne } = await import('drizzle-orm');
-    
-    // Define theme-based search criteria
-    const themeKeywords: Record<string, string[]> = {
-      'Initiative Control': ['counter', 'draw', 'control', 'destroy', 'exile'],
-      'Bird Tribal': ['flying', 'bird', 'wing', 'aerial'],
-      'Early Game Pressure': ['haste', 'aggressive', 'first strike', 'double strike'],
-      'Aggro': ['haste', 'aggressive', 'first strike', 'damage'],
-      'Control': ['counter', 'draw', 'destroy', 'exile', 'tap'],
-      'Flying': ['flying', 'reach', 'aerial'],
-      'Artifacts': ['artifact', 'equipment', 'vehicle'],
-      'Graveyard': ['graveyard', 'return', 'exile', 'death'],
-      'Counters': ['counter', '+1/+1', 'proliferate']
-    };
-    
-    const keywords = themeKeywords[theme.theme] || [];
-    if (keywords.length === 0) return [];
-    
-    try {
-      // Search for cards that match theme keywords in oracle text using simpler approach
-      const allCards = await db
-        .select()
-        .from(cardCache)
-        .where(ne(cardCache.id, sourceCard.id))
-        .limit(100);
-      
-      const matchingCards: Array<{id: string}> = [];
-      
-      for (const cachedCard of allCards) {
-        let cardData: Card;
-        if (typeof cachedCard.cardData === 'string') {
-          cardData = JSON.parse(cachedCard.cardData) as Card;
-        } else {
-          cardData = cachedCard.cardData as Card;
-        }
-        
-        const oracleText = (cardData.oracle_text || '').toLowerCase();
-        const typeLine = cardData.type_line.toLowerCase();
-        
-        // Check if any keywords match
-        const hasMatch = keywords.some(keyword => 
-          oracleText.includes(keyword.toLowerCase()) || 
-          typeLine.includes(keyword.toLowerCase())
-        );
-        
-        if (hasMatch && cardMatchesFilters(cardData, filters)) {
-          matchingCards.push({ id: cachedCard.id });
-          if (matchingCards.length >= 12) break;
-        }
-      }
-      
-      return matchingCards.map(card => ({
-        cardId: card.id,
-        confidence: 70 // Default confidence for rule-based matches
-      }));
-    } catch (error) {
-      console.error('Error generating theme-based cards:', error);
-      return [];
-    }
-  }
 
 
 

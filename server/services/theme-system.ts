@@ -44,18 +44,18 @@ export class ThemeSystem {
         return themes;
       }
 
-      // Fallback to rule-based theme generation
-      return this.getFallbackThemes(card);
+      // No fallback - return empty if AI fails
+      return [];
     } catch (error) {
       console.error('Error generating card themes:', error);
-      return this.getFallbackThemes(card);
+      return [];
     }
   }
 
   private async generateThemesWithAI(card: Card): Promise<Array<{theme: string, description: string, confidence: number, category: string}>> {
     try {
       if (!pureAIService.textGenerator?.getGenerativeModel) {
-        return this.getFallbackThemes(card);
+        return [];
       }
 
       const model = pureAIService.textGenerator.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -103,7 +103,7 @@ Focus on strategic themes that help with deck building and synergies.`;
       console.error('AI theme generation failed:', error);
     }
 
-    return this.getFallbackThemes(card);
+    return [];
   }
 
   private getFallbackThemes(card: Card): Array<{theme: string, description: string, confidence: number, category: string}> {
@@ -239,18 +239,8 @@ Focus on strategic themes that help with deck building and synergies.`;
       return matchingTheme.confidence / 100; // Convert from 0-100 to 0-1
     }
     
-    // Basic relevance scoring
-    const text = (card.oracle_text || '').toLowerCase();
-    const themeKeywords = theme.theme.toLowerCase().split(' ');
-    
-    let score = 0;
-    for (const keyword of themeKeywords) {
-      if (text.includes(keyword)) {
-        score += 0.2;
-      }
-    }
-    
-    return Math.min(score, 0.8);
+    // No fallback scoring - return 0 if no database match
+    return 0;
   }
 
   async findSynergisticCards(cardId: string, filters?: any): Promise<Array<{card: Card, score: number, reason: string}>> {
@@ -331,42 +321,11 @@ Example: 85|synergy`;
       console.error('AI relationship generation failed:', error);
     }
 
-    // Fallback: basic relationship analysis
-    return this.getBasicThemeRelationship(theme1, theme2);
-  }
-
-  private getBasicThemeRelationship(theme1: string, theme2: string): {synergyScore: number, relationshipType: string} {
-    const synergisticPairs = [
-      ['flying', 'aggro'],
-      ['artifacts', 'artifacts'],
-      ['counters', 'proliferate'],
-      ['graveyard', 'sacrifice'],
-      ['tokens', 'sacrifice'],
-      ['multicolor', 'fixing']
-    ];
-
-    const antagonisticPairs = [
-      ['aggro', 'late game'],
-      ['artifacts', 'naturalize'],
-      ['graveyard', 'exile']
-    ];
-
-    for (const [t1, t2] of synergisticPairs) {
-      if ((theme1.toLowerCase().includes(t1) && theme2.toLowerCase().includes(t2)) || 
-          (theme1.toLowerCase().includes(t2) && theme2.toLowerCase().includes(t1))) {
-        return { synergyScore: 0.75, relationshipType: 'synergy' };
-      }
-    }
-
-    for (const [t1, t2] of antagonisticPairs) {
-      if ((theme1.toLowerCase().includes(t1) && theme2.toLowerCase().includes(t2)) || 
-          (theme1.toLowerCase().includes(t2) && theme2.toLowerCase().includes(t1))) {
-        return { synergyScore: 0.25, relationshipType: 'antagony' };
-      }
-    }
-
+    // No fallback - return neutral if AI fails
     return { synergyScore: 0.5, relationshipType: 'neutral' };
   }
+
+
 }
 
 export const themeSystem = new ThemeSystem();

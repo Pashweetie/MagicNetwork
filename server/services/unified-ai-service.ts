@@ -138,11 +138,13 @@ For TAGS, focus on:
       // Store themes in database
       for (const themeData of analysis.themes || []) {
         try {
+          const confidenceScore = isNaN(themeData.confidence) ? 80 : Math.round(themeData.confidence * 100);
+          
           await db.insert(cardThemes).values({
             card_id: card.id,
             theme_name: themeData.theme,
             theme_category: themeData.category,
-            confidence: Math.round(themeData.confidence * 100), // Convert 0-1 to 0-100
+            confidence: confidenceScore, // Convert 0-1 to 0-100
             description: themeData.description,
             keywords: []
           }).onConflictDoNothing();

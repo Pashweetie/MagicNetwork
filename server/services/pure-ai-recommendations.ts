@@ -68,18 +68,18 @@ export class PureAIRecommendationService {
 
   async analyzeSynergy(sourceCard: Card, targetCard: Card): Promise<{score: number, reason: string}> {
     if (!this.isReady) {
-      return this.getBasicSynergy(sourceCard, targetCard);
+      return { score: 0, reason: 'AI service not available' };
     }
-    // Delegate to unified service for consistency
-    return this.getBasicSynergy(sourceCard, targetCard);
+    // Only use AI analysis - no fallback
+    return { score: 0, reason: 'AI analysis not implemented' };
   }
 
   async analyzeFunctionalSimilarity(sourceCard: Card, targetCard: Card): Promise<{score: number, reason: string}> {
     if (!this.isReady) {
-      return this.getBasicSimilarity(sourceCard, targetCard);
+      return { score: 0, reason: 'AI service not available' };
     }
-    // Delegate to unified service for consistency
-    return this.getBasicSimilarity(sourceCard, targetCard);
+    // Only use AI analysis - no fallback
+    return { score: 0, reason: 'AI analysis not implemented' };
   }
 
   private getBasicSynergy(sourceCard: Card, targetCard: Card): {score: number, reason: string} {
