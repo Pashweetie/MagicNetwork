@@ -403,8 +403,114 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async importDeckFromText(): Promise<{ success: boolean, message: string, importedCards: number, failedCards: string[] }> {
-    return { success: false, message: "Deck import simplified", importedCards: 0, failedCards: [] };
+  async importDeckFromText(userId: string, deckText: string, format?: string): Promise<{ success: boolean, message: string, importedCards: number, failedCards: string[] }> {
+    try {
+      const lines = deckText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+      const importedCards: Array<{cardId: string, quantity: number}> = [];
+      const failedCards: string[] = [];
+      let commander: Card | null = null;
+
+      for (const line of lines) {
+        // Skip comments and empty lines
+        if (line.startsWith('#') || line.startsWith('//') || line.length === 0) {
+          continue;
+        }
+
+        // Parse quantity and card name
+        const match = line.match(/^(\d+)\s+(.+)$/);
+        if (!match) {
+          failedCards.push(line);
+          continue;
+        }
+
+        const quantity = parseInt(match[1]);
+        let cardName = match[2].trim();
+
+        // Remove set codes in parentheses like (M21)
+        cardName = cardName.replace(/\s*\([^)]+\)\s*$/, '');
+
+        // Check if it's marked as commander
+        const isCommander = cardName.includes('*') || cardName.toLowerCase().includes('commander');
+        cardName = cardName.replace(/\*|\s*commander\s*/gi, '').trim();
+
+        try {
+          // Search for the card by name
+          const searchResult = await this.searchCards({ query: `!"${cardName}"` }, 1);
+          
+          if (searchResult.data.length === 0) {
+            // Try a looser search
+            const looseSearchResult = await this.searchCards({ query: cardName }, 1);
+            if (looseSearchResult.data.length === 0) {
+              failedCards.push(cardName);
+              continue;
+            }
+            
+            // Find exact match in loose results
+            const exactMatch = looseSearchResult.data.find(card => 
+              card.name.toLowerCase() === cardName.toLowerCase()
+            );
+            
+            if (exactMatch) {
+              importedCards.push({ cardId: exactMatch.id, quantity });
+              if (isCommander) {
+                commander = exactMatch;
+              }
+            } else {
+              // Use first result if no exact match
+              const card = looseSearchResult.data[0];
+              importedCards.push({ cardId: card.id, quantity });
+              if (isCommander) {
+                commander = card;
+              }
+            }
+          } else {
+            const card = searchResult.data[0];
+            importedCards.push({ cardId: card.id, quantity });
+            if (isCommander) {
+              commander = card;
+            }
+          }
+        } catch (error) {
+          console.error(`Error searching for card "${cardName}":`, error);
+          failedCards.push(cardName);
+        }
+      }
+
+      if (importedCards.length === 0 && failedCards.length === lines.length) {
+        return {
+          success: false,
+          message: "No cards could be imported",
+          importedCards: 0,
+          failedCards
+        };
+      }
+
+      // Save the deck with imported cards
+      const deckData: Partial<InsertUserDeck> = {
+        name: `Imported Deck`,
+        format: format || 'Commander',
+        cards: importedCards,
+        commanderId: commander?.id
+      };
+
+      await this.saveUserDeck(userId, deckData);
+
+      return {
+        success: true,
+        message: `Successfully imported ${importedCards.length} card${importedCards.length !== 1 ? 's' : ''}${failedCards.length > 0 ? ` (${failedCards.length} failed)` : ''}`,
+        importedCards: importedCards.length,
+        failedCards
+      };
+
+    } catch (error) {
+      console.error('Deck import error:', error);
+      return {
+        success: false,
+        message: "Failed to import deck",
+        importedCards: 0,
+        failedCards: []
+      };
+    }
   }
 }
 
