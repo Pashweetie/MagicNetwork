@@ -14,10 +14,10 @@ export class ThemeSystem {
       const existingThemes = await storage.getCardThemes(card.id);
       if (existingThemes.length > 0) {
         return existingThemes.map(t => ({
-          theme: t.themeName,
+          theme: t.theme_name,
           description: t.description || '',
-          confidence: t.confidence,
-          category: t.themeCategory
+          confidence: t.confidence / 100, // Convert from 0-100 to 0-1
+          category: t.theme_category
         }));
       }
 
@@ -32,7 +32,7 @@ export class ThemeSystem {
               card_id: card.id,
               theme_name: themeData.theme,
               theme_category: themeData.category,
-              confidence: themeData.confidence,
+              confidence: Math.round(themeData.confidence * 100), // Convert 0-1 to 0-100
               description: themeData.description,
               keywords: this.extractKeywords(card, themeData.theme)
             });
@@ -233,10 +233,10 @@ Focus on strategic themes that help with deck building and synergies.`;
   private async scoreCardForThemeWithAI(card: Card, theme: {theme: string, description: string}): Promise<number> {
     // Get card themes and calculate relevance
     const cardThemes = await storage.getCardThemes(card.id);
-    const matchingTheme = cardThemes.find(t => t.themeName.toLowerCase() === theme.theme.toLowerCase());
+    const matchingTheme = cardThemes.find(t => t.theme_name.toLowerCase() === theme.theme.toLowerCase());
     
     if (matchingTheme) {
-      return matchingTheme.confidence;
+      return matchingTheme.confidence / 100; // Convert from 0-100 to 0-1
     }
     
     // Basic relevance scoring
@@ -262,11 +262,11 @@ Focus on strategic themes that help with deck building and synergies.`;
     const synergisticCards: Array<{card: Card, score: number, reason: string}> = [];
     
     for (const cardTheme of cardThemes) {
-      const relationships = await storage.getThemeRelationships(cardTheme.themeName);
+      const relationships = await storage.getThemeRelationships(cardTheme.theme_name);
       
       for (const relationship of relationships) {
         if (relationship.synergyScore > 0.6) {
-          const relatedTheme = relationship.sourceTheme === cardTheme.themeName ? 
+          const relatedTheme = relationship.sourceTheme === cardTheme.theme_name ? 
             relationship.targetTheme : relationship.sourceTheme;
           
           const relatedCards = await storage.findCardsByThemes([relatedTheme], filters);
@@ -276,7 +276,7 @@ Focus on strategic themes that help with deck building and synergies.`;
               synergisticCards.push({
                 card,
                 score: relationship.synergyScore,
-                reason: `${cardTheme.themeName} synergizes with ${relatedTheme}`
+                reason: `${cardTheme.theme_name} synergizes with ${relatedTheme}`
               });
             }
           }

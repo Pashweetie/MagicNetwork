@@ -128,7 +128,7 @@ For TAGS, focus on:
         return existingThemes.map(t => ({
           theme: t.theme_name,
           description: t.description || '',
-          confidence: t.confidence,
+          confidence: t.confidence / 100, // Convert from 0-100 to 0-1
           category: t.theme_category
         }));
       }
@@ -142,7 +142,7 @@ For TAGS, focus on:
             card_id: card.id,
             theme_name: themeData.theme,
             theme_category: themeData.category,
-            confidence: themeData.confidence,
+            confidence: Math.round(themeData.confidence * 100), // Convert 0-1 to 0-100
             description: themeData.description,
             keywords: []
           }).onConflictDoNothing();

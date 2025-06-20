@@ -150,11 +150,14 @@ export const cardThemes = pgTable('card_themes', {
   card_id: text('card_id').references(() => cardCache.id).notNull(),
   theme_name: text('theme_name').notNull(),
   theme_category: text('theme_category').notNull(), // 'strategy', 'archetype', 'mechanic', 'synergy'  
-  confidence: real('confidence').notNull(), // 0-1 confidence score
+  confidence: integer('confidence').notNull(), // 0-100 confidence score (existing schema uses integer)
   keywords: text('keywords').array(), // Keywords that triggered this theme
   description: text('description'),
   created_at: timestamp('created_at').defaultNow().notNull(),
   last_updated: timestamp('last_updated').defaultNow().notNull(),
+  upvotes: integer('upvotes').default(0),
+  downvotes: integer('downvotes').default(0),
+  user_votes_count: integer('user_votes_count').default(0),
 }, (table) => ({
   cardThemeIdx: index('card_theme_idx').on(table.card_id, table.theme_name),
   themeNameIdx: index('theme_name_idx').on(table.theme_name),
