@@ -51,40 +51,73 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
   const themeGroups = data?.themeGroups || [];
   const existingUserVotes = data?.userVotes || [];
 
-  // Initialize card votes from existing user votes
+  // Initialize card votes and main theme votes from existing user votes
   useEffect(() => {
     if (existingUserVotes.length > 0) {
       const voteMap: {[cardId: string]: {[themeName: string]: 'up' | 'down'}} = {};
+      const themeVoteMap: {[key: string]: boolean} = {};
+      
       existingUserVotes.forEach((vote: any) => {
+        // For card-specific votes
         if (!voteMap[vote.card_id]) {
           voteMap[vote.card_id] = {};
         }
         voteMap[vote.card_id][vote.theme_name] = vote.vote;
+        
+        // For main theme votes (theme headers)
+        if (vote.card_id === card.id) {
+          const themeVoteKey = `${vote.card_id}-${vote.theme_name}`;
+          themeVoteMap[themeVoteKey] = true;
+        }
       });
+      
       setCardVotes(voteMap);
+      setUserHasVoted(themeVoteMap);
     }
-  }, [existingUserVotes]);
+  }, [existingUserVotes, card.id]);
 
   const handleThemeVote = async (themeName: string, vote: 'up' | 'down') => {
-    const voteKey = `${card.id}-${themeName}`;
-    const result = await VoteHandler.handleVote(
-      card.id,
-      'theme-vote',
-      { themeName, vote },
-      userHasVoted,
-      setUserHasVoted,
-      voteKey
-    );
-    
-    if (result) {
-      if (result.removed) {
-        // Theme was removed, refresh the page to update the display
-        UIUtils.showToast(result.message || 'Theme removed', 'warning');
-        setTimeout(() => window.location.reload(), 1000);
+    try {
+      const response = await fetch(`/api/cards/${card.id}/theme-vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          themeName, 
+          vote
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        
+        // Update the userHasVoted state
+        const voteKey = `${card.id}-${themeName}`;
+        setUserHasVoted(prev => ({
+          ...prev,
+          [voteKey]: true
+        }));
+        
+        if (result.removed) {
+          UIUtils.showToast(result.message || 'Theme removed', 'warning');
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          UIUtils.showToast(`Theme confidence updated to ${Math.round(result.newScore)}%`);
+          UIUtils.updateConfidenceDisplay(themeName, result.newScore);
+          UIUtils.disableVoteButtons(`[data-theme="${themeName}"]`);
+        }
+      } else if (response.status === 400) {
+        const error = await response.json();
+        if (error.sameVote) {
+          UIUtils.showToast(error.error, 'warning');
+        } else {
+          UIUtils.showToast(error.error || 'Failed to record vote', 'error');
+        }
       } else {
-        UIUtils.updateConfidenceDisplay(themeName, result.newScore);
-        UIUtils.disableVoteButtons(`[data-theme="${themeName}"]`);
+        UIUtils.showToast('Failed to record vote', 'error');
       }
+    } catch (error) {
+      console.error('Failed to vote on theme:', error);
+      UIUtils.showToast('Failed to record vote', 'error');
     }
   };
 
