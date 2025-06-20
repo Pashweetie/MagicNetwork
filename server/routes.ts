@@ -293,7 +293,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Update theme confidence based on votes
-      await updateThemeConfidence(cardId, themeName);
+      await updateThemeConfidenceFromVotes(cardId, themeName);
 
       res.json({ success: true });
     } catch (error) {
