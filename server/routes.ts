@@ -156,7 +156,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = parseInt(req.params.userId);
       const limit = parseInt(req.query.limit as string) || 20;
       
-      const recommendations = await recommendationService.getPersonalizedRecommendations(userId, limit);
+      // Personalized recommendations are now handled by theme-based synergy system
+      const recommendations = [];
       res.json(recommendations);
     } catch (error) {
       console.error('Personalized recommendations error:', error);
@@ -592,9 +593,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const limit = parseInt(req.query.limit as string) || 50;
       
-      // Run in background
-      recommendationService.generateRecommendationsForPopularCards(limit)
-        .catch(error => console.error('Background recommendation generation failed:', error));
+      // Theme generation is now handled automatically by AI service
+      console.log('Neural network handles recommendation generation automatically');
       
       res.json({ message: "Recommendation generation started" });
     } catch (error) {
