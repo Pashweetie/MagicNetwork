@@ -206,16 +206,37 @@ export class RecommendationService {
     if (keywords.length === 0) return [];
     
     try {
-      // Search for cards that match theme keywords in oracle text
-      const keywordPattern = keywords.map(k => k.toLowerCase()).join('|');
-      const matchingCards = await db
-        .select({ id: cardCache.id })
+      // Search for cards that match theme keywords in oracle text using simpler approach
+      const allCards = await db
+        .select()
         .from(cardCache)
-        .where(and(
-          ne(cardCache.id, sourceCard.id),
-          sql`LOWER(${cardCache.cardData}->>'oracle_text') ~ ${keywordPattern}`
-        ))
-        .limit(12);
+        .where(ne(cardCache.id, sourceCard.id))
+        .limit(100);
+      
+      const matchingCards: Array<{id: string}> = [];
+      
+      for (const cachedCard of allCards) {
+        let cardData: Card;
+        if (typeof cachedCard.cardData === 'string') {
+          cardData = JSON.parse(cachedCard.cardData) as Card;
+        } else {
+          cardData = cachedCard.cardData as Card;
+        }
+        
+        const oracleText = (cardData.oracle_text || '').toLowerCase();
+        const typeLine = cardData.type_line.toLowerCase();
+        
+        // Check if any keywords match
+        const hasMatch = keywords.some(keyword => 
+          oracleText.includes(keyword.toLowerCase()) || 
+          typeLine.includes(keyword.toLowerCase())
+        );
+        
+        if (hasMatch && cardMatchesFilters(cardData, filters)) {
+          matchingCards.push({ id: cachedCard.id });
+          if (matchingCards.length >= 12) break;
+        }
+      }
       
       return matchingCards.map(card => ({
         cardId: card.id,
