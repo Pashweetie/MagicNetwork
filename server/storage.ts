@@ -324,3 +324,88 @@ export class DatabaseStorage implements IStorage {
   async calculateThemeSynergyScore(): Promise<{score: number, reason: string}> {
     return { score: 0, reason: "Use new synergy algorithm" };
   }
+
+  async createDeck(deck: InsertDeck): Promise<Deck> {
+    const [result] = await db.insert(decks).values(deck).returning();
+    return result;
+  }
+
+  async getUserDecks(userId: number): Promise<Deck[]> {
+    return db.select()
+      .from(decks)
+      .where(eq(decks.userId, userId))
+      .orderBy(desc(decks.updatedAt));
+  }
+
+  async getDeck(id: number, userId: number): Promise<Deck | null> {
+    const [deck] = await db.select()
+      .from(decks)
+      .where(and(eq(decks.id, id), eq(decks.userId, userId)))
+      .limit(1);
+    return deck || null;
+  }
+
+  async updateDeck(id: number, userId: number, updates: Partial<InsertDeck>): Promise<Deck | null> {
+    const [deck] = await db.update(decks)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(decks.id, id), eq(decks.userId, userId)))
+      .returning();
+    return deck || null;
+  }
+
+  async deleteDeck(id: number, userId: number): Promise<boolean> {
+    const result = await db.delete(decks)
+      .where(and(eq(decks.id, id), eq(decks.userId, userId)));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async getUserDeck(userId: string): Promise<{ deck: UserDeck | null, entries: DeckEntry[], commander?: Card }> {
+    try {
+      const [deck] = await db.select().from(userDecks).where(eq(userDecks.userId, userId));
+      
+      if (!deck) {
+        return { deck: null, entries: [], commander: undefined };
+      }
+
+      const entries: DeckEntry[] = [];
+      const commander = deck.commanderId ? await this.getCard(deck.commanderId) : undefined;
+      
+      if (deck.cards && Array.isArray(deck.cards)) {
+        for (const cardData of deck.cards as Array<{cardId: string, quantity: number}>) {
+          const card = await this.getCard(cardData.cardId);
+          if (card) {
+            entries.push({ card, quantity: cardData.quantity });
+          }
+        }
+      }
+
+      return { deck, entries, commander };
+    } catch (error) {
+      console.error('getUserDeck error:', error);
+      return { deck: null, entries: [], commander: undefined };
+    }
+  }
+
+  async saveUserDeck(userId: string, deckData: Partial<InsertUserDeck>): Promise<UserDeck> {
+    const existingDeck = await db.select().from(userDecks).where(eq(userDecks.userId, userId)).limit(1);
+    
+    if (existingDeck.length > 0) {
+      const [updated] = await db.update(userDecks)
+        .set({ ...deckData, updatedAt: new Date() })
+        .where(eq(userDecks.userId, userId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(userDecks)
+        .values({ userId, ...deckData })
+        .returning();
+      return created;
+    }
+  }
+
+  async importDeckFromText(): Promise<{ success: boolean, message: string, importedCards: number, failedCards: string[] }> {
+    return { success: false, message: "Deck import simplified", importedCards: 0, failedCards: [] };
+  }
+}
+
+export const storage = new DatabaseStorage();

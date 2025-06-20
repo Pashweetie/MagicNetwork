@@ -228,7 +228,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await aiRecommendationService.generateCardThemes(card);
       
       // Get card's themes
-      const cardThemes = await db
+      const themes = await db
         .select()
         .from(cardThemes)
         .where(eq(cardThemes.card_id, id));
@@ -236,7 +236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const themeGroups = [];
       
       // For each theme, get example cards
-      for (const theme of cardThemes) {
+      for (const theme of themes) {
         const cards = await aiRecommendationService.getCardsForTheme(
           theme.theme_name, 
           id, 
@@ -280,7 +280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Update existing vote
         await db
           .update(themeVotes)
-          .set({ vote: vote, created_at: new Date() })
+          .set({ vote: vote })
           .where(eq(themeVotes.id, existingVote[0].id));
       } else {
         // Create new vote
