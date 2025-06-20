@@ -80,6 +80,8 @@ const sortCards = (cards: DeckEntry[], sortBy: SortOption): DeckEntry[] => {
   });
 };
 
+
+
 interface VerticalStackedCardsProps {
   cards: DeckEntry[];
   onAdd: (card: Card) => void;
@@ -89,6 +91,7 @@ interface VerticalStackedCardsProps {
   commander?: Card | null;
   canBeCommander: (card: Card) => boolean;
   getMaxCopies: (card: Card) => number;
+  viewMode: 'text' | 'image';
 }
 
 function VerticalStackedCards({
@@ -99,23 +102,84 @@ function VerticalStackedCards({
   onSetCommander,
   commander,
   canBeCommander,
-  getMaxCopies
+  getMaxCopies,
+  viewMode
 }: VerticalStackedCardsProps) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  if (viewMode === 'text') {
+    return (
+      <div className="space-y-1">
+        {cards.map((entry) => (
+          <CompactCard
+            key={entry.card.id}
+            entry={entry}
+            onAdd={onAdd}
+            onRemove={onRemove}
+            onClick={onClick}
+            onSetCommander={onSetCommander}
+            isCommander={commander?.id === entry.card.id}
+            canBeCommander={canBeCommander(entry.card)}
+            maxCopies={getMaxCopies(entry.card)}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  // Image view with stacked cards that expand on hover
+  const COLLAPSED_HEIGHT = 40;
+  const EXPANDED_HEIGHT = 280;
+
+  const calculatePositions = () => {
+    let currentY = 0;
+    return cards.map((_, index) => {
+      const position = currentY;
+      if (index === hoveredIndex) {
+        currentY += EXPANDED_HEIGHT + 10;
+      } else {
+        currentY += COLLAPSED_HEIGHT + 2;
+      }
+      return position;
+    });
+  };
+
+  const positions = calculatePositions();
+  const totalHeight = positions[positions.length - 1] + (hoveredIndex === cards.length - 1 ? EXPANDED_HEIGHT : COLLAPSED_HEIGHT);
+
   return (
-    <div className="space-y-1">
-      {cards.map((entry) => (
-        <CompactCard
-          key={entry.card.id}
-          entry={entry}
-          onAdd={onAdd}
-          onRemove={onRemove}
-          onClick={onClick}
-          onSetCommander={onSetCommander}
-          isCommander={commander?.id === entry.card.id}
-          canBeCommander={canBeCommander(entry.card)}
-          maxCopies={getMaxCopies(entry.card)}
-        />
-      ))}
+    <div className="relative" style={{ height: totalHeight, minHeight: '200px' }}>
+      {cards.map((entry, index) => {
+        const isHovered = hoveredIndex === index;
+        const translateY = positions[index];
+        const zIndex = isHovered ? 100 : index + 1;
+
+        return (
+          <div
+            key={entry.card.id}
+            className="absolute transition-all duration-300 ease-out group"
+            style={{
+              transform: `translateY(${translateY}px)`,
+              zIndex: zIndex,
+              width: '200px',
+              height: isHovered ? '280px' : '40px'
+            }}
+            onMouseEnter={() => setHoveredIndex(index)}
+            onMouseLeave={() => setHoveredIndex(null)}
+          >
+            <ImageStackedCard
+              entry={entry}
+              onAdd={onAdd}
+              onRemove={onRemove}
+              onClick={onClick}
+              onSetCommander={onSetCommander}
+              isCommander={commander?.id === entry.card.id}
+              canBeCommander={canBeCommander(entry.card)}
+              maxCopies={getMaxCopies(entry.card)}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -225,6 +289,114 @@ function CompactCard({
   );
 }
 
+interface ImageStackedCardProps {
+  entry: DeckEntry;
+  onAdd: (card: Card) => void;
+  onRemove: (cardId: string) => void;
+  onClick: (card: Card) => void;
+  onSetCommander?: (card: Card) => void;
+  isCommander: boolean;
+  canBeCommander: boolean;
+  maxCopies: number;
+}
+
+function ImageStackedCard({
+  entry,
+  onAdd,
+  onRemove,
+  onClick,
+  onSetCommander,
+  isCommander,
+  canBeCommander,
+  maxCopies
+}: ImageStackedCardProps) {
+  const { card, quantity } = entry;
+  const canAddCard = quantity < maxCopies;
+  const canRemoveCard = quantity > 0;
+
+  return (
+    <div
+      className="relative h-full w-full cursor-pointer"
+      onClick={() => onClick(card)}
+    >
+      <div className="relative h-full bg-slate-700 border border-slate-600 rounded-lg overflow-hidden shadow-lg">
+        {/* Card Image */}
+        {card.image_uris?.normal ? (
+          <img
+            src={card.image_uris.normal}
+            alt={card.name}
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-800">
+            <span className="text-sm text-center p-2">{card.name}</span>
+          </div>
+        )}
+
+        {/* Always visible badges */}
+        <div className="absolute top-2 left-2 flex gap-2">
+          {quantity > 1 && (
+            <Badge variant="secondary" className="bg-black/90 text-white border-slate-600">
+              {quantity}x
+            </Badge>
+          )}
+          {isCommander && (
+            <div className="bg-yellow-600 rounded-full p-1">
+              <Crown className="w-4 h-4 text-white" />
+            </div>
+          )}
+        </div>
+
+        {/* Hover Controls */}
+        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          {onSetCommander && canBeCommander && (
+            <Button
+              size="sm"
+              variant={isCommander ? "default" : "secondary"}
+              className={`w-8 h-8 p-0 shadow-lg ${
+                isCommander ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-slate-600 hover:bg-slate-500'
+              }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSetCommander(card);
+              }}
+            >
+              <Crown className="w-3 h-3" />
+            </Button>
+          )}
+          
+          <Button
+            size="sm"
+            variant="destructive"
+            className="w-8 h-8 p-0 bg-red-600 hover:bg-red-700 shadow-lg"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(card.id);
+            }}
+            disabled={!canRemoveCard}
+          >
+            <Minus className="w-3 h-3" />
+          </Button>
+          
+          <Button
+            size="sm"
+            variant="default"
+            className="w-8 h-8 p-0 bg-green-600 hover:bg-green-700 shadow-lg"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAdd(card);
+            }}
+            disabled={!canAddCard}
+          >
+            <Plus className="w-3 h-3" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function StackedDeckDisplay({
   deckEntries,
   onAdd,
@@ -236,6 +408,7 @@ export function StackedDeckDisplay({
 }: StackedDeckDisplayProps) {
   const [sortBy, setSortBy] = useState<SortOption>('type');
   const [categoryBy, setCategoryBy] = useState<CategoryOption>('type');
+  const [viewMode, setViewMode] = useState<'text' | 'image'>('text');
   // All categories are always expanded in the new horizontal layout
 
   const categorizedCards = useMemo((): CategoryGroup[] => {
@@ -291,6 +464,19 @@ export function StackedDeckDisplay({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4 p-4 bg-slate-800 rounded-lg">
         <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-400">View:</span>
+            <Select value={viewMode} onValueChange={(value: 'text' | 'image') => setViewMode(value)}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="text">Text List</SelectItem>
+                <SelectItem value="image">Card Images</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex items-center gap-2">
             <span className="text-sm text-slate-400">Sort by:</span>
             <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
@@ -354,6 +540,7 @@ export function StackedDeckDisplay({
                 commander={commander}
                 canBeCommander={canBeCommander}
                 getMaxCopies={getMaxCopies}
+                viewMode={viewMode}
               />
             </div>
           </div>
