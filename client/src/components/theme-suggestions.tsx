@@ -173,8 +173,8 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
                 <Users className="w-4 h-4" />
                 Similar Cards ({group.cards.length})
               </h5>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                {group.cards.slice(0, 12).map((themeCard) => (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {group.cards.slice(0, 10).map((themeCard) => (
                   <div key={themeCard.id} className="relative group">
                     <SharedCardTile
                       variant="search"
@@ -182,15 +182,15 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
                       onClick={onCardClick}
                     />
                     
-                    {/* Vote buttons for theme relevance to this card */}
-                    <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* Vote buttons for theme relevance - positioned on bottom left */}
+                    <div className="absolute bottom-1 left-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button
                         size="sm"
                         variant="ghost"
-                        className={`w-5 h-5 p-0 rounded-full ${
+                        className={`w-4 h-4 p-0 rounded-full ${
                           cardVotes[themeCard.id]?.[group.theme] === 'up'
                             ? 'bg-green-600 text-white'
-                            : 'bg-black/60 text-green-400 hover:bg-green-600'
+                            : 'bg-black/70 text-green-400 hover:bg-green-600'
                         }`}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -198,15 +198,15 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
                         }}
                         title={`This card fits the ${group.theme} theme`}
                       >
-                        <ThumbsUp className="w-2.5 h-2.5" />
+                        <ThumbsUp className="w-2 h-2" />
                       </Button>
                       <Button
                         size="sm"
                         variant="ghost"
-                        className={`w-5 h-5 p-0 rounded-full ${
+                        className={`w-4 h-4 p-0 rounded-full ${
                           cardVotes[themeCard.id]?.[group.theme] === 'down'
                             ? 'bg-red-600 text-white'
-                            : 'bg-black/60 text-red-400 hover:bg-red-600'
+                            : 'bg-black/70 text-red-400 hover:bg-red-600'
                         }`}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -214,20 +214,22 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
                         }}
                         title={`This card doesn't fit the ${group.theme} theme`}
                       >
-                        <ThumbsDown className="w-2.5 h-2.5" />
+                        <ThumbsDown className="w-2 h-2" />
                       </Button>
                     </div>
 
+                    {/* Add to deck button - positioned in bottom right */}
                     {onAddCard && (
                       <Button
                         size="sm"
-                        className="absolute bottom-1 right-1 w-6 h-6 p-0 bg-blue-600 hover:bg-blue-700 z-10"
+                        className="absolute bottom-1 right-1 w-5 h-5 p-0 bg-blue-600 hover:bg-blue-700 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                         onClick={(e) => {
                           e.stopPropagation();
                           onAddCard(themeCard);
                         }}
+                        title="Add to deck"
                       >
-                        <Plus className="w-3 h-3" />
+                        <Plus className="w-2.5 h-2.5" />
                       </Button>
                     )}
                   </div>
