@@ -40,4 +40,32 @@ export function registerCardAdminRoutes(app: Express) {
       res.status(500).json({ error: "Failed to download cards" });
     }
   });
+
+  // Check for updates manually
+  app.post("/api/admin/cards/check-updates", async (_req: Request, res: Response) => {
+    try {
+      await cardDatabaseService.checkForUpdates();
+      res.json({ success: true, message: "Update check completed" });
+    } catch (error) {
+      console.error("Update check error:", error);
+      res.status(500).json({ error: "Failed to check for updates" });
+    }
+  });
+
+  // Get last update time
+  app.get("/api/admin/cards/last-update", async (_req: Request, res: Response) => {
+    try {
+      const lastUpdate = await cardDatabaseService.getLastUpdateTime();
+      const daysSinceUpdate = lastUpdate ? 
+        (Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24) : null;
+      
+      res.json({ 
+        lastUpdate: lastUpdate?.toISOString() || null,
+        daysSinceUpdate: daysSinceUpdate ? Math.round(daysSinceUpdate * 10) / 10 : null
+      });
+    } catch (error) {
+      console.error("Get last update error:", error);
+      res.status(500).json({ error: "Failed to get last update time" });
+    }
+  });
 }

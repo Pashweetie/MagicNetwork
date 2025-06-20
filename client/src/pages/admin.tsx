@@ -13,12 +13,21 @@ interface DownloadProgress {
   status: 'idle' | 'downloading' | 'complete' | 'error';
 }
 
+interface UpdateInfo {
+  lastUpdate: string | null;
+  daysSinceUpdate: number | null;
+}
+
 export function AdminPage() {
   const [cardCount, setCardCount] = useState<number>(0);
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress>({
     current: 0,
     total: 0,
     status: 'idle'
+  });
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo>({
+    lastUpdate: null,
+    daysSinceUpdate: null
   });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -40,6 +49,16 @@ export function AdminPage() {
       setDownloadProgress(data);
     } catch (error) {
       console.error('Failed to fetch download progress:', error);
+    }
+  };
+
+  const fetchUpdateInfo = async () => {
+    try {
+      const response = await fetch('/api/admin/cards/last-update');
+      const data = await response.json();
+      setUpdateInfo(data);
+    } catch (error) {
+      console.error('Failed to fetch update info:', error);
     }
   };
 
@@ -105,6 +124,7 @@ export function AdminPage() {
         const progressInterval = setInterval(() => {
           fetchDownloadProgress();
           fetchCardCount();
+          fetchUpdateInfo();
         }, 2000);
         
       } else {
@@ -122,14 +142,49 @@ export function AdminPage() {
     }
   };
 
+  const checkForUpdates = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/admin/cards/check-updates', {
+        method: 'POST',
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "Update check completed",
+          description: "Checked for new cards and updates.",
+        });
+        
+        // Refresh all data
+        fetchCardCount();
+        fetchUpdateInfo();
+        fetchDownloadProgress();
+        
+      } else {
+        throw new Error('Failed to check for updates');
+      }
+    } catch (error) {
+      console.error('Update check error:', error);
+      toast({
+        title: "Update check failed",
+        description: "Failed to check for updates.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchCardCount();
     fetchDownloadProgress();
+    fetchUpdateInfo();
     
     // Poll for updates every 5 seconds
     const interval = setInterval(() => {
       fetchCardCount();
       fetchDownloadProgress();
+      fetchUpdateInfo();
     }, 5000);
     
     return () => clearInterval(interval);
@@ -179,6 +234,26 @@ export function AdminPage() {
               {getStatusBadge()}
             </div>
 
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Last Update:</span>
+              <span className="text-sm">
+                {updateInfo.lastUpdate ? 
+                  new Date(updateInfo.lastUpdate).toLocaleDateString() : 
+                  'Never'
+                }
+              </span>
+            </div>
+
+            {updateInfo.daysSinceUpdate !== null && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Days Since Update:</span>
+                <span className={`text-sm ${updateInfo.daysSinceUpdate >= 7 ? 'text-yellow-600' : 'text-green-600'}`}>
+                  {updateInfo.daysSinceUpdate}
+                  {updateInfo.daysSinceUpdate >= 7 && ' (needs update)'}
+                </span>
+              </div>
+            )}
+
             {downloadProgress.status === 'downloading' && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
@@ -224,6 +299,27 @@ export function AdminPage() {
 
             <div className="space-y-2">
               <Button 
+                onClick={checkForUpdates}
+                disabled={isLoading || downloadProgress.status === 'downloading'}
+                variant="outline"
+                className="w-full"
+              >
+                {isLoading ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                )}
+                Check for Updates
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Checks for new cards and downloads if needed (weekly schedule)
+              </p>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <Button 
                 onClick={forceDownload}
                 disabled={isLoading || downloadProgress.status === 'downloading'}
                 variant="outline"
@@ -256,7 +352,8 @@ export function AdminPage() {
           <ul className="list-disc list-inside space-y-1 ml-4">
             <li>Contains all cards with complete metadata including prices and legalities</li>
             <li>Enables instant search without network requests</li>
-            <li>Automatically updates with new card releases</li>
+            <li>Automatically checks for updates weekly (7+ days old)</li>
+            <li>Downloads only when new cards are available from Scryfall</li>
             <li>Fallback to Scryfall API if local data is unavailable</li>
           </ul>
           <p className="text-xs">

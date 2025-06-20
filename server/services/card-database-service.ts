@@ -10,6 +10,7 @@ const SCRYFALL_BULK_API = "https://api.scryfall.com/bulk-data";
 export class CardDatabaseService {
   private isDownloading = false;
   private downloadProgress = { current: 0, total: 0, status: 'idle' };
+  private updateCheckInterval: NodeJS.Timeout | null = null;
 
   async initializeDatabase(): Promise<void> {
     console.log("Initializing card database...");
@@ -22,7 +23,12 @@ export class CardDatabaseService {
       await this.downloadAllCards();
     } else {
       console.log(`Database already contains ${cardCount} cards`);
+      // Check if we need to update
+      await this.checkForUpdates();
     }
+    
+    // Start weekly update schedule
+    this.startUpdateSchedule();
   }
 
   async getCardCount(): Promise<number> {
@@ -343,6 +349,99 @@ export class CardDatabaseService {
 
   getDownloadProgress() {
     return this.downloadProgress;
+  }
+
+  async getLastUpdateTime(): Promise<Date | null> {
+    try {
+      const result = await db.select({ lastUpdated: sql<Date>`MAX(last_updated)` }).from(cards);
+      return result[0]?.lastUpdated || null;
+    } catch (error) {
+      console.log("Could not get last update time:", error);
+      return null;
+    }
+  }
+
+  async checkForUpdates(): Promise<void> {
+    try {
+      const lastUpdate = await this.getLastUpdateTime();
+      if (!lastUpdate) {
+        console.log("No last update time found, skipping update check");
+        return;
+      }
+
+      const daysSinceUpdate = (Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24);
+      console.log(`Last database update was ${daysSinceUpdate.toFixed(1)} days ago`);
+
+      if (daysSinceUpdate >= 7) {
+        console.log("Database is more than 7 days old, starting update...");
+        await this.downloadUpdates();
+      } else {
+        console.log(`Database is up to date (${daysSinceUpdate.toFixed(1)} days old)`);
+      }
+    } catch (error) {
+      console.error("Error checking for updates:", error);
+    }
+  }
+
+  async downloadUpdates(): Promise<void> {
+    if (this.isDownloading) {
+      console.log("Download already in progress, skipping update");
+      return;
+    }
+
+    console.log("Starting incremental database update...");
+    
+    try {
+      // Get bulk data info to check if there are updates
+      const bulkResponse = await fetch(SCRYFALL_BULK_API);
+      const bulkData = await bulkResponse.json();
+      
+      const defaultCards = bulkData.data.find((item: any) => item.type === 'default_cards');
+      if (!defaultCards) {
+        throw new Error("Could not find default cards bulk data");
+      }
+
+      // Check if bulk data is newer than our last update
+      const bulkUpdatedAt = new Date(defaultCards.updated_at);
+      const lastUpdate = await this.getLastUpdateTime();
+      
+      if (lastUpdate && bulkUpdatedAt <= lastUpdate) {
+        console.log("Bulk data is not newer than our database, no update needed");
+        return;
+      }
+
+      console.log(`Bulk data updated at ${bulkUpdatedAt.toISOString()}, our last update: ${lastUpdate?.toISOString() || 'never'}`);
+      
+      // For now, do a full refresh for weekly updates
+      // In production, you might implement incremental updates
+      await this.downloadAllCards();
+      
+    } catch (error) {
+      console.error("Error during update:", error);
+    }
+  }
+
+  startUpdateSchedule(): void {
+    // Clear any existing interval
+    if (this.updateCheckInterval) {
+      clearInterval(this.updateCheckInterval);
+    }
+
+    // Check for updates every 24 hours
+    this.updateCheckInterval = setInterval(async () => {
+      console.log("Running scheduled update check...");
+      await this.checkForUpdates();
+    }, 24 * 60 * 60 * 1000); // 24 hours
+
+    console.log("Weekly update schedule started - checking daily for updates older than 7 days");
+  }
+
+  stopUpdateSchedule(): void {
+    if (this.updateCheckInterval) {
+      clearInterval(this.updateCheckInterval);
+      this.updateCheckInterval = null;
+      console.log("Update schedule stopped");
+    }
   }
 }
 
