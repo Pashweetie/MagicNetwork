@@ -328,7 +328,7 @@ export class DatabaseStorage implements IStorage {
   async getCardThemes(cardId: string): Promise<CardTheme[]> {
     return db.select()
       .from(cardThemes)
-      .where(eq(cardThemes.cardId, cardId))
+      .where(eq(cardThemes.card_id, cardId))
       .orderBy(desc(cardThemes.confidence));
   }
 
@@ -339,21 +339,21 @@ export class DatabaseStorage implements IStorage {
 
   async updateCardThemeVotes(cardId: string, themeName: string, upvotes: number, downvotes: number): Promise<void> {
     await db.update(cardThemes)
-      .set({ upvotes, downvotes, lastUpdated: new Date() })
-      .where(and(eq(cardThemes.cardId, cardId), eq(cardThemes.themeName, themeName)));
+      .set({ last_updated: new Date() })
+      .where(and(eq(cardThemes.card_id, cardId), eq(cardThemes.theme_name, themeName)));
   }
 
   async findCardsByThemes(themes: string[], filters?: any): Promise<Card[]> {
     if (themes.length === 0) return [];
     
     const cardIds = await db.select({ 
-      cardId: cardThemes.cardId,
+      cardId: cardThemes.card_id,
       confidence: sql<number>`AVG(${cardThemes.confidence})`.as('avg_confidence')
     })
       .from(cardThemes)
-      .where(inArray(cardThemes.themeName, themes))
-      .groupBy(cardThemes.cardId)
-      .having(sql`COUNT(DISTINCT ${cardThemes.themeName}) >= ${Math.min(themes.length, 2)}`)
+      .where(inArray(cardThemes.theme_name, themes))
+      .groupBy(cardThemes.card_id)
+      .having(sql`COUNT(DISTINCT ${cardThemes.theme_name}) >= ${Math.min(themes.length, 2)}`)
       .orderBy(desc(sql`AVG(${cardThemes.confidence})`));
     
     if (cardIds.length === 0) return [];

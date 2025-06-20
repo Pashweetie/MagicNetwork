@@ -121,15 +121,15 @@ For TAGS, focus on:
       const existingThemes = await db
         .select()
         .from(cardThemes)
-        .where(eq(cardThemes.cardId, card.id))
+        .where(eq(cardThemes.card_id, card.id))
         .limit(8);
 
       if (existingThemes.length > 0) {
         return existingThemes.map(t => ({
-          theme: t.themeName,
+          theme: t.theme_name,
           description: t.description || '',
           confidence: t.confidence,
-          category: t.themeCategory
+          category: t.theme_category
         }));
       }
 
@@ -139,15 +139,12 @@ For TAGS, focus on:
       for (const themeData of analysis.themes || []) {
         try {
           await db.insert(cardThemes).values({
-            cardId: card.id,
-            themeName: themeData.theme,
-            themeCategory: themeData.category,
+            card_id: card.id,
+            theme_name: themeData.theme,
+            theme_category: themeData.category,
             confidence: themeData.confidence,
             description: themeData.description,
-            keywords: [],
-            aiGenerated: true,
-            upvotes: 0,
-            downvotes: 0
+            keywords: []
           }).onConflictDoNothing();
         } catch (error) {
           console.error('Failed to store theme:', error);

@@ -147,20 +147,17 @@ export const userInteractions = pgTable('user_interactions', {
 // Enhanced themes system for synergy analysis
 export const cardThemes = pgTable('card_themes', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
-  cardId: text('card_id').references(() => cardCache.id).notNull(),
-  themeName: text('theme_name').notNull(),
-  themeCategory: text('theme_category').notNull(), // 'strategy', 'archetype', 'mechanic', 'synergy'  
+  card_id: text('card_id').references(() => cardCache.id).notNull(),
+  theme_name: text('theme_name').notNull(),
+  theme_category: text('theme_category').notNull(), // 'strategy', 'archetype', 'mechanic', 'synergy'  
   confidence: real('confidence').notNull(), // 0-1 confidence score
   keywords: text('keywords').array(), // Keywords that triggered this theme
   description: text('description'),
-  aiGenerated: boolean('ai_generated').default(true),
-  upvotes: integer('upvotes').default(0),
-  downvotes: integer('downvotes').default(0),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  last_updated: timestamp('last_updated').defaultNow().notNull(),
 }, (table) => ({
-  cardThemeIdx: index('card_theme_idx').on(table.cardId, table.themeName),
-  themeNameIdx: index('theme_name_idx').on(table.themeName),
+  cardThemeIdx: index('card_theme_idx').on(table.card_id, table.theme_name),
+  themeNameIdx: index('theme_name_idx').on(table.theme_name),
   confidenceIdx: index('theme_confidence_idx').on(table.confidence),
 }));
 
@@ -218,7 +215,7 @@ export const insertSearchCacheSchema = createInsertSchema(searchCache).omit({ id
 export const insertCardRecommendationSchema = createInsertSchema(cardRecommendations).omit({ id: true, createdAt: true });
 export const insertUserInteractionSchema = createInsertSchema(userInteractions).omit({ id: true, createdAt: true });
 
-export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, createdAt: true, lastUpdated: true });
+export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, created_at: true, last_updated: true });
 export const insertThemeRelationshipSchema = createInsertSchema(themeRelationships).omit({ id: true, createdAt: true, lastUpdated: true });
 export const insertUserThemeFeedbackSchema = createInsertSchema(userThemeFeedback).omit({ id: true, createdAt: true });
 export const insertRecommendationFeedbackSchema = createInsertSchema(recommendationFeedback).omit({ id: true, createdAt: true });

@@ -55,33 +55,73 @@ export class RecommendationService {
       
       console.log(`Retrieved card: ${card.name} (${card.type_line})`);
       
-      // Generate themes using the new theme system
-      const cardThemes = await themeSystem.generateCardThemes(card);
-      console.log(`Generated ${cardThemes.length} themes for ${card.name}`);
+      // Get AI-generated themes using pure AI service (fallback to rule-based)
+      const aiThemes = await pureAIService.analyzeCardThemes(card);
+      console.log(`AI identified ${aiThemes.length} themes for ${card.name}`);
 
-      if (cardThemes.length === 0) {
+      if (aiThemes.length === 0) {
         console.log('No themes found for card');
         return [];
       }
 
       const themeSuggestions = [];
       
-      for (const themeData of cardThemes.slice(0, 3)) { // Limit to top 3 themes
+      for (const themeData of aiThemes.slice(0, 3)) { // Limit to top 3 themes
         try {
           console.log(`Finding cards for theme: ${themeData.theme}`);
           
-          // Find cards that match this theme
-          const themeCards = await themeSystem.findCardsForTheme(themeData, card, filters);
+          // Find cards that match this theme using existing card_themes table
+          const { db } = await import('../db');
+          const { cardThemes, cardCache } = await import('@shared/schema');
+          const { eq, and, ne, sql, desc } = await import('drizzle-orm');
           
-          if (themeCards.length > 0) {
+          const similarThemeCards = await db
+            .select({
+              cardId: cardThemes.card_id,
+              confidence: cardThemes.confidence
+            })
+            .from(cardThemes)
+            .where(and(
+              eq(cardThemes.theme_name, themeData.theme),
+              ne(cardThemes.card_id, cardId)
+            ))
+            .orderBy(desc(cardThemes.confidence))
+            .limit(12);
+          
+          // Get the actual card data from cache
+          const cards: Card[] = [];
+          for (const themeCard of similarThemeCards) {
+            const cached = await db
+              .select()
+              .from(cardCache)
+              .where(eq(cardCache.id, themeCard.cardId))
+              .limit(1);
+            
+            if (cached.length > 0) {
+              let cardData: Card;
+              
+              // Handle both string and object cardData
+              if (typeof cached[0].cardData === 'string') {
+                cardData = JSON.parse(cached[0].cardData) as Card;
+              } else {
+                cardData = cached[0].cardData as Card;
+              }
+              
+              if (cardData && cardMatchesFilters(cardData, filters)) {
+                cards.push(cardData);
+              }
+            }
+          }
+          
+          if (cards.length > 0) {
             themeSuggestions.push({
               theme: themeData.theme,
               description: themeData.description,
               confidence: Math.min(themeData.confidence || 0.8, 1.0),
-              cards: themeCards.slice(0, 8) // Limit cards per theme
+              cards: cards.slice(0, 8) // Limit cards per theme
             });
             
-            console.log(`Added theme "${themeData.theme}" with ${themeCards.length} cards`);
+            console.log(`Added theme "${themeData.theme}" with ${cards.length} cards`);
           }
         } catch (themeError) {
           console.error(`Theme processing error for ${themeData.theme}:`, themeError);

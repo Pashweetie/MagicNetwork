@@ -29,15 +29,12 @@ export class ThemeSystem {
         for (const themeData of themes) {
           try {
             await storage.createCardTheme({
-              cardId: card.id,
-              themeName: themeData.theme,
-              themeCategory: themeData.category,
+              card_id: card.id,
+              theme_name: themeData.theme,
+              theme_category: themeData.category,
               confidence: themeData.confidence,
               description: themeData.description,
-              keywords: this.extractKeywords(card, themeData.theme),
-              aiGenerated: true,
-              upvotes: 0,
-              downvotes: 0
+              keywords: this.extractKeywords(card, themeData.theme)
             });
           } catch (error) {
             console.error('Failed to store theme:', error);
