@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@shared/schema";
 import { SharedCardTile } from "./shared-card-tile";
@@ -32,15 +32,38 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
     setCardVotes({});
   }
   
-  const { data: themeGroups, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['/api/cards', card.id, 'theme-suggestions', currentFilters],
     queryFn: async () => {
       const filterParams = currentFilters ? `?filters=${encodeURIComponent(JSON.stringify(currentFilters))}` : '';
       const response = await fetch(`/api/cards/${card.id}/theme-suggestions${filterParams}`);
       if (!response.ok) throw new Error('Failed to fetch theme suggestions');
-      return response.json();
+      const result = await response.json();
+      
+      // Handle both old format (array) and new format (object with themeGroups and userVotes)
+      if (Array.isArray(result)) {
+        return { themeGroups: result, userVotes: [] };
+      }
+      return result;
     },
   });
+
+  const themeGroups = data?.themeGroups || [];
+  const existingUserVotes = data?.userVotes || [];
+
+  // Initialize card votes from existing user votes
+  useEffect(() => {
+    if (existingUserVotes.length > 0) {
+      const voteMap: {[cardId: string]: {[themeName: string]: 'up' | 'down'}} = {};
+      existingUserVotes.forEach((vote: any) => {
+        if (!voteMap[vote.card_id]) {
+          voteMap[vote.card_id] = {};
+        }
+        voteMap[vote.card_id][vote.theme_name] = vote.vote;
+      });
+      setCardVotes(voteMap);
+    }
+  }, [existingUserVotes]);
 
   const handleThemeVote = async (themeName: string, vote: 'up' | 'down') => {
     const voteKey = `${card.id}-${themeName}`;
@@ -91,6 +114,21 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
           setTimeout(() => window.location.reload(), 1000);
         } else {
           UIUtils.showToast(`Theme confidence updated to ${Math.round(result.newScore)}%`);
+        }
+      } else if (response.status === 400) {
+        const error = await response.json();
+        if (error.alreadyVoted) {
+          UIUtils.showToast(`You already voted ${error.previousVote} on this theme`, 'warning');
+          // Mark this card-theme as already voted in state
+          setCardVotes(prev => ({
+            ...prev,
+            [targetCard.id]: {
+              ...prev[targetCard.id],
+              [themeName]: error.previousVote
+            }
+          }));
+        } else {
+          UIUtils.showToast(error.error || 'Failed to record vote', 'error');
         }
       }
     } catch (error) {

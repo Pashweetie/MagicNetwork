@@ -209,6 +209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const { filters } = req.query;
+      const userId = 1; // Default user for now
       
       let filterObj = null;
       if (filters && typeof filters === 'string') {
@@ -234,6 +235,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(cardThemes)
         .where(eq(cardThemes.card_id, id));
 
+      // Get user's existing votes for all cards and themes
+      const userVotes = await db
+        .select()
+        .from(themeVotes)
+        .where(eq(themeVotes.user_id, userId));
+
       const themeGroups = [];
       
       // For each theme, get example cards
@@ -252,7 +259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      res.json(themeGroups);
+      res.json({ themeGroups, userVotes });
     } catch (error) {
       console.error('Theme suggestions error:', error);
       res.status(500).json({ message: "Internal server error" });
@@ -278,20 +285,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .limit(1);
 
       if (existingVote.length > 0) {
-        // Update existing vote
-        await db
-          .update(themeVotes)
-          .set({ vote: vote })
-          .where(eq(themeVotes.id, existingVote[0].id));
-      } else {
-        // Create new vote
-        await db.insert(themeVotes).values({
-          card_id: cardId,
-          theme_name: themeName,
-          user_id: userId,
-          vote: vote
+        // User already voted, return error
+        return res.status(400).json({ 
+          error: 'You have already voted on this theme',
+          alreadyVoted: true,
+          previousVote: existingVote[0].vote
         });
       }
+
+      // Create new vote
+      await db.insert(themeVotes).values({
+        card_id: cardId,
+        theme_name: themeName,
+        user_id: userId,
+        vote: vote
+      });
 
       // Calculate new confidence using your specified algorithm
       const allVotes = await db
