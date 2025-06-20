@@ -410,13 +410,15 @@ export class DatabaseStorage implements IStorage {
       const failedCards: string[] = [];
       let commander: Card | null = null;
 
-      for (const line of lines) {
-        // Skip comments and empty lines
+      console.log(`Starting import of ${lines.length} lines`);
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        
         if (line.startsWith('#') || line.startsWith('//') || line.length === 0) {
           continue;
         }
 
-        // Parse quantity and card name
         const match = line.match(/^(\d+)\s+(.+)$/);
         if (!match) {
           failedCards.push(line);
@@ -425,58 +427,48 @@ export class DatabaseStorage implements IStorage {
 
         const quantity = parseInt(match[1]);
         let cardName = match[2].trim();
-
-        // Remove set codes in parentheses like (M21)
         cardName = cardName.replace(/\s*\([^)]+\)\s*$/, '');
-
-        // Check if it's marked as commander
         const isCommander = cardName.includes('*') || cardName.toLowerCase().includes('commander');
         cardName = cardName.replace(/\*|\s*commander\s*/gi, '').trim();
 
+        console.log(`Processing ${i + 1}/${lines.length}: ${cardName}`);
+
         try {
-          // Search for the card by name
-          const searchResult = await this.searchCards({ query: `!"${cardName}"` }, 1);
+          // Use simpler search approach - just search by name
+          const searchResult = await this.searchCards({ query: cardName }, 1);
           
-          if (searchResult.data.length === 0) {
-            // Try a looser search
-            const looseSearchResult = await this.searchCards({ query: cardName }, 1);
-            if (looseSearchResult.data.length === 0) {
-              failedCards.push(cardName);
-              continue;
-            }
-            
-            // Find exact match in loose results
-            const exactMatch = looseSearchResult.data.find(card => 
+          if (searchResult.data && searchResult.data.length > 0) {
+            // Try to find exact match first
+            const exactMatch = searchResult.data.find((card: any) => 
               card.name.toLowerCase() === cardName.toLowerCase()
             );
             
-            if (exactMatch) {
-              importedCards.push({ cardId: exactMatch.id, quantity });
-              if (isCommander) {
-                commander = exactMatch;
-              }
-            } else {
-              // Use first result if no exact match
-              const card = looseSearchResult.data[0];
-              importedCards.push({ cardId: card.id, quantity });
-              if (isCommander) {
-                commander = card;
-              }
-            }
-          } else {
-            const card = searchResult.data[0];
+            const card = exactMatch || searchResult.data[0];
             importedCards.push({ cardId: card.id, quantity });
+            
             if (isCommander) {
               commander = card;
             }
+            
+            console.log(`Found: ${card.name}`);
+          } else {
+            failedCards.push(cardName);
+            console.log(`Failed to find: ${cardName}`);
           }
         } catch (error) {
           console.error(`Error searching for card "${cardName}":`, error);
           failedCards.push(cardName);
         }
+
+        // Add small delay to prevent overwhelming the API
+        if (i < lines.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
       }
 
-      if (importedCards.length === 0 && failedCards.length === lines.length) {
+      console.log(`Import complete: ${importedCards.length} imported, ${failedCards.length} failed`);
+
+      if (importedCards.length === 0) {
         return {
           success: false,
           message: "No cards could be imported",
