@@ -65,8 +65,12 @@ export class PureAIRecommendationService {
   }
 
   private async scoreCardForThemeWithAI(card: Card, theme: {theme: string, description: string}): Promise<number> {
-    // Simplified scoring - delegate to unified service for consistency
-    return Math.random() * 0.8 + 0.2; // Basic fallback scoring
+    // Use database theme scores only
+    const { storage } = await import('../storage');
+    const cardThemes = await storage.getCardThemes(card.id);
+    const matchingTheme = cardThemes.find(t => t.theme_name.toLowerCase() === theme.theme.toLowerCase());
+    
+    return matchingTheme ? matchingTheme.final_score / 100 : 0;
   }
 
   async analyzeSynergy(sourceCard: Card, targetCard: Card): Promise<{score: number, reason: string}> {

@@ -230,14 +230,13 @@ export const insertUserSchema = createInsertSchema(users).omit({ id: true, creat
 
 export const insertCardCacheSchema = createInsertSchema(cardCache).omit({ lastUpdated: true, searchCount: true });
 export const insertSearchCacheSchema = createInsertSchema(searchCache).omit({ id: true, createdAt: true, lastAccessed: true, accessCount: true });
-export const insertCardRecommendationSchema = createInsertSchema(cardRecommendations).omit({ id: true, createdAt: true });
-export const insertUserInteractionSchema = createInsertSchema(userInteractions).omit({ id: true, createdAt: true });
+
 
 export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, created_at: true, last_updated: true });
 export const insertThemeRelationshipSchema = createInsertSchema(themeRelationships).omit({ id: true, createdAt: true, lastUpdated: true });
 export const insertUserThemeFeedbackSchema = createInsertSchema(userThemeFeedback).omit({ id: true, createdAt: true });
 export const insertCardThemeFeedbackSchema = createInsertSchema(cardThemeFeedback).omit({ id: true, createdAt: true });
-export const insertRecommendationFeedbackSchema = createInsertSchema(recommendationFeedback).omit({ id: true, createdAt: true });
+
 // User votes tracking for recommendations and themes
 export const userVotes = pgTable('user_votes', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
@@ -290,10 +289,7 @@ export type CardCacheEntry = typeof cardCache.$inferSelect;
 export type InsertCardCache = z.infer<typeof insertCardCacheSchema>;
 export type SearchCacheEntry = typeof searchCache.$inferSelect;
 export type InsertSearchCache = z.infer<typeof insertSearchCacheSchema>;
-export type CardRecommendation = typeof cardRecommendations.$inferSelect;
-export type InsertCardRecommendation = z.infer<typeof insertCardRecommendationSchema>;
-export type UserInteraction = typeof userInteractions.$inferSelect;
-export type InsertUserInteraction = z.infer<typeof insertUserInteractionSchema>;
+
 
 export type UserDeck = typeof userDecks.$inferSelect;
 export type InsertUserDeck = z.infer<typeof insertUserDeckSchema>;
@@ -305,8 +301,7 @@ export type UserThemeFeedback = typeof userThemeFeedback.$inferSelect;
 export type InsertUserThemeFeedback = z.infer<typeof insertUserThemeFeedbackSchema>;
 export type CardThemeFeedback = typeof cardThemeFeedback.$inferSelect;
 export type InsertCardThemeFeedback = z.infer<typeof insertCardThemeFeedbackSchema>;
-export type RecommendationFeedback = typeof recommendationFeedback.$inferSelect;
-export type InsertRecommendationFeedback = z.infer<typeof insertRecommendationFeedbackSchema>;
+
 
 // Deck entry for UI components
 export type DeckEntry = {

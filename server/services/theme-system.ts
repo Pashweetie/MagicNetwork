@@ -113,79 +113,7 @@ Categories: strategy, archetype, mechanic, synergy`;
     return [];
   }
 
-  private getFallbackThemes(card: Card): Array<{theme: string, description: string, confidence: number, category: string}> {
-    const themes: Array<{theme: string, description: string, confidence: number, category: string}> = [];
-    const text = (card.oracle_text || '').toLowerCase();
-    const typeLine = card.type_line.toLowerCase();
 
-    // Strategy-based themes
-    if (card.cmc <= 3 && (typeLine.includes('creature') || typeLine.includes('instant') || typeLine.includes('sorcery'))) {
-      themes.push({
-        theme: 'Aggro',
-        description: 'Low-cost spell for aggressive strategies',
-        confidence: 0.7,
-        category: 'strategy'
-      });
-    }
-
-    if (card.cmc >= 6) {
-      themes.push({
-        theme: 'Late Game',
-        description: 'High-cost spell for control/midrange decks',
-        confidence: 0.8,
-        category: 'strategy'
-      });
-    }
-
-    // Mechanic-based themes
-    if (text.includes('flying')) {
-      themes.push({
-        theme: 'Flying',
-        description: 'Evasive creatures and flying synergies',
-        confidence: 0.9,
-        category: 'mechanic'
-      });
-    }
-
-    if (text.includes('artifact') || typeLine.includes('artifact')) {
-      themes.push({
-        theme: 'Artifacts',
-        description: 'Artifact synergies and interactions',
-        confidence: 0.85,
-        category: 'archetype'
-      });
-    }
-
-    if (text.includes('graveyard') || text.includes('return') && text.includes('battlefield')) {
-      themes.push({
-        theme: 'Graveyard Value',
-        description: 'Graveyard interactions and recursion',
-        confidence: 0.8,
-        category: 'synergy'
-      });
-    }
-
-    if (text.includes('counter') || text.includes('+1/+1')) {
-      themes.push({
-        theme: 'Counters',
-        description: '+1/+1 counters and counter synergies',
-        confidence: 0.75,
-        category: 'mechanic'
-      });
-    }
-
-    // Color-based themes
-    if (card.colors && card.colors.length > 1) {
-      themes.push({
-        theme: 'Multicolor',
-        description: 'Multicolor synergies and fixing',
-        confidence: 0.7,
-        category: 'archetype'
-      });
-    }
-
-    return themes.slice(0, 4); // Limit to top 4 themes
-  }
 
   private extractKeywords(card: Card, theme: string): string[] {
     const keywords: string[] = [];

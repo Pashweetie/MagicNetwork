@@ -224,45 +224,7 @@ Rules:
       }
     }
 
-    // Fallback if parsing failed
-    if (themes.length === 0) {
-      themes.push(...this.getFallbackThemes(card));
-    }
-    if (tags.length === 0) {
-      tags.push(...this.getFallbackTags(card));
-    }
-
     return { themes, tags };
-  }
-
-  private getFallbackThemes(card: Card): Array<{theme: string, description: string}> {
-    const themes: Array<{theme: string, description: string}> = [];
-    const typeLine = card.type_line?.toLowerCase() || '';
-    
-    if (typeLine.includes('creature')) {
-      themes.push({ theme: 'Creature-based', description: 'Build around creature synergies' });
-    }
-    if (typeLine.includes('artifact')) {
-      themes.push({ theme: 'Artifact', description: 'Artifact-based strategies' });
-    }
-    if (typeLine.includes('enchantment')) {
-      themes.push({ theme: 'Enchantment', description: 'Enchantment synergies' });
-    }
-    
-    return themes;
-  }
-
-  private getFallbackTags(card: Card): Array<{tag: string, confidence: number}> {
-    const tags: Array<{tag: string, confidence: number}> = [];
-    const typeLine = card.type_line?.toLowerCase() || '';
-    
-    if (typeLine.includes('creature')) tags.push({ tag: 'creature', confidence: 0.9 });
-    if (typeLine.includes('artifact')) tags.push({ tag: 'artifact', confidence: 0.9 });
-    if (typeLine.includes('enchantment')) tags.push({ tag: 'enchantment', confidence: 0.9 });
-    if (typeLine.includes('instant')) tags.push({ tag: 'instant', confidence: 0.9 });
-    if (typeLine.includes('sorcery')) tags.push({ tag: 'sorcery', confidence: 0.9 });
-    
-    return tags;
   }
 }
 
