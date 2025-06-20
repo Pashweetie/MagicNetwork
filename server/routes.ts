@@ -238,7 +238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // For each theme, get example cards
       for (const theme of themes) {
-        const cards = await aiRecommendationService.getCardsForTheme(
+        const cardsWithConfidence = await aiRecommendationService.getCardsForTheme(
           theme.theme_name, 
           id, 
           filterObj
@@ -248,7 +248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           theme: theme.theme_name,
           description: `${theme.theme_name} strategy`,
           confidence: theme.confidence,
-          cards: cards
+          cards: cardsWithConfidence
         });
       }
       

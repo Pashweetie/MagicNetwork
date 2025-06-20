@@ -199,7 +199,7 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
   }
 
   // Get cards for a specific theme (for themes tab)
-  async getCardsForTheme(themeName: string, sourceCardId: string, filters?: any): Promise<Card[]> {
+  async getCardsForTheme(themeName: string, sourceCardId: string, filters?: any): Promise<Array<{card: Card, confidence: number}>> {
     // Get all cards with this theme, excluding source card
     const themeCards = await db
       .select()
@@ -211,7 +211,7 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
       .orderBy(desc(cardThemes.confidence))
       .limit(20);
 
-    const cards: Card[] = [];
+    const cardsWithConfidence: Array<{card: Card, confidence: number}> = [];
 
     for (const themeCard of themeCards) {
       const cardData = await db
@@ -225,12 +225,15 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
         
         // Apply filters if provided
         if (!filters || cardMatchesFilters(card, filters)) {
-          cards.push(card);
+          cardsWithConfidence.push({
+            card,
+            confidence: themeCard.confidence
+          });
         }
       }
     }
 
-    return cards;
+    return cardsWithConfidence;
   }
 }
 

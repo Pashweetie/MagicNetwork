@@ -74,9 +74,9 @@ function SearchVariant({
               <span className="text-slate-400 text-sm">No Image</span>
             </div>
           )}
-          {/* Price overlay in corner */}
+          {/* Price overlay in bottom left corner */}
           {price && (
-            <div className="absolute top-2 right-2 bg-black/75 text-green-400 text-xs px-2 py-1 rounded font-medium">
+            <div className="absolute bottom-2 left-2 bg-black/60 text-green-400 text-xs px-1.5 py-0.5 rounded font-medium">
               {price}
             </div>
           )}

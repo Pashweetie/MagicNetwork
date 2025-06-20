@@ -17,7 +17,7 @@ interface ThemeGroup {
   theme: string;
   description: string;
   confidence: number;
-  cards: Card[];
+  cards: Array<{card: Card, confidence: number}>;
 }
 
 export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters }: ThemeSuggestionsProps) {
@@ -173,79 +173,87 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
                 <Users className="w-4 h-4" />
                 Similar Cards ({group.cards.length})
               </h5>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                {group.cards.slice(0, 10).map((themeCard) => (
-                  <div key={themeCard.id} className="relative group">
-                    <SharedCardTile
-                      variant="search"
-                      card={themeCard}
-                      onClick={onCardClick}
-                    />
-                    
-                    {/* Theme confidence rating in center */}
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="bg-black/75 text-white text-sm font-bold px-3 py-2 rounded-full border-2 border-purple-400">
-                        {Math.round(group.confidence)}%
-                      </div>
-                    </div>
-                    
-                    {/* Compact button overlay at bottom */}
-                    <div className="absolute bottom-1 left-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="flex items-center justify-between">
-                        {/* Vote buttons for theme relevance */}
-                        <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className={`w-4 h-4 p-0 rounded-full ${
-                              cardVotes[themeCard.id]?.[group.theme] === 'up'
-                                ? 'bg-green-600 text-white'
-                                : 'bg-black/70 text-green-400 hover:bg-green-600'
-                            }`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCardThemeVote(themeCard, group.theme, 'up');
-                            }}
-                            title={`This card fits the ${group.theme} theme`}
-                          >
-                            <ThumbsUp className="w-2 h-2" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className={`w-4 h-4 p-0 rounded-full ${
-                              cardVotes[themeCard.id]?.[group.theme] === 'down'
-                                ? 'bg-red-600 text-white'
-                                : 'bg-black/70 text-red-400 hover:bg-red-600'
-                            }`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCardThemeVote(themeCard, group.theme, 'down');
-                            }}
-                            title={`This card doesn't fit the ${group.theme} theme`}
-                          >
-                            <ThumbsDown className="w-2 h-2" />
-                          </Button>
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {group.cards.slice(0, 10).map((cardData) => {
+                  // Handle both old format (Card) and new format ({card: Card, confidence: number})
+                  const card = cardData.card || cardData;
+                  const confidence = cardData.confidence || group.confidence;
+                  
+                  if (!card || !card.id) return null;
+                  
+                  return (
+                    <div key={card.id} className="relative group">
+                      <SharedCardTile
+                        variant="search"
+                        card={card}
+                        onClick={onCardClick}
+                      />
+                      
+                      {/* Individual card confidence rating in center */}
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="bg-black/75 text-white text-sm font-bold px-3 py-2 rounded-full border-2 border-purple-400">
+                          {Math.round(confidence)}%
                         </div>
+                      </div>
+                      
+                      {/* Compact button overlay at bottom */}
+                      <div className="absolute bottom-1 left-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center justify-between">
+                          {/* Vote buttons for theme relevance */}
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className={`w-4 h-4 p-0 rounded-full ${
+                                cardVotes[card.id]?.[group.theme] === 'up'
+                                  ? 'bg-green-600 text-white'
+                                  : 'bg-black/70 text-green-400 hover:bg-green-600'
+                              }`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCardThemeVote(card, group.theme, 'up');
+                              }}
+                              title={`This card fits the ${group.theme} theme`}
+                            >
+                              <ThumbsUp className="w-2 h-2" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className={`w-4 h-4 p-0 rounded-full ${
+                                cardVotes[card.id]?.[group.theme] === 'down'
+                                  ? 'bg-red-600 text-white'
+                                  : 'bg-black/70 text-red-400 hover:bg-red-600'
+                              }`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCardThemeVote(card, group.theme, 'down');
+                              }}
+                              title={`This card doesn't fit the ${group.theme} theme`}
+                            >
+                              <ThumbsDown className="w-2 h-2" />
+                            </Button>
+                          </div>
 
-                        {/* Add to deck button */}
-                        {onAddCard && (
-                          <Button
-                            size="sm"
-                            className="w-5 h-5 p-0 bg-blue-600 hover:bg-blue-700 rounded-full"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onAddCard(themeCard);
-                            }}
-                            title="Add to deck"
-                          >
-                            <Plus className="w-2.5 h-2.5" />
-                          </Button>
-                        )}
+                          {/* Add to deck button */}
+                          {onAddCard && (
+                            <Button
+                              size="sm"
+                              className="w-5 h-5 p-0 bg-blue-600 hover:bg-blue-700 rounded-full"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onAddCard(card);
+                              }}
+                              title="Add to deck"
+                            >
+                              <Plus className="w-2.5 h-2.5" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
