@@ -685,24 +685,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timestamp: new Date().toISOString()
       });
       
-      await storage.recordCardThemeFeedback({
-        userId: 1,
-        cardId: id,
-        themeName: themeName,
-        sourceCardId: id,
-        feedbackType: feedback === 'helpful' ? 'relevant' : 'irrelevant'
-      });
-      
-      console.log(`✅ Theme feedback recorded - AI will learn from this to improve theme identification`);
-      
-      res.json({ 
-        success: true,
-        message: `Thank you! Your feedback helps improve AI theme analysis for "${themeName}".`,
-        impact: `This trains our AI to better identify relevant themes for similar cards.`
-      });
+      res.json({ success: true });
     } catch (error) {
-      console.error('❌ Theme feedback error:', error);
-      res.status(500).json({ message: "Internal server error" });
+      console.error('Theme feedback error:', error);
+      res.status(500).json({ error: 'Failed to record feedback' });
     }
   });
 

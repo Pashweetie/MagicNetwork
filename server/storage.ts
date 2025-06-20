@@ -229,21 +229,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async recordUserInteraction(interaction: InsertUserInteraction): Promise<void> {
-    try {
-      await db.insert(userInteractions).values(interaction);
-    } catch (error) {
-      console.error('Record interaction error:', error);
-    }
-  }
 
-  async getUserInteractions(userId: number, limit: number = 100): Promise<UserInteraction[]> {
-    return db.select()
-      .from(userInteractions)
-      .where(eq(userInteractions.userId, userId))
-      .orderBy(desc(userInteractions.createdAt))
-      .limit(limit);
-  }
 
   async getCardRecommendations(cardId: string, type: 'synergy' | 'functional_similarity', limit: number = 10, filters?: any): Promise<CardRecommendation[]> {
     return db.select()
@@ -285,42 +271,7 @@ export class DatabaseStorage implements IStorage {
 
   async findFunctionallySimilarCards(): Promise<any[]> {
     return [];
-    const synergies: Array<{card: Card, sharedThemes: Array<{theme: string, score: number}>, synergyScore: number, reason: string}> = [];
-    
-    // Get source card's theme scores
-    const sourceCardThemes = await this.getCardThemes(sourceCard.id);
-    const sourceThemeMap = new Map(sourceCardThemes.map(t => [t.theme_name, t.final_score]));
-    
-    // Collect all unique cards from all themes
-    const cardMap = new Map<string, Card>();
-    for (const theme of sourceThemes) {
-      for (const card of theme.cards) {
-        if (card.id !== sourceCard.id) {
-          cardMap.set(card.id, card);
-        }
-      }
-    }
-    
-    // Calculate synergy for each card
-    for (const [cardId, card] of cardMap) {
-      const targetCardThemes = await this.getCardThemes(cardId);
-      const targetThemeMap = new Map(targetCardThemes.map(t => [t.theme_name, t.final_score]));
-      
-      const sharedThemes: Array<{theme: string, score: number}> = [];
-      let totalSynergyScore = 0;
-      
-      // Find matching themes and calculate scores
-      for (const [themeName, sourceScore] of sourceThemeMap) {
-        const targetScore = targetThemeMap.get(themeName);
-        if (targetScore !== undefined) {
-          // Average the scores for shared themes
-          const avgScore = (sourceScore + targetScore) / 2;
-          sharedThemes.push({ theme: themeName, score: avgScore });
-          totalSynergyScore += avgScore;
-        }
-      }
-      
-      // Only include cards with shared themes
+  }
       if (sharedThemes.length > 0) {
         // Calculate final synergy: percentage based on theme overlap
         const finalScore = totalSynergyScore / sharedThemes.length;
@@ -351,24 +302,7 @@ export class DatabaseStorage implements IStorage {
 
   // Remove old voting method - replaced by new themeVotes table
   async updateCardThemeVotes(): Promise<void> {}
-    // Calculate new final score using the same logic as routes
-    const baseConfidence = 50;
-    const totalVotes = upvotes + downvotes;
-    const netVotes = upvotes - downvotes;
     
-    let voteImpact = 0;
-    if (totalVotes > 0) {
-      const diminishingFactor = Math.max(0.1, 1 / Math.sqrt(totalVotes));
-      voteImpact = netVotes * Math.max(1, 10 * diminishingFactor);
-    }
-    
-    const finalScore = Math.max(0, Math.min(100, Math.round(baseConfidence + voteImpact)));
-    
-    await db.update(cardThemes)
-      .set({ 
-        user_upvotes: upvotes,
-        user_downvotes: downvotes,
-        final_score: finalScore,
         last_updated: new Date() 
       })
       .where(and(eq(cardThemes.card_id, cardId), eq(cardThemes.theme_name, themeName)));
@@ -410,9 +344,7 @@ export class DatabaseStorage implements IStorage {
 
   async calculateThemeSynergyScore(): Promise<{score: number, reason: string}> {
     return { score: 0, reason: "Use new synergy algorithm" };
-    if (sourceThemes.length === 0 || targetThemes.length === 0) {
-      return { score: 0, reason: "No themes to compare" };
-    }
+  }
 
     // Find shared themes
     const sharedThemes = sourceThemes.filter(theme => targetThemes.includes(theme));
@@ -430,13 +362,6 @@ export class DatabaseStorage implements IStorage {
     let bestRelationship = '';
     
     for (const sourceTheme of sourceThemes) {
-      const relationships = await this.getThemeRelationships(sourceTheme);
-      
-      for (const relationship of relationships) {
-        const relatedTheme = relationship.sourceTheme === sourceTheme ? 
-          relationship.targetTheme : relationship.sourceTheme;
-        
-        if (targetThemes.includes(relatedTheme) && relationship.synergyScore > maxSynergyScore) {
           maxSynergyScore = relationship.synergyScore;
           bestRelationship = `${sourceTheme} synergizes with ${relatedTheme}`;
         }
@@ -645,50 +570,8 @@ export class DatabaseStorage implements IStorage {
 
   async findSynergyCards(sourceCard: Card, filters?: any): Promise<Array<{cardId: string, score: number, reason: string}>> {
     // Simple implementation - could be enhanced with AI analysis
-    const synergies: Array<{cardId: string, score: number, reason: string}> = [];
-    
-    // Look for cards with similar colors
-    if (sourceCard.colors && sourceCard.colors.length > 0) {
-      const colorQuery = sourceCard.colors.map(color => `c:${color}`).join(' OR ');
-      try {
-        const result = await scryfallService.searchCards({ query: `(${colorQuery}) -"${sourceCard.name}"` }, 1);
-        result.data.slice(0, 10).forEach((card, index) => {
-          synergies.push({
-            cardId: card.id,
-            score: 80 - index * 5,
-            reason: 'Shares color identity'
-          });
-        });
-      } catch (error) {
-        console.error('Synergy search error:', error);
-      }
-    }
-    
-    return synergies;
-  }
 
   async findFunctionallySimilarCards(sourceCard: Card, filters?: any): Promise<Array<{cardId: string, score: number, reason: string}>> {
-    const similarities: Array<{cardId: string, score: number, reason: string}> = [];
-    
-    // Look for cards with similar type line
-    if (sourceCard.type_line) {
-      const typeQuery = sourceCard.type_line.split(' ').slice(0, 2).join(' ');
-      try {
-        const result = await scryfallService.searchCards({ query: `t:"${typeQuery}" -"${sourceCard.name}"` }, 1);
-        result.data.slice(0, 10).forEach((card, index) => {
-          similarities.push({
-            cardId: card.id,
-            score: 85 - index * 5,
-            reason: 'Similar card type'
-          });
-        });
-      } catch (error) {
-        console.error('Similarity search error:', error);
-      }
-    }
-    
-    return similarities;
-  }
 }
 
 export const storage = new DatabaseStorage();
