@@ -74,7 +74,6 @@ export const searchResponseSchema = z.object({
   total_cards: z.number().optional(),
 });
 
-export type Card = z.infer<typeof cardSchema>;
 export type SearchFilters = z.infer<typeof searchFiltersSchema>;
 export type SearchResponse = z.infer<typeof searchResponseSchema>;
 
@@ -89,6 +88,89 @@ export const users = pgTable('users', {
 
 
 
+// Full card database tables
+export const cards = pgTable('cards', {
+  id: text('id').primaryKey(), // Scryfall card ID
+  name: text('name').notNull(),
+  manaCost: text('mana_cost'),
+  cmc: integer('cmc').notNull().default(0),
+  typeLine: text('type_line').notNull(),
+  oracleText: text('oracle_text'),
+  colors: text('colors').array().notNull().default([]),
+  colorIdentity: text('color_identity').array().notNull().default([]),
+  power: text('power'),
+  toughness: text('toughness'),
+  loyalty: text('loyalty'),
+  rarity: text('rarity').notNull(),
+  setCode: text('set_code').notNull(),
+  setName: text('set_name').notNull(),
+  collectorNumber: text('collector_number').notNull(),
+  releasedAt: text('released_at'),
+  artist: text('artist'),
+  borderColor: text('border_color').default('black'),
+  layout: text('layout').default('normal'),
+  keywords: text('keywords').array().notNull().default([]),
+  producedMana: text('produced_mana').array().notNull().default([]),
+  cardFaces: jsonb('card_faces'),
+  imageUris: jsonb('image_uris'),
+  prices: jsonb('prices'),
+  legalities: jsonb('legalities'),
+  edhrecRank: integer('edhrec_rank'),
+  pennyRank: integer('penny_rank'),
+  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+}, (table) => ({
+  nameIdx: index('cards_name_idx').on(table.name),
+  cmcIdx: index('cards_cmc_idx').on(table.cmc),
+  typeIdx: index('cards_type_idx').on(table.typeLine),
+  colorsIdx: index('cards_colors_idx').on(table.colors),
+  colorIdentityIdx: index('cards_color_identity_idx').on(table.colorIdentity),
+  rarityIdx: index('cards_rarity_idx').on(table.rarity),
+  setIdx: index('cards_set_idx').on(table.setCode),
+  lastUpdatedIdx: index('cards_last_updated_idx').on(table.lastUpdated),
+}));
+
+export const cardSets = pgTable('card_sets', {
+  code: text('code').primaryKey(),
+  name: text('name').notNull(),
+  releasedAt: text('released_at'),
+  setType: text('set_type'),
+  cardCount: integer('card_count').default(0),
+}, (table) => ({
+  nameIdx: index('sets_name_idx').on(table.name),
+  releasedIdx: index('sets_released_idx').on(table.releasedAt),
+}));
+
+export const cardImages = pgTable('card_images', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  cardId: text('card_id').references(() => cards.id).notNull(),
+  imageType: text('image_type').notNull(), // 'small', 'normal', 'large', etc.
+  imageUrl: text('image_url').notNull(),
+}, (table) => ({
+  cardImageIdx: index('card_images_card_idx').on(table.cardId),
+}));
+
+export const cardPrices = pgTable('card_prices', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  cardId: text('card_id').references(() => cards.id).notNull(),
+  priceType: text('price_type').notNull(), // 'usd', 'usd_foil', 'eur', 'tix'
+  price: text('price'),
+  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+}, (table) => ({
+  cardPriceIdx: index('card_prices_card_idx').on(table.cardId),
+  priceTypeIdx: index('card_prices_type_idx').on(table.priceType),
+}));
+
+export const cardLegalities = pgTable('card_legalities', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  cardId: text('card_id').references(() => cards.id).notNull(),
+  format: text('format').notNull(),
+  legality: text('legality').notNull(), // 'legal', 'not_legal', 'restricted', 'banned'
+}, (table) => ({
+  cardLegalityIdx: index('card_legalities_card_idx').on(table.cardId),
+  formatIdx: index('card_legalities_format_idx').on(table.format),
+}));
+
+// Keep legacy cache table for backwards compatibility
 export const cardCache = pgTable('card_cache', {
   id: text('id').primaryKey(), // Scryfall card ID
   cardData: jsonb('card_data').$type<Card>().notNull(),
@@ -178,6 +260,14 @@ export const cardThemeFeedback = pgTable('card_theme_feedback', {
 // Zod schemas for database operations
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 
+// Insert schemas for new card tables
+export const insertCardSchema = createInsertSchema(cards).omit({ lastUpdated: true });
+export const insertCardSetSchema = createInsertSchema(cardSets);
+export const insertCardImageSchema = createInsertSchema(cardImages).omit({ id: true });
+export const insertCardPriceSchema = createInsertSchema(cardPrices).omit({ id: true, lastUpdated: true });
+export const insertCardLegalitySchema = createInsertSchema(cardLegalities).omit({ id: true });
+
+// Legacy cache schemas
 export const insertCardCacheSchema = createInsertSchema(cardCache).omit({ lastUpdated: true, searchCount: true });
 export const insertSearchCacheSchema = createInsertSchema(searchCache).omit({ id: true, createdAt: true, lastAccessed: true, accessCount: true });
 
@@ -236,6 +326,19 @@ export const insertUserVoteSchema = createInsertSchema(userVotes).omit({ id: tru
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
+// Card database types
+export type Card = z.infer<typeof cardSchema>;
+export type InsertCard = z.infer<typeof insertCardSchema>;
+export type CardSet = typeof cardSets.$inferSelect;
+export type InsertCardSet = z.infer<typeof insertCardSetSchema>;
+export type CardImage = typeof cardImages.$inferSelect;
+export type InsertCardImage = z.infer<typeof insertCardImageSchema>;
+export type CardPrice = typeof cardPrices.$inferSelect;
+export type InsertCardPrice = z.infer<typeof insertCardPriceSchema>;
+export type CardLegality = typeof cardLegalities.$inferSelect;
+export type InsertCardLegality = z.infer<typeof insertCardLegalitySchema>;
+
+// Legacy cache types
 export type CardCacheEntry = typeof cardCache.$inferSelect;
 export type InsertCardCache = z.infer<typeof insertCardCacheSchema>;
 export type SearchCacheEntry = typeof searchCache.$inferSelect;

@@ -1,0 +1,344 @@
+import { db } from "../db";
+import { cards, cardSets, cardImages, cardPrices, cardLegalities } from "@shared/schema";
+import { Card, InsertCard, CardSet, InsertCardSet } from "@shared/schema";
+import { eq, sql, and, or, ilike, inArray, desc, asc } from "drizzle-orm";
+import { SearchFilters, SearchResponse } from "@shared/schema";
+import { cardMatchesFilters } from "../utils/card-filters";
+
+const SCRYFALL_BULK_API = "https://api.scryfall.com/bulk-data";
+
+export class CardDatabaseService {
+  private isDownloading = false;
+  private downloadProgress = { current: 0, total: 0, status: 'idle' };
+
+  async initializeDatabase(): Promise<void> {
+    console.log("Initializing card database...");
+    
+    // Check if we have any cards in the database
+    const cardCount = await this.getCardCount();
+    
+    if (cardCount === 0) {
+      console.log("No cards found in database. Starting bulk download...");
+      await this.downloadAllCards();
+    } else {
+      console.log(`Database already contains ${cardCount} cards`);
+    }
+  }
+
+  async getCardCount(): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` }).from(cards);
+    return result[0]?.count || 0;
+  }
+
+  async downloadAllCards(): Promise<void> {
+    if (this.isDownloading) {
+      console.log("Download already in progress");
+      return;
+    }
+
+    this.isDownloading = true;
+    this.downloadProgress = { current: 0, total: 0, status: 'downloading' };
+
+    try {
+      // Get bulk data info from Scryfall
+      console.log("Fetching bulk data info...");
+      const bulkResponse = await fetch(SCRYFALL_BULK_API);
+      const bulkData = await bulkResponse.json();
+      
+      // Find the default cards bulk data
+      const defaultCards = bulkData.data.find((item: any) => item.type === 'default_cards');
+      if (!defaultCards) {
+        throw new Error("Could not find default cards bulk data");
+      }
+
+      console.log(`Downloading ${defaultCards.compressed_size} bytes of card data...`);
+      
+      // Download the bulk card data
+      const cardsResponse = await fetch(defaultCards.download_uri);
+      const cardsData = await cardsResponse.json();
+
+      this.downloadProgress.total = cardsData.length;
+      console.log(`Processing ${cardsData.length} cards...`);
+
+      // Process cards in batches to avoid memory issues
+      const batchSize = 1000;
+      for (let i = 0; i < cardsData.length; i += batchSize) {
+        const batch = cardsData.slice(i, i + batchSize);
+        await this.processBatch(batch);
+        this.downloadProgress.current = i + batch.length;
+        console.log(`Processed ${this.downloadProgress.current}/${this.downloadProgress.total} cards`);
+      }
+
+      this.downloadProgress.status = 'complete';
+      console.log("Card database initialization complete!");
+      
+    } catch (error) {
+      console.error("Error downloading cards:", error);
+      this.downloadProgress.status = 'error';
+      throw error;
+    } finally {
+      this.isDownloading = false;
+    }
+  }
+
+  private async processBatch(batch: any[]): Promise<void> {
+    const cardsToInsert: InsertCard[] = [];
+    const setsToInsert: Map<string, InsertCardSet> = new Map();
+
+    for (const cardData of batch) {
+      // Skip digital-only cards, tokens, etc. if desired
+      if (cardData.digital || cardData.layout === 'token') {
+        continue;
+      }
+
+      // Collect set information
+      if (!setsToInsert.has(cardData.set)) {
+        setsToInsert.set(cardData.set, {
+          code: cardData.set,
+          name: cardData.set_name,
+          releasedAt: cardData.released_at,
+          setType: cardData.set_type,
+          cardCount: 0 // Will be updated later if needed
+        });
+      }
+
+      // Convert Scryfall card to our format
+      const card: InsertCard = {
+        id: cardData.id,
+        name: cardData.name,
+        manaCost: cardData.mana_cost || null,
+        cmc: cardData.cmc || 0,
+        typeLine: cardData.type_line,
+        oracleText: cardData.oracle_text || null,
+        colors: cardData.colors || [],
+        colorIdentity: cardData.color_identity || [],
+        power: cardData.power || null,
+        toughness: cardData.toughness || null,
+        loyalty: cardData.loyalty || null,
+        rarity: cardData.rarity,
+        setCode: cardData.set,
+        setName: cardData.set_name,
+        collectorNumber: cardData.collector_number,
+        releasedAt: cardData.released_at,
+        artist: cardData.artist || null,
+        borderColor: cardData.border_color || 'black',
+        layout: cardData.layout || 'normal',
+        keywords: cardData.keywords || [],
+        producedMana: cardData.produced_mana || [],
+        cardFaces: cardData.card_faces || null,
+        imageUris: cardData.image_uris || null,
+        prices: cardData.prices || null,
+        legalities: cardData.legalities || null,
+        edhrecRank: cardData.edhrec_rank || null,
+        pennyRank: cardData.penny_rank || null,
+      };
+
+      cardsToInsert.push(card);
+    }
+
+    // Insert sets first (ignore conflicts)
+    if (setsToInsert.size > 0) {
+      await db.insert(cardSets)
+        .values(Array.from(setsToInsert.values()))
+        .onConflictDoNothing();
+    }
+
+    // Insert cards (ignore conflicts for updates)
+    if (cardsToInsert.length > 0) {
+      await db.insert(cards)
+        .values(cardsToInsert)
+        .onConflictDoUpdate({
+          target: cards.id,
+          set: {
+            name: sql`excluded.name`,
+            manaCost: sql`excluded.mana_cost`,
+            cmc: sql`excluded.cmc`,
+            typeLine: sql`excluded.type_line`,
+            oracleText: sql`excluded.oracle_text`,
+            colors: sql`excluded.colors`,
+            colorIdentity: sql`excluded.color_identity`,
+            power: sql`excluded.power`,
+            toughness: sql`excluded.toughness`,
+            loyalty: sql`excluded.loyalty`,
+            rarity: sql`excluded.rarity`,
+            setCode: sql`excluded.set_code`,
+            setName: sql`excluded.set_name`,
+            collectorNumber: sql`excluded.collector_number`,
+            releasedAt: sql`excluded.released_at`,
+            artist: sql`excluded.artist`,
+            borderColor: sql`excluded.border_color`,
+            layout: sql`excluded.layout`,
+            keywords: sql`excluded.keywords`,
+            producedMana: sql`excluded.produced_mana`,
+            cardFaces: sql`excluded.card_faces`,
+            imageUris: sql`excluded.image_uris`,
+            prices: sql`excluded.prices`,
+            legalities: sql`excluded.legalities`,
+            edhrecRank: sql`excluded.edhrec_rank`,
+            pennyRank: sql`excluded.penny_rank`,
+            lastUpdated: sql`NOW()`,
+          }
+        });
+    }
+  }
+
+  async searchCards(filters: SearchFilters, page: number = 1): Promise<SearchResponse> {
+    const limit = 20;
+    const offset = (page - 1) * limit;
+
+    let query = db.select().from(cards);
+    const conditions: any[] = [];
+
+    // Text search
+    if (filters.query) {
+      conditions.push(
+        or(
+          ilike(cards.name, `%${filters.query}%`),
+          ilike(cards.oracleText, `%${filters.query}%`),
+          ilike(cards.typeLine, `%${filters.query}%`)
+        )
+      );
+    }
+
+    // Color filters
+    if (filters.colors && filters.colors.length > 0) {
+      if (filters.includeMulticolored) {
+        conditions.push(
+          sql`${cards.colors} && ${filters.colors}`
+        );
+      } else {
+        conditions.push(
+          sql`${cards.colors} = ${filters.colors}`
+        );
+      }
+    }
+
+    // Color identity filters
+    if (filters.colorIdentity && filters.colorIdentity.length > 0) {
+      conditions.push(
+        sql`${cards.colorIdentity} <@ ${filters.colorIdentity}`
+      );
+    }
+
+    // Type filters
+    if (filters.types && filters.types.length > 0) {
+      const typeConditions = filters.types.map(type => 
+        ilike(cards.typeLine, `%${type}%`)
+      );
+      conditions.push(or(...typeConditions));
+    }
+
+    // Rarity filters
+    if (filters.rarities && filters.rarities.length > 0) {
+      conditions.push(inArray(cards.rarity, filters.rarities));
+    }
+
+    // Mana value filters
+    if (filters.minMv !== undefined) {
+      conditions.push(sql`${cards.cmc} >= ${filters.minMv}`);
+    }
+    if (filters.maxMv !== undefined) {
+      conditions.push(sql`${cards.cmc} <= ${filters.maxMv}`);
+    }
+
+    // Set filter
+    if (filters.set) {
+      conditions.push(eq(cards.setCode, filters.set));
+    }
+
+    // Power/Toughness filters
+    if (filters.power) {
+      conditions.push(eq(cards.power, filters.power));
+    }
+    if (filters.toughness) {
+      conditions.push(eq(cards.toughness, filters.toughness));
+    }
+
+    // Oracle text filter
+    if (filters.oracleText) {
+      conditions.push(ilike(cards.oracleText, `%${filters.oracleText}%`));
+    }
+
+    // Apply all conditions
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    // Get total count
+    const countQuery = db.select({ count: sql<number>`count(*)` }).from(cards);
+    if (conditions.length > 0) {
+      countQuery.where(and(...conditions));
+    }
+    const totalResult = await countQuery;
+    const totalCards = totalResult[0]?.count || 0;
+
+    // Apply pagination and ordering
+    const results = await query
+      .orderBy(asc(cards.name))
+      .limit(limit)
+      .offset(offset);
+
+    // Convert to Card format
+    const cardData = results.map(this.convertDbCardToCard);
+
+    return {
+      data: cardData,
+      has_more: offset + results.length < totalCards,
+      total_cards: totalCards,
+    };
+  }
+
+  async getCard(id: string): Promise<Card | null> {
+    const result = await db.select()
+      .from(cards)
+      .where(eq(cards.id, id))
+      .limit(1);
+
+    if (result.length === 0) {
+      return null;
+    }
+
+    return this.convertDbCardToCard(result[0]);
+  }
+
+  async getRandomCard(): Promise<Card> {
+    const result = await db.select()
+      .from(cards)
+      .orderBy(sql`RANDOM()`)
+      .limit(1);
+
+    if (result.length === 0) {
+      throw new Error("No cards found in database");
+    }
+
+    return this.convertDbCardToCard(result[0]);
+  }
+
+  private convertDbCardToCard(dbCard: any): Card {
+    return {
+      id: dbCard.id,
+      name: dbCard.name,
+      mana_cost: dbCard.manaCost,
+      cmc: dbCard.cmc,
+      type_line: dbCard.typeLine,
+      oracle_text: dbCard.oracleText,
+      colors: dbCard.colors,
+      color_identity: dbCard.colorIdentity,
+      power: dbCard.power,
+      toughness: dbCard.toughness,
+      rarity: dbCard.rarity,
+      set: dbCard.setCode,
+      set_name: dbCard.setName,
+      image_uris: dbCard.imageUris,
+      card_faces: dbCard.cardFaces,
+      prices: dbCard.prices,
+      legalities: dbCard.legalities,
+    };
+  }
+
+  getDownloadProgress() {
+    return this.downloadProgress;
+  }
+}
+
+export const cardDatabaseService = new CardDatabaseService();
