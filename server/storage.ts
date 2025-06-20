@@ -272,27 +272,12 @@ export class DatabaseStorage implements IStorage {
   async findFunctionallySimilarCards(): Promise<any[]> {
     return [];
   }
-      if (sharedThemes.length > 0) {
-        // Calculate final synergy: percentage based on theme overlap
-        const finalScore = totalSynergyScore / sharedThemes.length;
-        
-        synergies.push({
-          card,
-          sharedThemes,
-          synergyScore: finalScore,
-          reason: `Shares ${sharedThemes.length} theme${sharedThemes.length > 1 ? 's' : ''}`
-        });
-      }
-    }
-    
-    return synergies.sort((a, b) => b.synergyScore - a.synergyScore);
-  }
 
   async getCardThemes(cardId: string): Promise<CardTheme[]> {
     return db.select()
       .from(cardThemes)
       .where(eq(cardThemes.card_id, cardId))
-      .orderBy(desc(cardThemes.final_score)); // Sort by unified score
+      .orderBy(desc(cardThemes.confidence));
   }
 
   async createCardTheme(theme: InsertCardTheme): Promise<CardTheme> {
@@ -302,24 +287,18 @@ export class DatabaseStorage implements IStorage {
 
   // Remove old voting method - replaced by new themeVotes table
   async updateCardThemeVotes(): Promise<void> {}
-    
-        last_updated: new Date() 
-      })
-      .where(and(eq(cardThemes.card_id, cardId), eq(cardThemes.theme_name, themeName)));
-  }
 
   async findCardsByThemes(themes: string[], filters?: any): Promise<Card[]> {
     if (themes.length === 0) return [];
     
     const cardIds = await db.select({ 
       cardId: cardThemes.card_id,
-      avgScore: sql<number>`AVG(${cardThemes.final_score})`.as('avg_score')
+      avgScore: sql<number>`AVG(${cardThemes.confidence})`.as('avg_score')
     })
       .from(cardThemes)
       .where(inArray(cardThemes.theme_name, themes))
       .groupBy(cardThemes.card_id)
-      .having(sql`COUNT(DISTINCT ${cardThemes.theme_name}) >= ${Math.min(themes.length, 2)}`)
-      .orderBy(desc(sql`AVG(${cardThemes.final_score})`));
+      .orderBy(desc(sql`AVG(${cardThemes.confidence})`));
     
     if (cardIds.length === 0) return [];
     
@@ -345,233 +324,3 @@ export class DatabaseStorage implements IStorage {
   async calculateThemeSynergyScore(): Promise<{score: number, reason: string}> {
     return { score: 0, reason: "Use new synergy algorithm" };
   }
-
-    // Find shared themes
-    const sharedThemes = sourceThemes.filter(theme => targetThemes.includes(theme));
-    
-    if (sharedThemes.length > 0) {
-      const sharedScore = sharedThemes.length / Math.max(sourceThemes.length, targetThemes.length);
-      return { 
-        score: Math.min(sharedScore * 1.5, 1.0), 
-        reason: `Shares ${sharedThemes.length} theme(s): ${sharedThemes.join(', ')}` 
-      };
-    }
-
-    // Check theme relationships
-    let maxSynergyScore = 0;
-    let bestRelationship = '';
-    
-    for (const sourceTheme of sourceThemes) {
-          maxSynergyScore = relationship.synergyScore;
-          bestRelationship = `${sourceTheme} synergizes with ${relatedTheme}`;
-        }
-      }
-    }
-
-    return { 
-      score: maxSynergyScore, 
-      reason: bestRelationship || "No theme synergy found" 
-    };
-  }
-
-  async createDeck(deck: InsertDeck): Promise<Deck> {
-    const [result] = await db.insert(decks).values(deck).returning();
-    return result;
-  }
-
-  async getUserDecks(userId: number): Promise<Deck[]> {
-    return db.select()
-      .from(decks)
-      .where(eq(decks.userId, userId))
-      .orderBy(desc(decks.updatedAt));
-  }
-
-  async getDeck(id: number, userId: number): Promise<Deck | null> {
-    const [deck] = await db.select()
-      .from(decks)
-      .where(and(eq(decks.id, id), eq(decks.userId, userId)))
-      .limit(1);
-    return deck || null;
-  }
-
-  async updateDeck(id: number, userId: number, updates: Partial<InsertDeck>): Promise<Deck | null> {
-    const [deck] = await db.update(decks)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(and(eq(decks.id, id), eq(decks.userId, userId)))
-      .returning();
-    return deck || null;
-  }
-
-  async deleteDeck(id: number, userId: number): Promise<boolean> {
-    const result = await db.delete(decks)
-      .where(and(eq(decks.id, id), eq(decks.userId, userId)));
-    return (result.rowCount ?? 0) > 0;
-  }
-
-  async getUserDeck(userId: string): Promise<{ deck: UserDeck | null, entries: DeckEntry[], commander?: Card }> {
-    try {
-      const [deck] = await db.select().from(userDecks).where(eq(userDecks.userId, userId));
-      
-      if (!deck) {
-        return { deck: null, entries: [], commander: undefined };
-      }
-
-      const entries: DeckEntry[] = [];
-      const commander = deck.commanderId ? await this.getCard(deck.commanderId) : undefined;
-      
-      // Convert stored cards to deck entries
-      if (deck.cards && Array.isArray(deck.cards)) {
-        for (const cardData of deck.cards as Array<{cardId: string, quantity: number}>) {
-          const card = await this.getCard(cardData.cardId);
-          if (card) {
-            entries.push({ card, quantity: cardData.quantity });
-          }
-        }
-      }
-
-      return { 
-        deck, 
-        entries, 
-        commander: commander || undefined 
-      };
-    } catch (error) {
-      console.error('Error getting user deck:', error);
-      return { deck: null, entries: [], commander: undefined };
-    }
-  }
-
-  async saveUserDeck(userId: string, deckData: Partial<InsertUserDeck>): Promise<UserDeck> {
-    try {
-      const [deck] = await db
-        .insert(userDecks)
-        .values({
-          userId,
-          ...deckData,
-          updatedAt: new Date()
-        })
-        .onConflictDoUpdate({
-          target: userDecks.userId,
-          set: {
-            ...deckData,
-            updatedAt: new Date()
-          }
-        })
-        .returning();
-      
-      return deck;
-    } catch (error) {
-      console.error('Error saving user deck:', error);
-      throw error;
-    }
-  }
-
-  async importDeckFromText(userId: string, deckText: string, format: string = "Commander"): Promise<{ success: boolean, message: string, importedCards: number, failedCards: string[] }> {
-    const lines = deckText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-    const failedCards: string[] = [];
-    const importedCards: Array<{ cardId: string, quantity: number }> = [];
-    let commanderId: string | null = null;
-    let deckName = "Imported Deck";
-
-    for (const line of lines) {
-      // Skip comments and empty lines
-      if (line.startsWith('//') || line.startsWith('#') || line.length === 0) {
-        continue;
-      }
-
-      // Check for deck name
-      if (line.toLowerCase().startsWith('deck:') || line.toLowerCase().startsWith('name:')) {
-        deckName = line.split(':')[1]?.trim() || deckName;
-        continue;
-      }
-
-      // Parse card line (format: "quantity cardname" or "quantity x cardname")
-      const cardMatch = line.match(/^(\d+)\s*(?:x\s*)?(.+?)(?:\s*\(.*\))?$/i);
-      if (!cardMatch) {
-        // Try without quantity (assume 1)
-        const simpleMatch = line.match(/^(.+?)(?:\s*\(.*\))?$/i);
-        if (simpleMatch) {
-          const cardName = simpleMatch[1].trim();
-          const cards = await this.searchCardsByName(cardName);
-          if (cards.length > 0) {
-            const isCommander = line.toLowerCase().includes('commander') || 
-                              line.toLowerCase().includes('*') ||
-                              (format.toLowerCase() === 'commander' && !commanderId);
-            
-            if (isCommander && format.toLowerCase() === 'commander') {
-              commanderId = cards[0].id;
-            } else {
-              importedCards.push({ cardId: cards[0].id, quantity: 1 });
-            }
-          } else {
-            failedCards.push(cardName);
-          }
-        }
-        continue;
-      }
-
-      const quantity = parseInt(cardMatch[1]);
-      const cardName = cardMatch[2].trim();
-
-      // Search for the card
-      const cards = await this.searchCardsByName(cardName);
-      if (cards.length > 0) {
-        const isCommander = line.toLowerCase().includes('commander') || 
-                          line.toLowerCase().includes('*') ||
-                          (format.toLowerCase() === 'commander' && !commanderId && quantity === 1);
-        
-        if (isCommander && format.toLowerCase() === 'commander') {
-          commanderId = cards[0].id;
-        } else {
-          importedCards.push({ cardId: cards[0].id, quantity });
-        }
-      } else {
-        failedCards.push(cardName);
-      }
-    }
-
-    // Save the imported deck
-    const deckData: Partial<InsertUserDeck> = {
-      name: deckName,
-      format: format,
-      commanderId: commanderId,
-      cards: importedCards
-    };
-
-    await this.saveUserDeck(userId, deckData);
-
-    return {
-      success: true,
-      message: `Imported ${importedCards.length} cards successfully${failedCards.length > 0 ? `, ${failedCards.length} cards failed to import` : ''}`,
-      importedCards: importedCards.length,
-      failedCards
-    };
-  }
-
-  private async searchCardsByName(cardName: string): Promise<Card[]> {
-    try {
-      // Try exact name match first from cache
-      const exactResults = await db.select()
-        .from(cardCache)
-        .where(sql`LOWER(${cardCache.cardData}->>'name') = LOWER(${cardName})`)
-        .limit(5);
-
-      if (exactResults.length > 0) {
-        return exactResults.map(r => r.cardData);
-      }
-
-      // Fall back to Scryfall search
-      const searchResult = await scryfallService.searchCards({ query: `!"${cardName}"` }, 1);
-      return searchResult.data.slice(0, 5);
-    } catch (error) {
-      console.error('Search cards by name error:', error);
-      return [];
-    }
-  }
-
-  async findSynergyCards(sourceCard: Card, filters?: any): Promise<Array<{cardId: string, score: number, reason: string}>> {
-    // Simple implementation - could be enhanced with AI analysis
-
-  async findFunctionallySimilarCards(sourceCard: Card, filters?: any): Promise<Array<{cardId: string, score: number, reason: string}>> {
-}
-
-export const storage = new DatabaseStorage();
