@@ -4,9 +4,7 @@ import { DeckEntry } from "@/hooks/use-deck";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Card as UICard, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp, Plus, Minus, Crown } from "lucide-react";
+import { Plus, Minus, Crown } from "lucide-react";
 
 type SortOption = 'name' | 'name_desc' | 'mana_value' | 'price' | 'type';
 type CategoryOption = 'type' | 'mana_value' | 'none';
@@ -105,25 +103,40 @@ function HorizontalStackedCards({
 }: VerticalStackedCardsProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   
-  const CARD_WIDTH = 300;
-  const CARD_OVERLAP = 250; // How much cards overlap horizontally
-  const CARD_HEIGHT = 80; // Height for the horizontal cards
+  const COLLAPSED_WIDTH = 50;
+  const EXPANDED_WIDTH = 250;
+  const CARD_HEIGHT = 350;
+
+  // Calculate positions with spacing for hovered card
+  const calculatePositions = () => {
+    let currentX = 0;
+    return cards.map((_, index) => {
+      const position = currentX;
+      if (index === hoveredIndex) {
+        currentX += EXPANDED_WIDTH + 10; // Extra spacing for expanded card
+      } else {
+        currentX += COLLAPSED_WIDTH + 2; // Minimal spacing for collapsed cards
+      }
+      return position;
+    });
+  };
+
+  const positions = calculatePositions();
+  const totalWidth = positions[positions.length - 1] + (hoveredIndex === cards.length - 1 ? EXPANDED_WIDTH : COLLAPSED_WIDTH);
 
   return (
     <div className="relative overflow-x-auto py-4">
       <div 
-        className="flex relative"
+        className="relative transition-all duration-300"
         style={{ 
-          width: cards.length > 0 ? (cards.length - 1) * CARD_OVERLAP + CARD_WIDTH : 0,
+          width: totalWidth,
           height: CARD_HEIGHT,
-          minHeight: '80px'
+          minHeight: '350px'
         }}
       >
         {cards.map((entry, index) => {
           const isHovered = hoveredIndex === index;
-          // Horizontal stacking: each card offset by CARD_OVERLAP
-          const translateX = index * CARD_OVERLAP;
-          // Higher z-index for cards that appear later in the list (rightmost on top)
+          const translateX = positions[index];
           const zIndex = isHovered ? 100 : index + 1;
 
           return (
@@ -151,10 +164,10 @@ function HorizontalStackedCards({
   );
 }
 
-interface StackedCardProps {
+interface HorizontalStackedCardProps {
   entry: DeckEntry;
   index: number;
-  translateY: number;
+  translateX: number;
   zIndex: number;
   isHovered: boolean;
   onMouseEnter: () => void;
@@ -168,10 +181,10 @@ interface StackedCardProps {
   maxCopies: number;
 }
 
-function StackedCard({
+function HorizontalStackedCard({
   entry,
   index,
-  translateY,
+  translateX,
   zIndex,
   isHovered,
   onMouseEnter,
@@ -183,7 +196,7 @@ function StackedCard({
   isCommander,
   canBeCommander,
   maxCopies
-}: StackedCardProps) {
+}: HorizontalStackedCardProps) {
   const { card, quantity } = entry;
   const canAddCard = quantity < maxCopies;
   const canRemoveCard = quantity > 0;
@@ -193,111 +206,123 @@ function StackedCard({
     <div
       className="absolute transition-all duration-300 ease-out cursor-pointer"
       style={{
-        transform: `translateY(${translateY}px) ${isHovered ? 'translateX(30px) translateZ(0)' : ''}`,
-        zIndex: isHovered ? 100 : zIndex,
-        width: '200px'
+        transform: `translateX(${translateX}px)`,
+        zIndex: zIndex,
+        width: isHovered ? '250px' : '50px',
+        height: '350px'
       }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      <div className="relative group">
-        <div 
-          className="w-[200px] aspect-[2.5/3.5] bg-slate-600 rounded-lg overflow-hidden shadow-lg"
-          onClick={() => onClick(card)}
-        >
-          {card.image_uris?.normal ? (
-            <img
-              src={card.image_uris.normal}
-              alt={card.name}
-              className="w-full h-full object-cover"
-              loading="lazy"
-              onError={(e) => {
-                const img = e.target as HTMLImageElement;
-                img.style.display = 'none';
-                const parent = img.parentElement;
-                if (parent) {
-                  parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-slate-400 bg-slate-800 p-2"><span class="text-sm text-center">${card.name}</span></div>`;
-                }
-              }}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-800 p-2">
-              <span className="text-sm text-center">{card.name}</span>
-            </div>
+      <div className="relative h-full">
+        {/* Card Header - always visible */}
+        <div className="bg-slate-700 border border-slate-600 rounded-t-lg p-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {quantity > 1 && (
+              <Badge variant="secondary" className="text-xs bg-slate-600 text-white">
+                {quantity}
+              </Badge>
+            )}
+            <span className="text-sm font-medium text-white truncate">
+              {card.name}
+            </span>
+          </div>
+          {isCommander && (
+            <Crown className="w-4 h-4 text-yellow-400 flex-shrink-0" />
           )}
         </div>
 
-        {quantity > 1 && (
-          <Badge 
-            variant="secondary" 
-            className="absolute top-2 right-2 bg-black/90 text-white border-slate-600 text-sm px-2 py-1 shadow-lg"
-          >
-            {quantity}x
-          </Badge>
-        )}
+        {/* Card Body - expands on hover */}
+        <div 
+          className={`bg-slate-800 border-x border-b border-slate-600 rounded-b-lg overflow-hidden transition-all duration-300 ${
+            isHovered ? 'h-80' : 'h-0'
+          }`}
+          onClick={() => onClick(card)}
+        >
+          {isHovered && (
+            <div className="h-full flex flex-col">
+              {/* Card Image */}
+              <div className="flex-1 p-2">
+                {card.image_uris?.normal ? (
+                  <img
+                    src={card.image_uris.normal}
+                    alt={card.name}
+                    className="w-full h-full object-cover rounded"
+                    loading="lazy"
+                    onError={(e) => {
+                      const img = e.target as HTMLImageElement;
+                      img.style.display = 'none';
+                      const parent = img.parentElement;
+                      if (parent) {
+                        parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-slate-400 bg-slate-700 rounded"><span class="text-sm text-center p-2">${card.name}</span></div>`;
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-700 rounded">
+                    <span className="text-sm text-center p-2">{card.name}</span>
+                  </div>
+                )}
+              </div>
 
-        {isCommander && (
-          <div className="absolute top-2 left-2 bg-yellow-600 rounded-full p-1 shadow-lg">
-            <Crown className="w-4 h-4 text-white" />
-          </div>
-        )}
+              {/* Card Info */}
+              <div className="p-2 border-t border-slate-600 space-y-2">
+                <div className="text-xs text-slate-400">{card.type_line}</div>
+                
+                {price > 0 && (
+                  <div className="text-xs text-green-400">
+                    ${price.toFixed(2)}
+                  </div>
+                )}
 
-        {price > 0 && (
-          <Badge 
-            variant="outline" 
-            className="absolute bottom-2 left-2 bg-black/90 text-green-400 border-green-400/50 text-xs shadow-lg"
-          >
-            ${price.toFixed(2)}
-          </Badge>
-        )}
-
-        {isHovered && (
-          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-2">
-            {onSetCommander && canBeCommander && (
-              <Button
-                size="sm"
-                variant={isCommander ? "default" : "secondary"}
-                className={`w-8 h-8 p-0 shadow-lg ${
-                  isCommander ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-slate-600 hover:bg-slate-500'
-                }`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSetCommander(card);
-                }}
-              >
-                <Crown className="w-3 h-3" />
-              </Button>
-            )}
-            
-            <Button
-              size="sm"
-              variant="destructive"
-              className="w-8 h-8 p-0 bg-red-600 hover:bg-red-700 shadow-lg"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove(card.id);
-              }}
-              disabled={!canRemoveCard}
-            >
-              <Minus className="w-3 h-3" />
-            </Button>
-            
-            <Button
-              size="sm"
-              variant="default"
-              className="w-8 h-8 p-0 bg-green-600 hover:bg-green-700 shadow-lg"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAdd(card);
-              }}
-              disabled={!canAddCard}
-            >
-              <Plus className="w-3 h-3" />
-            </Button>
-          </div>
-        )}
-
-
+                {/* Action Buttons */}
+                <div className="flex gap-1">
+                  {onSetCommander && canBeCommander && (
+                    <Button
+                      size="sm"
+                      variant={isCommander ? "default" : "secondary"}
+                      className={`flex-1 h-6 text-xs ${
+                        isCommander ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-slate-600 hover:bg-slate-500'
+                      }`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSetCommander(card);
+                      }}
+                    >
+                      <Crown className="w-3 h-3" />
+                    </Button>
+                  )}
+                  
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="flex-1 h-6 text-xs bg-red-600 hover:bg-red-700"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemove(card.id);
+                    }}
+                    disabled={!canRemoveCard}
+                  >
+                    <Minus className="w-3 h-3" />
+                  </Button>
+                  
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="flex-1 h-6 text-xs bg-green-600 hover:bg-green-700"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAdd(card);
+                    }}
+                    disabled={!canAddCard}
+                  >
+                    <Plus className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -314,7 +339,7 @@ export function StackedDeckDisplay({
 }: StackedDeckDisplayProps) {
   const [sortBy, setSortBy] = useState<SortOption>('type');
   const [categoryBy, setCategoryBy] = useState<CategoryOption>('type');
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Creatures', 'Lands', 'Instants', 'Sorceries', 'Enchantments', 'Artifacts', 'Planeswalkers', 'Other', 'Battles']));
+  // All categories are always expanded in the new horizontal layout
 
   const categorizedCards = useMemo((): CategoryGroup[] => {
     if (categoryBy === 'none') {
@@ -352,20 +377,10 @@ export function StackedDeckDisplay({
           name: category,
           cards,
           totalQuantity: cards.reduce((sum, entry) => sum + entry.quantity, 0),
-          isExpanded: expandedCategories.has(category)
+          isExpanded: true
         };
       });
-  }, [deckEntries, sortBy, categoryBy, expandedCategories]);
-
-  const toggleCategory = (categoryName: string) => {
-    const newExpanded = new Set(expandedCategories);
-    if (newExpanded.has(categoryName)) {
-      newExpanded.delete(categoryName);
-    } else {
-      newExpanded.add(categoryName);
-    }
-    setExpandedCategories(newExpanded);
-  };
+  }, [deckEntries, sortBy, categoryBy]);
 
   const canBeCommander = (card: Card) => {
     const typeLine = card.type_line?.toLowerCase() || '';
@@ -415,47 +430,31 @@ export function StackedDeckDisplay({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-4">
+      <div className="space-y-6">
         {categorizedCards.map(category => (
-          <UICard key={category.name} className="bg-slate-800 border-slate-700 flex-shrink-0">
-            <Collapsible
-              open={category.isExpanded}
-              onOpenChange={() => toggleCategory(category.name)}
-            >
-              <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-slate-750 transition-colors py-3">
-                  <CardTitle className="flex items-center justify-between text-lg">
-                    <div className="flex items-center gap-2">
-                      <span>{category.name}</span>
-                      <Badge variant="secondary" className="text-xs">
-                        {category.totalQuantity}
-                      </Badge>
-                    </div>
-                    {category.isExpanded ? (
-                      <ChevronUp className="w-4 h-4" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4" />
-                    )}
-                  </CardTitle>
-                </CardHeader>
-              </CollapsibleTrigger>
-              
-              <CollapsibleContent>
-                <CardContent className="pt-0">
-                  <VerticalStackedCards
-                    cards={category.cards}
-                    onAdd={onAdd}
-                    onRemove={onRemove}
-                    onClick={onClick}
-                    onSetCommander={onSetCommander}
-                    commander={commander}
-                    canBeCommander={canBeCommander}
-                    getMaxCopies={getMaxCopies}
-                  />
-                </CardContent>
-              </CollapsibleContent>
-            </Collapsible>
-          </UICard>
+          <div key={category.name} className="space-y-3">
+            {/* Category Header */}
+            <div className="flex items-center gap-3">
+              <h3 className="text-lg font-medium text-white">{category.name}</h3>
+              <Badge variant="secondary" className="text-xs bg-slate-600 text-slate-300">
+                {category.totalQuantity} cards
+              </Badge>
+            </div>
+            
+            {/* Horizontal Card Stack */}
+            <div className="overflow-x-auto">
+              <HorizontalStackedCards
+                cards={category.cards}
+                onAdd={onAdd}
+                onRemove={onRemove}
+                onClick={onClick}
+                onSetCommander={onSetCommander}
+                commander={commander}
+                canBeCommander={canBeCommander}
+                getMaxCopies={getMaxCopies}
+              />
+            </div>
+          </div>
         ))}
       </div>
     </div>
