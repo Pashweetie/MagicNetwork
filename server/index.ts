@@ -2,7 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
-import { recommendationService } from "./services/recommendation";
+
 
 const app = express();
 app.use(express.json());
@@ -70,11 +70,7 @@ app.use((req, res, next) => {
     }, () => {
       log(`serving on port ${port}`);
       
-      // Generate recommendations for popular cards after startup
-      setTimeout(() => {
-        recommendationService.generateRecommendationsForPopularCards(30)
-          .catch(error => console.error('Initial recommendation generation failed:', error));
-      }, 30000); // 30 seconds after startup
+      // AI recommendation service is ready for theme generation
     });
   } catch (error) {
     console.error('Failed to start server:', error);

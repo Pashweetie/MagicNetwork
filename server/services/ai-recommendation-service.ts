@@ -60,11 +60,12 @@ ${themeList}
 Card Details:
 ${cardContext}
 
-Pick 1-3 most relevant themes and give each a confidence percentage (1-100).
+Pick ALL relevant themes that apply to this card and give each a confidence percentage (1-100).
 Respond in this exact format:
 Theme1: 85%
 Theme2: 70%
 Theme3: 45%
+Theme4: 60%
 
 Only use themes from the provided list. Each theme must be spelled exactly as shown.`;
 
