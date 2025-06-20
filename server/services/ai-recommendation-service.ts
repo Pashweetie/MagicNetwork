@@ -88,7 +88,7 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
         const [, themeName, confidenceStr] = match;
         const confidence = parseInt(confidenceStr);
         
-        if (confidence >= 1 && confidence <= 100) {
+        if (confidence >= 25 && confidence <= 100) {
           try {
             await db.insert(cardThemes).values({
               card_id: cardId,

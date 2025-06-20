@@ -329,16 +329,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         newConfidence = Math.max(0, Math.min(100, currentTheme[0].confidence + (netVotes * adjustmentPerVote)));
       }
 
-      // Update confidence in database
-      await db
-        .update(cardThemes)
-        .set({ confidence: newConfidence })
-        .where(and(
-          eq(cardThemes.card_id, cardId),
-          eq(cardThemes.theme_name, themeName)
-        ));
+      // Update confidence in database or remove if below threshold
+      if (newConfidence < 25) {
+        // Remove theme if it drops below 25%
+        await db
+          .delete(cardThemes)
+          .where(and(
+            eq(cardThemes.card_id, cardId),
+            eq(cardThemes.theme_name, themeName)
+          ));
+        
+        // Also remove associated votes
+        await db
+          .delete(themeVotes)
+          .where(and(
+            eq(themeVotes.card_id, cardId),
+            eq(themeVotes.theme_name, themeName)
+          ));
 
-      res.json({ success: true, newScore: newConfidence });
+        res.json({ success: true, newScore: 0, removed: true, message: 'Theme removed due to low confidence' });
+      } else {
+        await db
+          .update(cardThemes)
+          .set({ confidence: newConfidence })
+          .where(and(
+            eq(cardThemes.card_id, cardId),
+            eq(cardThemes.theme_name, themeName)
+          ));
+
+        res.json({ success: true, newScore: newConfidence });
+      }
     } catch (error) {
       console.error('Theme vote error:', error);
       res.status(500).json({ error: 'Failed to record vote' });

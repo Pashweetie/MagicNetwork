@@ -54,8 +54,14 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
     );
     
     if (result) {
-      UIUtils.updateConfidenceDisplay(themeName, result.newScore);
-      UIUtils.disableVoteButtons(`[data-theme="${themeName}"]`);
+      if (result.removed) {
+        // Theme was removed, refresh the page to update the display
+        UIUtils.showToast(result.message || 'Theme removed', 'warning');
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        UIUtils.updateConfidenceDisplay(themeName, result.newScore);
+        UIUtils.disableVoteButtons(`[data-theme="${themeName}"]`);
+      }
     }
   };
 
@@ -80,7 +86,12 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
           }
         }));
         
-        UIUtils.showToast(`Theme confidence updated to ${Math.round(result.newScore)}%`);
+        if (result.removed) {
+          UIUtils.showToast(result.message || 'Theme removed', 'warning');
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          UIUtils.showToast(`Theme confidence updated to ${Math.round(result.newScore)}%`);
+        }
       }
     } catch (error) {
       console.error('Failed to vote on card theme:', error);
