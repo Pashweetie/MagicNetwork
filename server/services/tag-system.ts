@@ -1,37 +1,11 @@
 import { Card } from "@shared/schema";
 import { storage } from "../storage";
-import { pureAIService } from "./pure-ai-recommendations";
+import { unifiedAIService } from "./unified-ai-service";
 
 export class TagSystem {
   // Generate AI-powered tags for a card
   async generateCardTags(card: Card): Promise<Array<{tag: string, confidence: number}>> {
-    try {
-      // Check if we already have tags for this card
-      const existingTags = await storage.getCardTags(card.id);
-      if (existingTags.length > 0) {
-        return existingTags.map(t => ({tag: t.tag, confidence: t.confidence || 0.8}));
-      }
-
-      // Use AI to generate tags
-      const tags = await this.generateTagsWithAI(card);
-      
-      // Store tags in database
-      for (const tagData of tags) {
-        await storage.createCardTag({
-          cardId: card.id,
-          tag: tagData.tag,
-          confidence: tagData.confidence,
-          aiGenerated: true,
-          upvotes: 0,
-          downvotes: 0
-        });
-      }
-
-      return tags;
-    } catch (error) {
-      console.error('Error generating card tags:', error);
-      return this.getFallbackTags(card);
-    }
+    return unifiedAIService.getCardTags(card);
   }
 
   private async generateTagsWithAI(card: Card): Promise<Array<{tag: string, confidence: number}>> {

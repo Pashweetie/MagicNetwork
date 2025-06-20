@@ -1,103 +1,22 @@
 import { Card } from "@shared/schema";
-import { db } from "../db";
-import { cardCache, cardThemes } from "@shared/schema";
-import { sql, eq } from "drizzle-orm";
+import { unifiedAIService } from "./unified-ai-service";
 import { cardMatchesFilters } from "../utils/card-filters";
-// Removed predefined themes dependency
 
 export class PureAIRecommendationService {
-  public textGenerator: any = null;
-  public isReady = false;
+  public get textGenerator() { return unifiedAIService['textGenerator']; }
+  public get isReady() { return unifiedAIService['isReady']; }
 
   constructor() {
-    this.initializeAI();
+    // Use unified service
   }
 
   public async initializeAI() {
-    if (this.isReady) return;
-    
-    try {
-      // Try Google Gemini first (free tier available)
-      if (process.env.GOOGLE_API_KEY) {
-        const { GoogleGenerativeAI } = await import('@google/generative-ai');
-        this.textGenerator = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-        this.isReady = true;
-        console.log('Google Gemini AI ready for theme generation');
-        return;
-      }
-
-      // Try DeepSeek (free alternative)
-      if (process.env.DEEPSEEK_API_KEY) {
-        const { default: OpenAI } = await import('openai');
-        this.textGenerator = new OpenAI({
-          apiKey: process.env.DEEPSEEK_API_KEY,
-          baseURL: 'https://api.deepseek.com'
-        });
-        this.isReady = true;
-        console.log('DeepSeek AI ready for theme generation');
-        return;
-      }
-
-      // Fallback to OpenAI if available
-      if (process.env.OPENAI_API_KEY) {
-        const { default: OpenAI } = await import('openai');
-        this.textGenerator = new OpenAI({
-          apiKey: process.env.OPENAI_API_KEY,
-        });
-        this.isReady = true;
-        console.log('OpenAI GPT ready for theme generation');
-        return;
-      }
-
-      // No AI available
-      console.log('No AI API keys available, using basic fallback themes');
-      this.isReady = false;
-    } catch (error) {
-      console.error('Failed to initialize AI:', error);
-      this.isReady = false;
-    }
+    return unifiedAIService.initializeAI();
   }
 
   // AI-powered theme generation with database caching
   async analyzeCardThemes(card: Card): Promise<Array<{theme: string, description: string}>> {
-    if (!this.isReady) {
-      await this.initializeAI();
-      if (!this.isReady) {
-        console.log('AI not available, cannot generate themes');
-        return [];
-      }
-    }
-
-    try {
-      // Check if themes already exist in database
-      const existingThemes = await db
-        .select()
-        .from(cardThemes)
-        .where(eq(cardThemes.card_id, card.id))
-        .limit(5);
-
-      if (existingThemes.length > 0) {
-        console.log(`Using cached themes for ${card.name}`);
-        return existingThemes.map(theme => ({
-          theme: theme.theme_name,
-          description: theme.description || `${theme.theme_name} strategy`
-        }));
-      }
-
-      // Generate new themes with AI
-      const aiThemes = await this.generateThemesWithAI(card);
-      
-      // Store in database for future use
-      for (const theme of aiThemes) {
-        try {
-          // Store all themes - parsing should now extract proper names
-          await db.insert(cardThemes).values({
-            card_id: card.id,
-            theme_name: theme.theme,
-            theme_category: 'AI-Generated',
-            description: theme.description,
-            confidence: 0.8,
-            keywords: [theme.theme.toLowerCase()]
+    return unifiedAIService.getCardThemes(card);
           });
           console.log(`Stored theme: "${theme.theme}" for ${card.name}`);
         } catch (error) {

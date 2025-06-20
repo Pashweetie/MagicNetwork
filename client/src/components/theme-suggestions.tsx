@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@shared/schema";
-import { CardTile } from "./card-tile";
+import { SharedCardTile } from "./shared-card-tile";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkles, Wand2, Users, Crown, Plus, ThumbsUp, ThumbsDown } from "lucide-react";
+import { UIUtils, VoteHandler } from "@shared/utils/ui-utils";
 
 interface ThemeSuggestionsProps {
   card: Card;
@@ -42,62 +43,20 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
 
   const handleThemeVote = async (themeName: string, vote: 'up' | 'down') => {
     const voteKey = `${card.id}-${themeName}`;
-    if (userHasVoted[voteKey]) {
-      const toast = document.createElement('div');
-      toast.className = 'fixed top-4 right-4 bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-      toast.textContent = 'You have already voted on this theme';
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 2000);
-      return;
+    const result = await VoteHandler.handleVote(
+      card.id,
+      'theme-vote',
+      { themeName, vote },
+      userHasVoted,
+      setUserHasVoted,
+      voteKey
+    );
+    
+    if (result) {
+      UIUtils.updateConfidenceDisplay(themeName, result.newConfidence);
+      UIUtils.disableVoteButtons(`[data-theme="${themeName}"]`);
     }
-
-    try {
-      const response = await fetch(`/api/cards/${card.id}/theme-vote`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          themeName,
-          vote
-        })
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        
-        // Mark theme as voted using card-specific key
-        setUserHasVoted(prev => ({ ...prev, [voteKey]: true }));
-        
-        // Show visual feedback with updated confidence
-        const button = document.activeElement as HTMLButtonElement;
-        if (button) {
-          const originalClasses = button.className;
-          button.className = originalClasses + ' bg-green-600 text-white';
-          button.disabled = true;
-          
-          const toast = document.createElement('div');
-          toast.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-          toast.textContent = `${result.message} New confidence: ${result.newConfidence}% (${result.upvotes}↑ ${result.downvotes}↓)`;
-          document.body.appendChild(toast);
-          
-          // Update the confidence display locally
-          const confidenceElement = document.querySelector(`[data-theme="${themeName}"] .confidence-display`);
-          if (confidenceElement) {
-            confidenceElement.textContent = `${result.newConfidence}%`;
-          }
-          
-          // Disable both vote buttons for this theme
-          const themeContainer = document.querySelector(`[data-theme="${themeName}"]`);
-          if (themeContainer) {
-            const voteButtons = themeContainer.querySelectorAll('button[title*="Vote"]');
-            voteButtons.forEach(btn => (btn as HTMLButtonElement).disabled = true);
-          }
-          
-          setTimeout(() => {
-            toast.remove();
-          }, 2000);
-        }
-      }
-    } catch (error) {
+  };
       console.error('Failed to submit feedback:', error);
       // Show error toast
       const toast = document.createElement('div');
