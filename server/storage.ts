@@ -24,15 +24,9 @@ export interface IStorage {
   getCachedSearchResults(filters: SearchFilters, page: number): Promise<SearchResponse | null>;
   cleanupOldCache(): Promise<void>;
   
-  // Theme system - core functionality
+  // Simplified theme system
   getCardThemes(cardId: string): Promise<CardTheme[]>;
   createCardTheme(theme: InsertCardTheme): Promise<CardTheme>;
-  updateCardThemeVotes(cardId: string, themeName: string, upvotes: number, downvotes: number): Promise<void>;
-  findCardsByThemes(themes: string[], filters?: any): Promise<Card[]>;
-  recordUserThemeFeedback(feedback: InsertUserThemeFeedback): Promise<void>;
-  
-  // Theme feedback system
-  recordCardThemeFeedback(feedback: InsertCardThemeFeedback): Promise<void>;
   
   // Deck persistence
   createDeck(deck: InsertDeck): Promise<Deck>;
@@ -48,9 +42,6 @@ export interface IStorage {
   // Deck import functionality
   importDeckFromText(userId: string, deckText: string, format?: string): Promise<{ success: boolean, message: string, importedCards: number, failedCards: string[] }>;
 
-  // Synergy and similarity methods
-  findSynergyCards(sourceCard: Card, filters?: any): Promise<Array<{cardId: string, score: number, reason: string}>>;
-  findFunctionallySimilarCards(sourceCard: Card, filters?: any): Promise<Array<{cardId: string, score: number, reason: string}>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -282,11 +273,18 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async findCardsBySharedThemes(
-    sourceCard: Card, 
-    sourceThemes: Array<{theme: string, description: string, confidence: number, cards: Card[]}>, 
-    filters?: any
-  ): Promise<Array<{card: Card, sharedThemes: Array<{theme: string, score: number}>, synergyScore: number, reason: string}>> {
+  // Simplified method - remove complex implementation
+  async findCardsBySharedThemes(): Promise<any[]> {
+    return [];
+  }
+
+  // Remove complex synergy methods - replaced by new algorithm
+  async findSynergyCards(): Promise<any[]> {
+    return [];
+  }
+
+  async findFunctionallySimilarCards(): Promise<any[]> {
+    return [];
     const synergies: Array<{card: Card, sharedThemes: Array<{theme: string, score: number}>, synergyScore: number, reason: string}> = [];
     
     // Get source card's theme scores
@@ -351,7 +349,8 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async updateCardThemeVotes(cardId: string, themeName: string, upvotes: number, downvotes: number): Promise<void> {
+  // Remove old voting method - replaced by new themeVotes table
+  async updateCardThemeVotes(): Promise<void> {}
     // Calculate new final score using the same logic as routes
     const baseConfidence = 50;
     const totalVotes = upvotes + downvotes;
@@ -405,11 +404,12 @@ export class DatabaseStorage implements IStorage {
 
 
 
-  async recordUserThemeFeedback(feedback: InsertUserThemeFeedback): Promise<void> {
-    await db.insert(userThemeFeedback).values(feedback);
-  }
+  // Remove old feedback methods - simplified system
+  async recordUserThemeFeedback(): Promise<void> {}
+  async recordCardThemeFeedback(): Promise<void> {}
 
-  async calculateThemeSynergyScore(sourceThemes: string[], targetThemes: string[]): Promise<{score: number, reason: string}> {
+  async calculateThemeSynergyScore(): Promise<{score: number, reason: string}> {
+    return { score: 0, reason: "Use new synergy algorithm" };
     if (sourceThemes.length === 0 || targetThemes.length === 0) {
       return { score: 0, reason: "No themes to compare" };
     }
