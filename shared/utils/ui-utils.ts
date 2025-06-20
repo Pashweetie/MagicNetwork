@@ -29,30 +29,25 @@ export class UIUtils {
   }
 
   static createLoadingState(message: string = 'Loading...') {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="w-6 h-6 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
-        <span className="ml-2 text-slate-400">{message}</span>
-      </div>
-    );
+    return {
+      type: 'loading' as const,
+      message
+    };
   }
 
   static createErrorState(message: string = 'Failed to load data') {
-    return (
-      <div className="text-center py-8">
-        <p className="text-slate-400">{message}</p>
-      </div>
-    );
+    return {
+      type: 'error' as const,
+      message
+    };
   }
 
-  static createEmptyState(title: string, subtitle?: string, icon?: React.ReactNode) {
-    return (
-      <div className="text-center py-8">
-        {icon && <div className="w-12 h-12 text-slate-600 mx-auto mb-4">{icon}</div>}
-        <p className="text-slate-400">{title}</p>
-        {subtitle && <p className="text-sm text-slate-500 mt-2">{subtitle}</p>}
-      </div>
-    );
+  static createEmptyState(title: string, subtitle?: string) {
+    return {
+      type: 'empty' as const,
+      title,
+      subtitle
+    };
   }
 }
 

@@ -69,18 +69,29 @@ export function ThemeBasedSynergies({ cardId, onCardClick, onAddCard, currentFil
   };
 
   if (isLoading) {
-    return UIUtils.createLoadingState('Finding theme synergies...');
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="w-6 h-6 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
+        <span className="ml-2 text-slate-400">Finding theme synergies...</span>
+      </div>
+    );
   }
 
   if (error) {
-    return UIUtils.createErrorState('Failed to load theme synergies');
+    return (
+      <div className="text-center py-8">
+        <p className="text-slate-400">Failed to load theme synergies</p>
+      </div>
+    );
   }
 
   if (!synergyData || synergyData.length === 0) {
-    return UIUtils.createEmptyState(
-      'No theme synergies found',
-      'Try adjusting your search filters',
-      <GitMerge className="w-12 h-12" />
+    return (
+      <div className="text-center py-8">
+        <GitMerge className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+        <p className="text-slate-400">No theme synergies found</p>
+        <p className="text-sm text-slate-500 mt-2">Try adjusting your search filters</p>
+      </div>
     );
   }
 

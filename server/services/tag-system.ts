@@ -8,33 +8,6 @@ export class TagSystem {
     return unifiedAIService.getCardTags(card);
   }
 
-  // Legacy methods kept for any remaining direct calls
-  private parseAITagResponse(response: string): Array<{tag: string, confidence: number}> {
-    const tags: Array<{tag: string, confidence: number}> = [];
-    
-    // Extract tags from response
-    const tagLine = response.split('\n').find(line => 
-      line.toLowerCase().includes('tags:') || 
-      line.includes(',') ||
-      !line.includes(':')
-    ) || response;
-    
-    const rawTags = tagLine
-      .replace(/tags:/i, '')
-      .split(',')
-      .map(tag => tag.trim().toLowerCase())
-      .filter(tag => tag.length > 0 && tag.length < 20);
-
-    for (const tag of rawTags.slice(0, 8)) {
-      tags.push({
-        tag: tag,
-        confidence: 0.8 + Math.random() * 0.2 // 0.8-1.0 range
-      });
-    }
-
-    return tags;
-  }
-
   private getFallbackTags(card: Card): Array<{tag: string, confidence: number}> {
     const tags: Array<{tag: string, confidence: number}> = [];
     const text = (card.oracle_text || '').toLowerCase();

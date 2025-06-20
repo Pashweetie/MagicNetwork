@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Lightbulb, GitMerge, Copy, AlertCircle, Plus, ThumbsUp, ThumbsDown } from "lucide-react";
 import { ThemeSuggestions } from "./theme-suggestions";
 import { ThemeBasedSynergies } from "./theme-based-synergies";
-import { CardTile } from "./card-tile";
+import { SharedCardTile } from "./shared-card-tile";
 import { Card } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { useDeck } from "@/hooks/use-deck";
