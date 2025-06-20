@@ -143,7 +143,7 @@ Rules:
             continue;
           }
           
-          // Clean theme name of formatting artifacts
+          // Clean and validate theme name against predefined list
           themeName = themeName
             .replace(/^\*+\s*\d*\.?\s*/, '') // Remove markdown and numbering
             .replace(/^\d+\.\s*/, '') // Remove numbering
@@ -154,6 +154,18 @@ Rules:
             console.error('Empty theme name after cleaning');
             continue;
           }
+          
+          // Validate theme is from predefined list
+          const { findClosestTheme } = await import('@shared/predefined-themes');
+          const validTheme = findClosestTheme(themeName);
+          
+          if (!validTheme) {
+            console.warn(`Invalid theme "${themeName}" not in predefined list, skipping`);
+            continue;
+          }
+          
+          // Use the standardized theme name
+          themeName = validTheme;
           
           // AI always sets default confidence of 50 for consistency
           const confidenceScore = 50;

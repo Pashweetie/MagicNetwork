@@ -1,0 +1,135 @@
+export const cardRecommendations = pgTable('card_recommendations', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  sourceCardId: text('source_card_id').references(() => cardCache.id).notNull(),
+  recommendedCardId: text('recommended_card_id').references(() => cardCache.id).notNull(),
+  recommendationType: text('recommendation_type').notNull(), // 'synergy' or 'functional_similarity'
+  score: integer('score').notNull(), // 0-100 recommendation strength
+  reason: text('reason').notNull(), // Why this card is recommended
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  sourceCardIdx: index('card_recommendations_source_idx').on(table.sourceCardId),
+  typeIdx: index('card_recommendations_type_idx').on(table.recommendationType),
+  scoreIdx: index('card_recommendations_score_idx').on(table.score),
+}));
+
+export const userInteractions = pgTable('user_interactions', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  cardId: text('card_id').references(() => cardCache.id).notNull(),
+  interactionType: text('interaction_type').notNull(), // 'view', 'favorite', 'search', 'deck_add'
+  metadata: jsonb('metadata'), // Additional context like search query, deck type, etc.
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userCardIdx: index('user_interactions_user_card_idx').on(table.userId, table.cardId),
+  typeIdx: index('user_interactions_type_idx').on(table.interactionType),
+  userIdx: index('user_interactions_user_idx').on(table.userId),
+}));
+
+
+
+
+// Centralized theme system - single source of truth for all theme-based features
+export const cardThemes = pgTable('card_themes', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  card_id: text('card_id').references(() => cardCache.id).notNull(),
+  theme_name: text('theme_name').notNull(),
+  theme_category: text('theme_category').notNull(), // 'strategy', 'archetype', 'mechanic', 'synergy'  
+  base_confidence: integer('base_confidence').notNull(), // AI-generated confidence 0-100
+  user_upvotes: integer('user_upvotes').default(0),
+  user_downvotes: integer('user_downvotes').default(0),
+  final_score: integer('final_score').default(0), // Calculated from base + votes, used for all sorting
+  keywords: text('keywords').array(), // Keywords that triggered this theme
+  description: text('description'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  last_updated: timestamp('last_updated').defaultNow().notNull(),
+}, (table) => ({
+  cardThemeIdx: index('card_theme_idx').on(table.card_id, table.theme_name),
+  themeNameIdx: index('theme_name_idx').on(table.theme_name),
+  finalScoreIdx: index('theme_final_score_idx').on(table.final_score), // Sort by this unified score
+  cardScoreIdx: index('card_score_idx').on(table.card_id, table.final_score), // Card's theme rankings
+}));
+
+// Theme relationships for synergy analysis
+export const themeRelationships = pgTable('theme_relationships', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  sourceTheme: text('source_theme').notNull(),
+  targetTheme: text('target_theme').notNull(),
+  synergyScore: real('synergy_score').default(0.5), // 0-1 synergy strength
+  relationshipType: text('relationship_type').notNull(), // 'synergy', 'neutral', 'antagony'
+  userFeedbackScore: real('user_feedback_score').default(0),
+  aiGenerated: boolean('ai_generated').default(true),
+  upvotes: integer('upvotes').default(0),
+  downvotes: integer('downvotes').default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  lastUpdated: timestamp('last_updated').defaultNow().notNull(),
+}, (table) => ({
+  sourceThemeIdx: index('theme_rel_source_idx').on(table.sourceTheme),
+  targetThemeIdx: index('theme_rel_target_idx').on(table.targetTheme),
+  synergyIdx: index('theme_rel_synergy_idx').on(table.synergyScore),
+}));
+
+// User theme feedback
+export const userThemeFeedback = pgTable('user_theme_feedback', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  userId: integer('user_id').references(() => users.id),
+  cardId: text('card_id').notNull(),
+  themeName: text('theme_name').notNull(),
+  vote: text('vote').notNull(), // 'up', 'down'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userCardThemeIdx: index('user_theme_feedback_idx').on(table.userId, table.cardId, table.themeName),
+}));
+
+// Card-theme relevance feedback for theme suggestions
+export const cardThemeFeedback = pgTable('card_theme_feedback', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  cardId: text('card_id').notNull(),
+  themeName: text('theme_name').notNull(),
+  sourceCardId: text('source_card_id').notNull(), // The card that suggested this theme
+  feedbackType: text('feedback_type').notNull(), // 'relevant', 'irrelevant'
+  userId: integer('user_id').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  cardThemeSourceIdx: index('card_theme_feedback_idx').on(table.cardId, table.themeName, table.sourceCardId, table.userId),
+  themeRelevanceIdx: index('theme_relevance_idx').on(table.themeName, table.feedbackType),
+}));
+
+// User feedback for improving recommendations
+export const recommendationFeedback = pgTable('recommendation_feedback', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  userId: integer('user_id').references(() => users.id),
+  sourceCardId: text('source_card_id').notNull(), // Remove foreign key constraint for flexibility
+  recommendedCardId: text('recommended_card_id').notNull(), // Can be card ID or theme name
+  recommendationType: text('recommendation_type').notNull(), // 'synergy', 'functional_similarity', 'theme'
+  feedback: text('feedback').notNull(), // 'helpful', 'not_helpful', 'irrelevant'
+  userComment: text('user_comment'), // Optional explanation
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  sourceCardIdx: index('feedback_source_idx').on(table.sourceCardId),
+  feedbackIdx: index('feedback_type_idx').on(table.feedback),
+}));
+
+// Zod schemas for database operations
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
+
+export const insertCardCacheSchema = createInsertSchema(cardCache).omit({ lastUpdated: true, searchCount: true });
+export const insertSearchCacheSchema = createInsertSchema(searchCache).omit({ id: true, createdAt: true, lastAccessed: true, accessCount: true });
+
+
+export const insertCardThemeSchema = createInsertSchema(cardThemes).omit({ id: true, created_at: true, last_updated: true });
+export const insertThemeRelationshipSchema = createInsertSchema(themeRelationships).omit({ id: true, createdAt: true, lastUpdated: true });
+export const insertUserThemeFeedbackSchema = createInsertSchema(userThemeFeedback).omit({ id: true, createdAt: true });
+export const insertCardThemeFeedbackSchema = createInsertSchema(cardThemeFeedback).omit({ id: true, createdAt: true });
+
+// User votes tracking for recommendations and themes
+export const userVotes = pgTable('user_votes', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  targetType: text('target_type').notNull(), // 'theme', 'recommendation'
+  targetId: integer('target_id').notNull(), // ID of theme or recommendation
+  vote: text('vote').notNull(), // 'up', 'down'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userTargetIdx: index('user_votes_user_target_idx').on(table.userId, table.targetType, table.targetId),
+  targetIdx: index('user_votes_target_idx').on(table.targetType, table.targetId),
+}));
