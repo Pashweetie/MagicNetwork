@@ -99,15 +99,21 @@ export default function Search() {
     enabled: showEdhrecResults && !!deck.commander
   });
 
+  // State for EDHREC linking process
+  const [isLinkingEdhrecCards, setIsLinkingEdhrecCards] = useState(false);
+
   // Link EDHREC cards with Scryfall data
   useEffect(() => {
     if (!showEdhrecResults || !edhrecData || !deck.commander) {
       setLinkedEdhrecCards([]);
       setEdhrecDisplayCount(EDHREC_PAGE_SIZE);
+      setIsLinkingEdhrecCards(false);
       return;
     }
 
     const linkCards = async () => {
+      setIsLinkingEdhrecCards(true);
+      
       const allEdhrecCards = [
         ...edhrecData.cards.creatures,
         ...edhrecData.cards.instants,
@@ -118,17 +124,23 @@ export default function Search() {
         ...edhrecData.cards.lands
       ];
 
+      console.log(`🔗 Linking ${allEdhrecCards.length} EDHREC cards with local database...`);
+
       const linkedCards = [];
       
       // Process cards in smaller batches to avoid overwhelming the API
-      const maxCards = Math.min(allEdhrecCards.length, 200);
-      for (let i = 0; i < maxCards; i += 5) {
-        const batch = allEdhrecCards.slice(i, i + 5);
+      const maxCards = Math.min(allEdhrecCards.length, 300); // Increased limit
+      const batchSize = 10; // Increased batch size for efficiency
+      
+      for (let i = 0; i < maxCards; i += batchSize) {
+        const batch = allEdhrecCards.slice(i, i + batchSize);
         const batchResults = await Promise.all(
           batch.map(async (edhrecCard: any) => {
             try {
-              // Search for exact card match using the card name
-              const searchResponse = await fetch(`/api/cards/search?q=${encodeURIComponent(edhrecCard.name)}&page=1`);
+              // Use exact name search with quotes for better matching
+              const exactQuery = `!"${edhrecCard.name}"`;
+              const searchResponse = await fetch(`/api/cards/search?q=${encodeURIComponent(exactQuery)}&page=1`);
+              
               if (searchResponse.ok) {
                 const searchResult = await searchResponse.json();
                 const exactMatch = searchResult.data.find((card: any) => 
@@ -142,38 +154,50 @@ export default function Search() {
                     edhrec_synergy: edhrecCard.synergy,
                     edhrec_url: edhrecCard.url
                   };
-                } else {
-                  // Try fuzzy matching as fallback
-                  const fuzzyMatch = searchResult.data.find((card: any) => 
-                    card.name.toLowerCase().includes(edhrecCard.name.toLowerCase()) ||
-                    edhrecCard.name.toLowerCase().includes(card.name.toLowerCase())
-                  );
-                  if (fuzzyMatch) {
-                    return {
-                      ...fuzzyMatch,
-                      edhrec_rank: edhrecCard.num_decks,
-                      edhrec_synergy: edhrecCard.synergy,
-                      edhrec_url: edhrecCard.url
-                    };
-                  }
                 }
               }
+
+              // Fallback: try simple name search
+              const fallbackResponse = await fetch(`/api/cards/search?q=${encodeURIComponent(edhrecCard.name)}&page=1`);
+              if (fallbackResponse.ok) {
+                const fallbackResult = await fallbackResponse.json();
+                const fuzzyMatch = fallbackResult.data.find((card: any) => 
+                  card.name.toLowerCase() === edhrecCard.name.toLowerCase()
+                );
+                
+                if (fuzzyMatch) {
+                  return {
+                    ...fuzzyMatch,
+                    edhrec_rank: edhrecCard.num_decks,
+                    edhrec_synergy: edhrecCard.synergy,
+                    edhrec_url: edhrecCard.url
+                  };
+                }
+              }
+              
               return null;
             } catch (error) {
+              console.error('Error linking EDHREC card:', edhrecCard.name, error);
               return null;
             }
           })
         );
         
-        linkedCards.push(...batchResults.filter(Boolean));
+        const validCards = batchResults.filter(Boolean);
+        linkedCards.push(...validCards);
         
-        // Small delay between batches
-        if (i + 5 < maxCards) {
-          await new Promise(resolve => setTimeout(resolve, 50));
+        // Update progress
+        console.log(`🔗 Linked ${linkedCards.length} cards so far (${Math.round((i + batchSize) / maxCards * 100)}%)`);
+        
+        // Small delay between batches to prevent overwhelming the server
+        if (i + batchSize < maxCards) {
+          await new Promise(resolve => setTimeout(resolve, 25));
         }
       }
 
+      console.log(`✅ Successfully linked ${linkedCards.length} out of ${allEdhrecCards.length} EDHREC cards`);
       setLinkedEdhrecCards(linkedCards);
+      setIsLinkingEdhrecCards(false);
     };
 
     linkCards();
@@ -193,55 +217,50 @@ export default function Search() {
     if (!shouldShowResults) return [];
     
     if (showEdhrecResults && deck.commander && edhrecData) {
-      // Use stored linked cards if available, otherwise return empty array to trigger linking
-      if (linkedEdhrecCards.length > 0) {
-        let filteredCards = [...linkedEdhrecCards];
-        
-        // Apply filters to EDHREC results
-        if (activeFilters.types?.length) {
-          filteredCards = filteredCards.filter(card => 
-            activeFilters.types!.some(type => 
-              card.type_line.toLowerCase().includes(type.toLowerCase())
-            )
-          );
-        }
-
-        if (activeFilters.colors?.length) {
-          filteredCards = filteredCards.filter(card => 
-            activeFilters.colors!.some(color => 
-              card.color_identity.includes(color)
-            )
-          );
-        }
-
-        if (activeFilters.rarities?.length) {
-          filteredCards = filteredCards.filter(card => 
-            activeFilters.rarities!.includes(card.rarity)
-          );
-        }
-
-        if (activeFilters.minMv !== undefined) {
-          filteredCards = filteredCards.filter(card => card.cmc >= activeFilters.minMv!);
-        }
-
-        if (activeFilters.maxMv !== undefined) {
-          filteredCards = filteredCards.filter(card => card.cmc <= activeFilters.maxMv!);
-        }
-
-        if (activeFilters.oracleText) {
-          const searchText = activeFilters.oracleText.toLowerCase();
-          filteredCards = filteredCards.filter(card => 
-            card.oracle_text.toLowerCase().includes(searchText) ||
-            card.name.toLowerCase().includes(searchText)
-          );
-        }
-
-        // Return only the cards up to the current display count
-        return filteredCards.slice(0, edhrecDisplayCount);
-      }
+      // Show linked cards even if still linking (to show progress)
+      let filteredCards = [...linkedEdhrecCards];
       
-      // Return empty array while cards are being linked
-      return [];
+      // Apply filters to EDHREC results
+      if (activeFilters.types?.length) {
+        filteredCards = filteredCards.filter(card => 
+          activeFilters.types!.some(type => 
+            card.type_line.toLowerCase().includes(type.toLowerCase())
+          )
+        );
+      }
+
+      if (activeFilters.colors?.length) {
+        filteredCards = filteredCards.filter(card => 
+          activeFilters.colors!.some(color => 
+            card.color_identity.includes(color)
+          )
+        );
+      }
+
+      if (activeFilters.rarities?.length) {
+        filteredCards = filteredCards.filter(card => 
+          activeFilters.rarities!.includes(card.rarity)
+        );
+      }
+
+      if (activeFilters.minMv !== undefined) {
+        filteredCards = filteredCards.filter(card => card.cmc >= activeFilters.minMv!);
+      }
+
+      if (activeFilters.maxMv !== undefined) {
+        filteredCards = filteredCards.filter(card => card.cmc <= activeFilters.maxMv!);
+      }
+
+      if (activeFilters.oracleText) {
+        const searchText = activeFilters.oracleText.toLowerCase();
+        filteredCards = filteredCards.filter(card => 
+          card.oracle_text.toLowerCase().includes(searchText) ||
+          card.name.toLowerCase().includes(searchText)
+        );
+      }
+
+      // Return only the cards up to the current display count
+      return filteredCards.slice(0, edhrecDisplayCount);
     }
     
     const searchData = data?.pages.flatMap(page => page.data) || [];
@@ -638,24 +657,40 @@ export default function Search() {
 
           {/* Card Grid with Deck Functionality */}
           <div className="p-6">
-            {showEdhrecResults && deck.commander && allCards.length > 0 && (
+            {showEdhrecResults && deck.commander && (
               <div className="mb-4 p-4 bg-purple-900/20 border border-purple-500/30 rounded-lg">
-                <div className="flex items-center space-x-2 text-purple-300">
-                  <span className="text-sm font-medium">EDHREC recommendations for {deck.commander.name}</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 text-purple-300">
+                    <span className="text-sm font-medium">EDHREC recommendations for {deck.commander.name}</span>
+                    {isLinkingEdhrecCards && (
+                      <div className="flex items-center space-x-2 text-purple-400">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400"></div>
+                        <span className="text-xs">Linking cards...</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-xs text-purple-400">
+                    {linkedEdhrecCards.length} cards linked
+                  </div>
                 </div>
                 <p className="text-xs text-purple-400 mt-1">
                   Showing authentic EDHREC data with synergy scores and deck inclusion rates
                 </p>
+                {edhrecError && (
+                  <p className="text-xs text-red-400 mt-1">
+                    Error loading EDHREC data: {edhrecError.message}
+                  </p>
+                )}
               </div>
             )}
             
             <CardGrid
               cards={allCards}
-              isLoading={isFetchingNextPage}
+              isLoading={showEdhrecResults ? (isEdhrecLoading || isLinkingEdhrecCards) : (isLoading || isFetchingNextPage)}
               hasMore={showEdhrecResults ? edhrecDisplayCount < linkedEdhrecCards.length : (hasNextPage || false)}
               onLoadMore={handleLoadMore}
               onRetry={handleRetry}
-              error={error?.message}
+              error={showEdhrecResults ? edhrecError?.message : error?.message}
               viewMode={viewMode}
               deck={deck}
               onCardClick={handleCardClick}
