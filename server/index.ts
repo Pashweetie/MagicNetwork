@@ -29,7 +29,7 @@ app.use((req, res, next) => {
   // Block direct Replit access with proper redirect
   if (host.includes('replit.app') || host.includes('replit.dev') || host.includes('repl.co')) {
     // Get current tunnel URL from global variable or fallback
-    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://reactions-baker-specialized-susan.trycloudflare.com';
+    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://82f1b399-c427-45f1-8669-8da9f1fbfca1.cfargotunnel.com';
     
     // Return HTML redirect page for browser users
     if (req.get('accept')?.includes('text/html')) {
@@ -338,11 +338,13 @@ async function createTunnelWithAccountId(apiToken: string, accountId: string): P
 }
 
 function startPermanentTunnel(tunnelToken: string) {
-  console.log('Starting permanent tunnel with generated token...');
+  console.log('Starting permanent tunnel with token...');
   
   const tunnel = spawn('cloudflared', [
     'tunnel',
     '--url', 'http://localhost:5000',
+    '--protocol', 'http2',  // Force HTTP/2 instead of QUIC
+    '--no-autoupdate',
     'run',
     '--token', tunnelToken
   ], {
@@ -350,6 +352,14 @@ function startPermanentTunnel(tunnelToken: string) {
   });
 
   setupTunnelLogging(tunnel, 'Permanent Tunnel');
+  
+  // Add fallback if permanent tunnel fails
+  tunnel.on('exit', (code) => {
+    if (code !== 0) {
+      console.log('Permanent tunnel failed, falling back to quick tunnel...');
+      setTimeout(() => startQuickTunnel(), 3000);
+    }
+  });
 }
 
 
@@ -425,14 +435,22 @@ function setupTunnelLogging(tunnel: any, tunnelType: string) {
   tunnel.stdout.on('data', (data: Buffer) => {
     const output = data.toString();
     
-    // Extract tunnel URL
+    // Extract tunnel URL and connection status
     const urlMatch = output.match(/https:\/\/[a-zA-Z0-9-]+\.(?:trycloudflare\.com|cfargotunnel\.com)/);
     if (urlMatch && !tunnelUrl) {
       tunnelUrl = urlMatch[0];
       // Store globally for redirect middleware
       (global as any).currentTunnelUrl = tunnelUrl;
-      console.log(`🌍 ${tunnelType} URL: ${tunnelUrl}`);
-      console.log('🔒 MTG app now protected with Cloudflare security');
+      console.log(`Tunnel URL: ${tunnelUrl}`);
+      console.log('MTG app now protected with Cloudflare security');
+    }
+    
+    // For permanent tunnels, get URL from tunnel ID
+    if (tunnelType === 'Permanent Tunnel' && output.includes('Starting tunnel tunnelID=82f1b399-c427-45f1-8669-8da9f1fbfca1')) {
+      // Use the known permanent URL pattern for this tunnel
+      const permanentUrl = 'https://82f1b399-c427-45f1-8669-8da9f1fbfca1.cfargotunnel.com';
+      (global as any).currentTunnelUrl = permanentUrl;
+      console.log(`Permanent tunnel URL: ${permanentUrl}`);
     }
     
     // Connection status
