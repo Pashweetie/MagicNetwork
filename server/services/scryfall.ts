@@ -12,9 +12,10 @@ export class ScryfallService {
       const typeMatches = query.match(/t:(\w+)/g);
       
       if (typeMatches && typeMatches.length > 1) {
-        // Extract all type conditions and combine them
-        const types = typeMatches.map(match => match.replace('t:', ''));
-        parts.push(`t:"${types.join(' ')}"`);
+        // For multiple type filters, use separate t: queries for AND logic
+        typeMatches.forEach(match => {
+          parts.push(match);
+        });
         
         // Add remaining query parts
         const remainingQuery = query.replace(/t:\w+/g, '').trim();
