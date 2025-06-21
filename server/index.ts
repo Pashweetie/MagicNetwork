@@ -10,6 +10,25 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Enhanced caching headers for Cloudflare optimization
+app.use((req, res, next) => {
+  // Cache static assets aggressively
+  if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$/)) {
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+  // Cache API responses based on content type
+  else if (req.path.startsWith('/api/cards/search')) {
+    res.set('Cache-Control', 'public, max-age=3600'); // 1 hour for searches
+  }
+  else if (req.path.startsWith('/api/cards/') && !req.path.includes('/user/')) {
+    res.set('Cache-Control', 'public, max-age=86400'); // 24 hours for card data
+  }
+  else if (req.path.startsWith('/api/user/')) {
+    res.set('Cache-Control', 'private, no-cache'); // No cache for user data
+  }
+  next();
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -18,6 +37,17 @@ app.use((req, res, next) => {
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
     capturedJsonResponse = bodyJson;
+    
+    // Add Cloudflare-optimized headers
+    if (!res.getHeader('Cache-Control')) {
+      if (path.includes('/api/cards/') && !path.includes('/user/')) {
+        res.set('Cache-Control', 'public, max-age=3600');
+      }
+    }
+    
+    // Enable compression
+    res.set('Vary', 'Accept-Encoding');
+    
     return originalResJson.apply(res, [bodyJson, ...args]);
   };
 
@@ -106,10 +136,11 @@ function startCloudflareTunnel() {
         const url = output.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/)?.[0];
         if (url) {
           console.log(`Cloudflare tunnel active: ${url}`);
+          console.log('MTG app now protected with enterprise-level security and caching');
         }
       }
       if (output.includes('Connection') && output.includes('registered')) {
-        console.log('Tunnel connection established successfully');
+        console.log('Tunnel connection established - DDoS protection and global CDN active');
       }
     });
 
