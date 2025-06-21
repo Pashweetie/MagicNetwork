@@ -418,6 +418,13 @@ export default function Search() {
                 </CardContent>
               </UICard>
               
+              {/* EDHREC Recommendations - only show when commander is selected */}
+              {deck.format.name === 'Commander' && deck.commander && (
+                <EdhrecRecommendations 
+                  commander={deck.commander} 
+                  onAddCard={deck.addCardByName}
+                />
+              )}
 
             </div>
           )}

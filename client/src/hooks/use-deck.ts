@@ -352,6 +352,7 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
     isFormatValid,
     averageCMC,
     exportToText,
-    name
+    name,
+    addCardByName
   };
 }
