@@ -85,7 +85,42 @@ app.use((req, res, next) => {
 
 // Auto-start Cloudflare tunnel if configured
 function startCloudflareTunnel() {
-  console.log('Cloudflare tunnel configured but disabled by default');
-  console.log('Your MTG app is running with full functionality on Replit');
-  console.log('To enable tunnel: Check cloudflare-setup.md for complete setup steps');
+  // Check if cloudflared is installed
+  const checkCloudflared = spawn('which', ['cloudflared']);
+  checkCloudflared.on('exit', (code) => {
+    if (code !== 0) {
+      console.log('Cloudflare tunnel: cloudflared not installed');
+      return;
+    }
+
+    console.log('Starting Cloudflare tunnel for MTG app...');
+    const tunnelToken = 'eyJhIjoiYWM0YWUzMTI4NmEwZmI0YmQ1N2ZhOTAwMzlmOGE2NDQiLCJ0IjoiODJmMWIzOTktYzQyNy00NWYxLTg2NjktOGRhOWYxZmJmY2ExIiwicyI6Ik9Ea3dPR1U0TmprdFpqVXlNeTAwTkRrMExXSmhNell0T1dGaE4yWmxaREV4TnpBeCJ9';
+    
+    const tunnel = spawn('cloudflared', ['tunnel', 'run', '--token', tunnelToken, '--url', 'http://localhost:5000'], {
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+
+    tunnel.stdout.on('data', (data) => {
+      const output = data.toString();
+      if (output.includes('trycloudflare.com')) {
+        const url = output.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/)?.[0];
+        if (url) {
+          console.log(`Cloudflare tunnel active: ${url}`);
+        }
+      }
+      if (output.includes('Connection') && output.includes('registered')) {
+        console.log('Tunnel connection established successfully');
+      }
+    });
+
+    // Cleanup on server shutdown
+    process.on('SIGINT', () => {
+      tunnel.kill();
+      process.exit();
+    });
+    process.on('SIGTERM', () => {
+      tunnel.kill();
+      process.exit();
+    });
+  });
 }

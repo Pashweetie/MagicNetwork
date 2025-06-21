@@ -18,10 +18,23 @@ Your MTG app is fully functional without Cloudflare tunnel:
    - **Zone**: DNS:Edit
 4. Copy the generated token
 
-### 2. Set Token and Create Tunnel
+### 2. Alternative: Use Existing Tunnel
+Since you already have a working tunnel (ID: 82f1b399-c427-45f1-8669-8da9f1fbfca1), you can:
+
 ```bash
-export CLOUDFLARE_API_TOKEN=your_token_here
-cloudflared tunnel create mtg-app
+# Check existing tunnels with your API token
+export CLOUDFLARE_API_TOKEN=4v6CWooEyqISzuRS7jifKvhB2D7fZ-O-7ilTJvc4
+curl -X GET "https://api.cloudflare.com/client/v4/accounts/ac4ae31286a0fb4bd57fa90039f8a644/cfd_tunnel" \
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"
+```
+
+### 3. Direct API Method (Bypass Certificate Issue)
+```bash
+# Create tunnel via API instead of CLI
+curl -X POST "https://api.cloudflare.com/client/v4/accounts/ac4ae31286a0fb4bd57fa90039f8a644/cfd_tunnel" \
+  -H "Authorization: Bearer 4v6CWooEyqISzuRS7jifKvhB2D7fZ-O-7ilTJvc4" \
+  -H "Content-Type: application/json" \
+  --data '{"name":"mtg-app-api"}'
 ```
 
 ### 3. Verify Dashboard Connection
