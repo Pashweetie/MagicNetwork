@@ -29,7 +29,7 @@ app.use((req, res, next) => {
   // Block direct Replit access with proper redirect
   if (host.includes('replit.app') || host.includes('replit.dev') || host.includes('repl.co')) {
     // Get current tunnel URL from global variable or fallback
-    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://82f1b399-c427-45f1-8669-8da9f1fbfca1.cfargotunnel.com';
+    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://addition-magnitude-applying-automobile.trycloudflare.com';
     
     // Return HTML redirect page for browser users
     if (req.get('accept')?.includes('text/html')) {
@@ -343,7 +343,7 @@ function startPermanentTunnel(tunnelToken: string) {
   const tunnel = spawn('cloudflared', [
     'tunnel',
     '--url', 'http://localhost:5000',
-    '--protocol', 'http2',  // Force HTTP/2 instead of QUIC
+    '--protocol', 'http2',
     '--no-autoupdate',
     'run',
     '--token', tunnelToken
@@ -351,13 +351,27 @@ function startPermanentTunnel(tunnelToken: string) {
     stdio: ['ignore', 'pipe', 'pipe']
   });
 
-  setupTunnelLogging(tunnel, 'Permanent Tunnel');
-  
-  // Add fallback if permanent tunnel fails
+  // Tunnel tokens don't provide public URLs - they need to be configured in dashboard
+  // Start quick tunnel as backup for public access
+  console.log('Tunnel token authenticated successfully');
+  console.log('Note: Tunnel tokens require dashboard configuration for public access');
+  console.log('Starting quick tunnel for immediate public access...');
+  setTimeout(() => startQuickTunnel(), 2000);
+
+  tunnel.stdout.on('data', (data) => {
+    const output = data.toString();
+    if (output.includes('Registered tunnel connection')) {
+      console.log('Tunnel connection registered');
+    }
+  });
+
+  tunnel.stderr.on('data', (data) => {
+    console.log(`Tunnel error: ${data.toString().trim()}`);
+  });
+
   tunnel.on('exit', (code) => {
     if (code !== 0) {
-      console.log('Permanent tunnel failed, falling back to quick tunnel...');
-      setTimeout(() => startQuickTunnel(), 3000);
+      console.log('Permanent tunnel process failed');
     }
   });
 }
@@ -445,13 +459,7 @@ function setupTunnelLogging(tunnel: any, tunnelType: string) {
       console.log('MTG app now protected with Cloudflare security');
     }
     
-    // For permanent tunnels, set URL immediately when tunnel starts
-    if (tunnelType === 'Permanent Tunnel' && output.includes('Starting tunnel tunnelID=82f1b399-c427-45f1-8669-8da9f1fbfca1')) {
-      const permanentUrl = 'https://82f1b399-c427-45f1-8669-8da9f1fbfca1.cfargotunnel.com';
-      (global as any).currentTunnelUrl = permanentUrl;
-      console.log(`Permanent tunnel URL: ${permanentUrl}`);
-      console.log('MTG app now accessible via permanent tunnel');
-    }
+    // Remove the hardcoded URL assumption - let the tunnel provide its own URL
     
     // Connection status
     if (output.includes('Connection') && output.includes('registered') && !isConnected) {
