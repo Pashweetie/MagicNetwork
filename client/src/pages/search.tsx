@@ -277,7 +277,7 @@ export default function Search() {
 
   const handleFiltersChange = useCallback((filters: SearchFilters) => {
     setManualFilters(filters);
-    setUseManualFilters(Object.keys(filters).length > 0);
+    setUseManualFilters(true);
     
     // Update search query to show filters
     const queryText = ScryfallParser.filtersToQuery(filters);
