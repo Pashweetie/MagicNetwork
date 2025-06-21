@@ -297,6 +297,10 @@ export class EdhrecService {
     this.cache.clear();
   }
 
+  clearSpecificCache(cacheKey: string): void {
+    this.cache.delete(cacheKey);
+  }
+
   getCacheStats(): { size: number; keys: string[]; totalCachedCards: number } {
     let totalCards = 0;
     for (const entry of this.cache.values()) {

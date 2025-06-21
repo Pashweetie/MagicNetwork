@@ -75,4 +75,44 @@ export function registerEdhrecRoutes(app: Express) {
       res.status(500).json({ error: 'Failed to clear cache' });
     }
   });
+
+  // Refresh specific commander data
+  app.post("/api/edhrec/commander/:id/refresh", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      
+      // Get the commander card from our database
+      const commander = await storage.getCard(id);
+      if (!commander) {
+        return res.status(404).json({ error: 'Commander not found' });
+      }
+
+      // Clear cache for this specific commander
+      const commanderName = commander.name.toLowerCase()
+        .replace(/[^\w\s]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+      
+      const cacheKey = `commander:${commanderName}`;
+      edhrecService.clearSpecificCache(cacheKey);
+
+      // Force refresh by getting new data
+      const recommendations = await edhrecService.getCommanderRecommendations(commander);
+      
+      if (!recommendations) {
+        return res.status(404).json({ error: 'Failed to refresh EDHREC data for this commander' });
+      }
+
+      res.json({ 
+        success: true, 
+        message: `Successfully refreshed data for ${commander.name}`,
+        totalCards: Object.values(recommendations.cards).reduce((sum, cards) => sum + cards.length, 0),
+        recommendations
+      });
+    } catch (error) {
+      console.error('Error refreshing commander data:', error);
+      res.status(500).json({ error: 'Failed to refresh commander data' });
+    }
+  });
 }
