@@ -107,20 +107,28 @@ function VerticalStackedCards({
   
   const CARD_HEIGHT = 300;
   const CARD_SPACING = 40; // Reduced spacing so titles are more visible
+  const HOVER_SHIFT = CARD_HEIGHT - CARD_SPACING; // How much to shift cards above when hovering
 
   return (
     <div className="relative overflow-y-auto py-4">
       <div 
         className="flex flex-col relative"
         style={{ 
-          height: cards.length > 0 ? cards.length * CARD_SPACING + CARD_HEIGHT : 0,
+          height: cards.length > 0 ? cards.length * CARD_SPACING + CARD_HEIGHT + (hoveredIndex !== null ? HOVER_SHIFT : 0) : 0,
           minWidth: '220px'
         }}
       >
         {cards.map((entry, index) => {
           const isHovered = hoveredIndex === index;
-          // Title-readable stacking: first card at top (translateY=0), subsequent cards below
-          const translateY = index * CARD_SPACING;
+          
+          // Calculate translateY with hover effect
+          let translateY = index * CARD_SPACING;
+          
+          // If there's a hovered card and this card is above it, shift it down
+          if (hoveredIndex !== null && index > hoveredIndex) {
+            translateY += HOVER_SHIFT;
+          }
+          
           // Lower z-index for cards that appear earlier in the list (topmost card lowest in stack)
           const zIndex = isHovered ? 100 : (index + 1);
 
@@ -191,7 +199,7 @@ function StackedCard({
     <div
       className="absolute transition-all duration-300 ease-out cursor-pointer"
       style={{
-        transform: `translateY(${translateY}px) ${isHovered ? 'translateX(30px) translateZ(0)' : ''}`,
+        transform: `translateY(${translateY}px)`,
         zIndex: isHovered ? 100 : zIndex,
         width: '200px'
       }}
@@ -200,7 +208,11 @@ function StackedCard({
     >
       <div className="relative group">
         <div 
-          className="w-[200px] aspect-[2.5/3.5] bg-slate-600 rounded-lg overflow-hidden shadow-lg"
+          className={`w-[200px] aspect-[2.5/3.5] bg-slate-600 rounded-lg overflow-hidden transition-all duration-300 ${
+            isHovered 
+              ? 'shadow-2xl shadow-blue-400/50 ring-2 ring-blue-400/50' 
+              : 'shadow-lg'
+          }`}
           onClick={() => onClick(card)}
         >
           {card.image_uris?.normal ? (
