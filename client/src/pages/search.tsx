@@ -188,8 +188,8 @@ export default function Search() {
     linkCards();
   }, [showEdhrecResults, edhrecData, deck.commander]);
 
-  // Only show cards when there's an active search or showing EDHREC results
-  const shouldShowResults = searchQuery.trim() || useManualFilters || showEdhrecResults;
+  // Show cards by default, or when there's an active search or showing EDHREC results
+  const shouldShowResults = true; // Always show results to display all cards by default
 
 
 
