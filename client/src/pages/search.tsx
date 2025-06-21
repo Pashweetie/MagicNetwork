@@ -51,12 +51,12 @@ export default function Search() {
       baseFilters = ScryfallQueryParser.parseQuery(searchQuery);
     }
 
-    // Apply format filtering
-    const formatFilters: string[] = [];
+    // Apply format filtering directly to filters object instead of query string
+    const finalFilters = { ...baseFilters };
     
     // Add format-specific filters (only for non-casual formats)
     if (deck.format.name !== 'Casual') {
-      formatFilters.push(`legal:${deck.format.name.toLowerCase()}`);
+      finalFilters.format = deck.format.name.toLowerCase();
     }
 
     // Apply commander color identity filtering only if commander is selected
@@ -64,22 +64,13 @@ export default function Search() {
       const commanderColors = deck.commander.color_identity || [];
       
       if (commanderColors.length > 0) {
-        formatFilters.push(`id<=${commanderColors.join('')}`);
+        finalFilters.colorIdentity = commanderColors;
       } else {
-        formatFilters.push('id:c'); // colorless only if commander is colorless
+        finalFilters.colorIdentity = []; // colorless only if commander is colorless
       }
     }
     
-    // Combine all filters
-    if (formatFilters.length > 0) {
-      const combinedFilter = formatFilters.join(' ');
-      return {
-        ...baseFilters,
-        query: baseFilters.query ? `${baseFilters.query} ${combinedFilter}` : combinedFilter
-      };
-    }
-    
-    return baseFilters;
+    return finalFilters;
   }, [searchQuery, manualFilters, useManualFilters, deck.format.name, deck.commander]);
 
   const {
