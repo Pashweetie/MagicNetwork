@@ -51,6 +51,10 @@ export class CardDatabaseService {
     this.downloadProgress = { current: 0, total: 0, status: 'downloading' };
 
     try {
+      // Get current card count to determine where to resume
+      const currentCount = await this.getCardCount();
+      console.log(`Current database has ${currentCount} cards`);
+
       // Get bulk data info from Scryfall
       console.log("Fetching bulk data info...");
       const bulkResponse = await fetch(SCRYFALL_BULK_API);
@@ -62,26 +66,32 @@ export class CardDatabaseService {
         throw new Error("Could not find default cards bulk data");
       }
 
-      console.log(`Downloading ${defaultCards.compressed_size} bytes of card data...`);
+      console.log(`Downloading ${Math.round(defaultCards.compressed_size / 1024 / 1024)}MB of card data...`);
       
       // Download the bulk card data
       const cardsResponse = await fetch(defaultCards.download_uri);
       const cardsData = await cardsResponse.json();
 
       this.downloadProgress.total = cardsData.length;
-      console.log(`Processing ${cardsData.length} cards...`);
+      console.log(`Processing ${cardsData.length} cards (${currentCount} already in database)...`);
 
-      // Process cards in batches to avoid memory issues
-      const batchSize = 1000;
+      // Process cards in smaller batches to be more efficient
+      const batchSize = 500;
+      let processedNew = 0;
+      
       for (let i = 0; i < cardsData.length; i += batchSize) {
         const batch = cardsData.slice(i, i + batchSize);
-        await this.processBatch(batch);
+        const newCardsInBatch = await this.processBatch(batch);
+        processedNew += newCardsInBatch;
         this.downloadProgress.current = i + batch.length;
-        console.log(`Processed ${this.downloadProgress.current}/${this.downloadProgress.total} cards`);
+        
+        if (i % 5000 === 0 || newCardsInBatch > 0) {
+          console.log(`Processed ${this.downloadProgress.current}/${this.downloadProgress.total} cards (${processedNew} new)`);
+        }
       }
 
       this.downloadProgress.status = 'complete';
-      console.log("Card database initialization complete!");
+      console.log(`Card database sync complete! Added ${processedNew} new cards.`);
       
     } catch (error) {
       console.error("Error downloading cards:", error);
@@ -92,11 +102,23 @@ export class CardDatabaseService {
     }
   }
 
-  private async processBatch(batch: any[]): Promise<void> {
+  private async processBatch(batch: any[]): Promise<number> {
     const cardsToInsert: InsertCard[] = [];
     const setsToInsert: Map<string, InsertCardSet> = new Map();
 
+    // Get existing card IDs to avoid duplicates
+    const batchIds = batch.map(card => card.id);
+    const existingCards = await db.select({ id: cards.id })
+      .from(cards)
+      .where(inArray(cards.id, batchIds));
+    const existingIds = new Set(existingCards.map(card => card.id));
+
     for (const cardData of batch) {
+      // Skip if card already exists
+      if (existingIds.has(cardData.id)) {
+        continue;
+      }
+
       // Skip digital-only cards, tokens, etc. if desired
       if (cardData.digital || cardData.layout === 'token') {
         continue;
@@ -113,7 +135,14 @@ export class CardDatabaseService {
         });
       }
 
-      // Convert Scryfall card to our format
+      // Helper function to safely parse integers
+      const parseIntSafe = (value: any): number | null => {
+        if (value === null || value === undefined || value === '') return null;
+        const parsed = parseInt(String(value));
+        return isNaN(parsed) ? null : parsed;
+      };
+
+      // Convert Scryfall card to our format with proper type handling
       const card: InsertCard = {
         id: cardData.id,
         name: cardData.name,
@@ -123,9 +152,9 @@ export class CardDatabaseService {
         oracleText: cardData.oracle_text || null,
         colors: cardData.colors || [],
         colorIdentity: cardData.color_identity || [],
-        power: cardData.power || null,
-        toughness: cardData.toughness || null,
-        loyalty: cardData.loyalty || null,
+        power: parseIntSafe(cardData.power),
+        toughness: parseIntSafe(cardData.toughness),
+        loyalty: parseIntSafe(cardData.loyalty),
         rarity: cardData.rarity,
         setCode: cardData.set,
         setName: cardData.set_name,
@@ -140,8 +169,8 @@ export class CardDatabaseService {
         imageUris: cardData.image_uris || null,
         prices: cardData.prices || null,
         legalities: cardData.legalities || null,
-        edhrecRank: cardData.edhrec_rank || null,
-        pennyRank: cardData.penny_rank || null,
+        edhrecRank: parseIntSafe(cardData.edhrec_rank),
+        pennyRank: parseIntSafe(cardData.penny_rank),
       };
 
       cardsToInsert.push(card);
@@ -154,43 +183,14 @@ export class CardDatabaseService {
         .onConflictDoNothing();
     }
 
-    // Insert cards (ignore conflicts for updates)
+    // Insert only new cards
     if (cardsToInsert.length > 0) {
       await db.insert(cards)
         .values(cardsToInsert)
-        .onConflictDoUpdate({
-          target: cards.id,
-          set: {
-            name: sql`excluded.name`,
-            manaCost: sql`excluded.mana_cost`,
-            cmc: sql`excluded.cmc`,
-            typeLine: sql`excluded.type_line`,
-            oracleText: sql`excluded.oracle_text`,
-            colors: sql`excluded.colors`,
-            colorIdentity: sql`excluded.color_identity`,
-            power: sql`excluded.power`,
-            toughness: sql`excluded.toughness`,
-            loyalty: sql`excluded.loyalty`,
-            rarity: sql`excluded.rarity`,
-            setCode: sql`excluded.set_code`,
-            setName: sql`excluded.set_name`,
-            collectorNumber: sql`excluded.collector_number`,
-            releasedAt: sql`excluded.released_at`,
-            artist: sql`excluded.artist`,
-            borderColor: sql`excluded.border_color`,
-            layout: sql`excluded.layout`,
-            keywords: sql`excluded.keywords`,
-            producedMana: sql`excluded.produced_mana`,
-            cardFaces: sql`excluded.card_faces`,
-            imageUris: sql`excluded.image_uris`,
-            prices: sql`excluded.prices`,
-            legalities: sql`excluded.legalities`,
-            edhrecRank: sql`excluded.edhrec_rank`,
-            pennyRank: sql`excluded.penny_rank`,
-            lastUpdated: sql`NOW()`,
-          }
-        });
+        .onConflictDoNothing();
     }
+
+    return cardsToInsert.length;
   }
 
   async searchCards(filters: SearchFilters, page: number = 1): Promise<SearchResponse> {
