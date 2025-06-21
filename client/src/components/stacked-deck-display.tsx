@@ -332,40 +332,10 @@ function ReversedStackCard({
   const canAddCard = quantity < maxCopies;
   const canRemoveCard = quantity > 0;
 
-  if (!isExpanded) {
-    // Collapsed state - just show title bar
-    return (
-      <div className="relative h-full w-full cursor-pointer" onClick={() => onClick(card)}>
-        <div className="h-full bg-slate-700 border border-slate-600 rounded-lg flex items-center justify-between px-3 shadow-md hover:bg-slate-650 transition-colors">
-          <div className="flex items-center gap-2 min-w-0">
-            {quantity > 1 && (
-              <Badge variant="secondary" className="text-xs bg-slate-600 text-white">
-                {quantity}
-              </Badge>
-            )}
-            <span className="text-sm font-medium text-white truncate">
-              {card.name}
-            </span>
-            {isCommander && (
-              <Crown className="w-3 h-3 text-yellow-400 flex-shrink-0" />
-            )}
-          </div>
-          
-          {card.mana_cost && (
-            <span className="text-xs font-mono text-slate-400 flex-shrink-0">
-              {card.mana_cost}
-            </span>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Expanded state - show full card
   return (
     <div className="relative h-full w-full cursor-pointer" onClick={() => onClick(card)}>
-      <div className="relative h-full bg-slate-700 border border-slate-600 rounded-lg overflow-hidden shadow-lg">
-        {/* Card Image */}
+      <div className="relative h-full rounded-lg overflow-hidden shadow-lg">
+        {/* Card Image - always show */}
         {card.image_uris?.normal ? (
           <img
             src={card.image_uris.normal}
@@ -374,12 +344,12 @@ function ReversedStackCard({
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-800">
+          <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-800 rounded-lg">
             <span className="text-sm text-center p-2">{card.name}</span>
           </div>
         )}
 
-        {/* Top badges overlay */}
+        {/* Badges overlay - always visible */}
         <div className="absolute top-2 left-2 flex gap-2">
           {quantity > 1 && (
             <Badge variant="secondary" className="bg-black/80 text-white border-slate-600">
@@ -393,52 +363,52 @@ function ReversedStackCard({
           )}
         </div>
 
-
-
-        {/* Controls at bottom */}
-        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-2">
-          {onSetCommander && canBeCommander && (
+        {/* Controls - only show when expanded */}
+        {isExpanded && (
+          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            {onSetCommander && canBeCommander && (
+              <Button
+                size="sm"
+                variant={isCommander ? "default" : "secondary"}
+                className={`w-8 h-8 p-0 shadow-lg ${
+                  isCommander ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-slate-600 hover:bg-slate-500'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSetCommander(card);
+                }}
+              >
+                <Crown className="w-3 h-3" />
+              </Button>
+            )}
+            
             <Button
               size="sm"
-              variant={isCommander ? "default" : "secondary"}
-              className={`w-8 h-8 p-0 shadow-lg ${
-                isCommander ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-slate-600 hover:bg-slate-500'
-              }`}
+              variant="destructive"
+              className="w-8 h-8 p-0 bg-red-600 hover:bg-red-700 shadow-lg"
               onClick={(e) => {
                 e.stopPropagation();
-                onSetCommander(card);
+                onRemove(card.id);
               }}
+              disabled={!canRemoveCard}
             >
-              <Crown className="w-3 h-3" />
+              <Minus className="w-3 h-3" />
             </Button>
-          )}
-          
-          <Button
-            size="sm"
-            variant="destructive"
-            className="w-8 h-8 p-0 bg-red-600 hover:bg-red-700 shadow-lg"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove(card.id);
-            }}
-            disabled={!canRemoveCard}
-          >
-            <Minus className="w-3 h-3" />
-          </Button>
-          
-          <Button
-            size="sm"
-            variant="default"
-            className="w-8 h-8 p-0 bg-green-600 hover:bg-green-700 shadow-lg"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAdd(card);
-            }}
-            disabled={!canAddCard}
-          >
-            <Plus className="w-3 h-3" />
-          </Button>
-        </div>
+            
+            <Button
+              size="sm"
+              variant="default"
+              className="w-8 h-8 p-0 bg-green-600 hover:bg-green-700 shadow-lg"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAdd(card);
+              }}
+              disabled={!canAddCard}
+            >
+              <Plus className="w-3 h-3" />
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
