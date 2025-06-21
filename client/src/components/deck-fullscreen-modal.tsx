@@ -41,19 +41,11 @@ export function DeckFullscreenModal({ isOpen, onClose, onCardClick }: DeckFullsc
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-7xl max-h-[95vh] w-[95vw] bg-slate-900 border-slate-700">
-        <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-white flex items-center">
             <Package className="w-6 h-6 mr-2" />
             {deck.name || 'My Deck'} ({deck.totalCards} cards)
           </DialogTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="text-slate-400 hover:text-white"
-          >
-            <X className="w-4 h-4" />
-          </Button>
         </DialogHeader>
 
         <div className="space-y-4">
