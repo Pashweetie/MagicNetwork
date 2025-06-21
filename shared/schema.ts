@@ -119,32 +119,66 @@ export const users = pgTable('users', {
 // Full card database tables
 export const cards = pgTable('cards', {
   id: text('id').primaryKey(), // Scryfall card ID
+  oracleId: text('oracle_id'), // Oracle ID for rulings
   name: text('name').notNull(),
+  printedName: text('printed_name'), // Name as printed on card
   manaCost: text('mana_cost'),
   cmc: integer('cmc').notNull().default(0),
   typeLine: text('type_line'),
+  printedTypeLine: text('printed_type_line'), // Type line as printed
   oracleText: text('oracle_text'),
+  printedText: text('printed_text'), // Text as printed on card
+  flavorText: text('flavor_text'),
   colors: text('colors').array().notNull().default([]),
   colorIdentity: text('color_identity').array().notNull().default([]),
+  colorIndicator: text('color_indicator').array(),
   power: text('power'),
   toughness: text('toughness'),
   loyalty: text('loyalty'),
+  defense: text('defense'), // For battle cards
+  handModifier: text('hand_modifier'), // For vanguard cards
+  lifeModifier: text('life_modifier'), // For vanguard cards
   rarity: text('rarity').notNull(),
   setCode: text('set_code').notNull(),
   setName: text('set_name').notNull(),
+  setId: text('set_id'),
   collectorNumber: text('collector_number').notNull(),
   releasedAt: text('released_at'),
   artist: text('artist'),
+  artistIds: text('artist_ids').array(),
+  illustrationId: text('illustration_id'),
   borderColor: text('border_color').default('black'),
+  frame: text('frame').default('2015'), // Frame version
+  frameEffects: text('frame_effects').array(),
+  securityStamp: text('security_stamp'),
+  watermark: text('watermark'),
   layout: text('layout').default('normal'),
+  highresImage: boolean('highres_image').default(false),
+  gameFormat: text('game_format').default('paper'), // paper, arena, mtgo
+  lang: text('lang').default('en'),
+  mtgoId: integer('mtgo_id'),
+  mtgoFoilId: integer('mtgo_foil_id'),
+  arenaId: integer('arena_id'),
+  tcgplayerId: integer('tcgplayer_id'),
+  cardmarketId: integer('cardmarket_id'),
   keywords: text('keywords').array().notNull().default([]),
   producedMana: text('produced_mana').array().notNull().default([]),
+  allParts: jsonb('all_parts'), // Related cards
   cardFaces: jsonb('card_faces'),
   imageUris: jsonb('image_uris'),
   prices: jsonb('prices'),
   legalities: jsonb('legalities'),
   edhrecRank: integer('edhrec_rank'),
   pennyRank: integer('penny_rank'),
+  preview: jsonb('preview'), // Preview info
+  reprint: boolean('reprint').default(false),
+  digital: boolean('digital').default(false),
+  booster: boolean('booster').default(true),
+  storySpotlight: boolean('story_spotlight').default(false),
+  promo: boolean('promo').default(false),
+  promoTypes: text('promo_types').array(),
+  variation: boolean('variation').default(false),
+  variationOf: text('variation_of'), // ID of the base card
   lastUpdated: timestamp('last_updated').defaultNow().notNull(),
 }, (table) => ({
   nameIdx: index('cards_name_idx').on(table.name),
@@ -196,6 +230,17 @@ export const cardLegalities = pgTable('card_legalities', {
 }, (table) => ({
   cardLegalityIdx: index('card_legalities_card_idx').on(table.cardId),
   formatIdx: index('card_legalities_format_idx').on(table.format),
+}));
+
+export const cardRulings = pgTable('card_rulings', {
+  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  oracleId: text('oracle_id').notNull(),
+  publishedAt: text('published_at').notNull(),
+  comment: text('comment').notNull(),
+  source: text('source').notNull(),
+}, (table) => ({
+  oracleIdx: index('card_rulings_oracle_idx').on(table.oracleId),
+  publishedIdx: index('card_rulings_published_idx').on(table.publishedAt),
 }));
 
 // Keep legacy cache table for backwards compatibility
@@ -294,6 +339,7 @@ export const insertCardSetSchema = createInsertSchema(cardSets);
 export const insertCardImageSchema = createInsertSchema(cardImages).omit({ id: true });
 export const insertCardPriceSchema = createInsertSchema(cardPrices).omit({ id: true, lastUpdated: true });
 export const insertCardLegalitySchema = createInsertSchema(cardLegalities).omit({ id: true });
+export const insertCardRulingSchema = createInsertSchema(cardRulings).omit({ id: true });
 
 // Legacy cache schemas
 export const insertCardCacheSchema = createInsertSchema(cardCache).omit({ lastUpdated: true, searchCount: true });
