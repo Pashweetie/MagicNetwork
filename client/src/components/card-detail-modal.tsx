@@ -366,17 +366,12 @@ export function CardDetailModal({ card, isOpen, onClose, onCardClick, onAddCard,
         <div className={modalStyles.grid}>
           {/* Card Image */}
           <div className={modalStyles.imageContainer}>
-            {cardImage ? (
-              <img
-                src={cardImage}
-                alt={card.name}
-                className={modalStyles.image}
-              />
-            ) : (
-              <div className={modalStyles.imagePlaceholder}>
-                <span className={modalStyles.imagePlaceholderText}>No image available</span>
-              </div>
-            )}
+            <CachedImage
+              src={cardImage}
+              alt={card.name}
+              className={modalStyles.image}
+              priority={true}
+            />
           </div>
 
           {/* Card Details */}

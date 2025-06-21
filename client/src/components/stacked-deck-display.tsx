@@ -215,26 +215,12 @@ function StackedCard({
           }`}
           onClick={() => onClick(card)}
         >
-          {card.image_uris?.normal ? (
-            <img
-              src={card.image_uris.normal}
-              alt={card.name}
-              className="w-full h-full object-cover"
-              loading="lazy"
-              onError={(e) => {
-                const img = e.target as HTMLImageElement;
-                img.style.display = 'none';
-                const parent = img.parentElement;
-                if (parent) {
-                  parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-slate-400 bg-slate-800 p-2"><span class="text-sm text-center">${card.name}</span></div>`;
-                }
-              }}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-800 p-2">
-              <span className="text-sm text-center">{card.name}</span>
-            </div>
-          )}
+          <CachedImage
+            src={card.image_uris?.normal}
+            alt={card.name}
+            className="w-full h-full object-cover"
+            priority={isHovered}
+          />
         </div>
 
         {quantity > 1 && (
