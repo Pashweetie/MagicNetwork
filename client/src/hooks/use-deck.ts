@@ -273,6 +273,44 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
     Array(entry.quantity).fill(entry.card)
   );
 
+  const isFormatValid = useCallback(() => {
+    if (format.name === 'Commander') {
+      return totalCards <= 100 && (commander ? true : false);
+    }
+    if (format.name === 'Standard' || format.name === 'Modern') {
+      return totalCards >= 60;
+    }
+    return true;
+  }, [totalCards, format.name, commander]);
+
+  const averageCMC = useMemo(() => {
+    if (allCards.length === 0) return 0;
+    const totalCMC = allCards.reduce((sum, card) => sum + (card.cmc || 0), 0);
+    return totalCMC / allCards.length;
+  }, [allCards]);
+
+  const exportToText = useCallback(() => {
+    let text = `# ${format.name} Deck\n\n`;
+    
+    if (commander) {
+      text += `Commander:\n1 ${commander.name}\n\n`;
+    }
+    
+    text += `Main Deck:\n`;
+    deckEntries.forEach(({ card, quantity }) => {
+      if (card.id !== commander?.id) {
+        text += `${quantity} ${card.name}\n`;
+      }
+    });
+    
+    return text;
+  }, [deckEntries, commander, format.name]);
+
+  const name = useMemo(() => {
+    if (commander) return `${commander.name} ${format.name}`;
+    return `${format.name} Deck`;
+  }, [commander, format.name]);
+
   return {
     deckEntries,
     format,
@@ -288,6 +326,10 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
     canAddCard,
     totalCards,
     uniqueCards,
-    allCards
+    allCards,
+    isFormatValid,
+    averageCMC,
+    exportToText,
+    name
   };
 }

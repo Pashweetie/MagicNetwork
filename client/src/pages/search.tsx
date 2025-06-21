@@ -5,6 +5,7 @@ import { FilterSidebar } from "@/components/filter-sidebar";
 import { CardGrid } from "@/components/card-grid";
 import { CardDetailModal } from "@/components/card-detail-modal";
 import { DeckImportDialog } from "@/components/DeckImportDialog";
+import { DeckFullscreenModal } from "@/components/deck-fullscreen-modal";
 import { SharedCardTile } from "@/components/shared-card-tile";
 import { StackedDeckDisplay } from "@/components/stacked-deck-display";
 
@@ -31,6 +32,7 @@ export default function Search() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [manualFilters, setManualFilters] = useState<SearchFilters>({});
   const [useManualFilters, setUseManualFilters] = useState(false);
+  const [isDeckFullscreenOpen, setIsDeckFullscreenOpen] = useState(false);
   
   const deck = useDeck();
   const { preloadSearchResults } = useCardImagePreloader();
@@ -209,14 +211,25 @@ export default function Search() {
           <div className="bg-slate-800 border-b border-slate-700 px-6 py-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowDeckPanel(!showDeckPanel)}
-                  className="flex items-center space-x-2"
-                >
-                  <Package className="w-4 h-4" />
-                  <span>Deck ({deck.totalCards})</span>
-                </Button>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowDeckPanel(!showDeckPanel)}
+                    className="flex items-center space-x-2"
+                  >
+                    <Package className="w-4 h-4" />
+                    <span>Deck ({deck.totalCards})</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsDeckFullscreenOpen(true)}
+                    className="flex items-center space-x-1"
+                    title="Open deck in fullscreen"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                  </Button>
+                </div>
                 
                 {/* Commander Display */}
                 {deck.commander && (
@@ -473,6 +486,12 @@ export default function Search() {
         onCardClick={handleCardClick}
         onAddCard={deck.addCard}
         currentFilters={activeFilters}
+      />
+
+      <DeckFullscreenModal
+        isOpen={isDeckFullscreenOpen}
+        onClose={() => setIsDeckFullscreenOpen(false)}
+        onCardClick={handleCardClick}
       />
     </div>
   );
