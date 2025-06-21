@@ -177,7 +177,13 @@ function startQuickTunnel() {
   console.log('⚡ Starting quick Cloudflare tunnel (temporary URL)...');
   
   checkCloudflaredInstallation(() => {
-    const tunnel = spawn('cloudflared', ['tunnel', '--url', 'http://localhost:5000'], {
+    // Use HTTP instead of QUIC for better stability in containerized environments
+    const tunnel = spawn('cloudflared', [
+      'tunnel', 
+      '--url', 'http://localhost:5000',
+      '--protocol', 'http2',
+      '--no-autoupdate'
+    ], {
       stdio: ['ignore', 'pipe', 'pipe']
     });
 
@@ -199,17 +205,22 @@ function checkCloudflaredInstallation(callback: () => void) {
 }
 
 function installCloudflared(callback: () => void) {
-  console.log('📦 Installing cloudflared...');
+  console.log('📦 Installing latest cloudflared...');
   const install = spawn('bash', ['-c', 'curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb && sudo dpkg -i cloudflared.deb && rm cloudflared.deb'], {
     stdio: ['ignore', 'pipe', 'pipe']
   });
   
+  install.stdout.on('data', (data) => {
+    console.log(`Install: ${data.toString().trim()}`);
+  });
+  
   install.on('exit', (code) => {
     if (code === 0) {
-      console.log('✅ cloudflared installed successfully');
+      console.log('✅ cloudflared updated to latest version');
       callback();
     } else {
-      console.log('❌ Failed to install cloudflared');
+      console.log('❌ Failed to update cloudflared');
+      callback(); // Try with existing version
     }
   });
 }
