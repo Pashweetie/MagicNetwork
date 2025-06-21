@@ -32,18 +32,19 @@ export function CardGrid({ cards, isLoading, hasMore, onLoadMore, onRetry, error
 
   // Intersection Observer for infinite scroll
   useEffect(() => {
-    if (!observerRef.current || !hasMore || cards.length === 0) {
+    if (!observerRef.current || !hasMore) {
       return;
     }
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !isLoading) {
+          console.log('Intersection triggered, loading more cards...');
           onLoadMore();
         }
       },
       {
-        rootMargin: '200px',
+        rootMargin: '100px',
         threshold: 0.1,
       }
     );
@@ -51,7 +52,7 @@ export function CardGrid({ cards, isLoading, hasMore, onLoadMore, onRetry, error
     observer.observe(observerRef.current);
 
     return () => observer.disconnect();
-  }, [hasMore, isLoading, onLoadMore, cards.length]);
+  }, [hasMore, isLoading, onLoadMore]);
 
   if (error) {
     return (

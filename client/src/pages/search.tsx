@@ -298,7 +298,9 @@ export default function Search() {
   };
 
   const handleLoadMore = useCallback(() => {
+    console.log('handleLoadMore called:', { hasNextPage, isFetching, shouldShowResults });
     if (hasNextPage && !isFetching && shouldShowResults) {
+      console.log('Fetching next page...');
       fetchNextPage();
     }
   }, [hasNextPage, isFetching, fetchNextPage, shouldShowResults]);
