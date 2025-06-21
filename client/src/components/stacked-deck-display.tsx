@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card as UICard, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Minus, Crown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown, ChevronUp, Plus, Minus, Crown } from "lucide-react";
 import { CachedImage } from "@/components/cached-image";
 
 type SortOption = 'name' | 'name_desc' | 'mana_value' | 'price' | 'type';
@@ -310,6 +311,7 @@ export function StackedDeckDisplay({
 }: StackedDeckDisplayProps) {
   const [sortBy, setSortBy] = useState<SortOption>('type');
   const [categoryBy, setCategoryBy] = useState<CategoryOption>('type');
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Creatures', 'Lands', 'Instants', 'Sorceries', 'Enchantments', 'Artifacts', 'Planeswalkers', 'Other', 'Battles']));
 
 
   const categorizedCards = useMemo((): CategoryGroup[] => {
