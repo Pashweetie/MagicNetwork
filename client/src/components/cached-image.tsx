@@ -108,11 +108,19 @@ export function CachedImage({
         img.style.display = 'none';
         const parent = img.parentElement;
         if (parent) {
-          parent.innerHTML = `
-            <div class="w-full h-full flex items-center justify-center text-slate-400 bg-slate-800 p-2">
-              <span class="text-sm text-center">${alt}</span>
-            </div>
-          `;
+          // Clear existing content safely
+          parent.textContent = '';
+          
+          // Create fallback element using DOM methods (XSS-safe)
+          const fallbackDiv = document.createElement('div');
+          fallbackDiv.className = 'w-full h-full flex items-center justify-center text-slate-400 bg-slate-800 p-2';
+          
+          const span = document.createElement('span');
+          span.className = 'text-sm text-center';
+          span.textContent = alt; // textContent is XSS-safe
+          
+          fallbackDiv.appendChild(span);
+          parent.appendChild(fallbackDiv);
         }
       }}
     />
