@@ -138,7 +138,12 @@ export class CardDatabaseService {
       // Helper function to safely parse integers
       const parseIntSafe = (value: any): number | null => {
         if (value === null || value === undefined || value === '') return null;
-        const parsed = parseInt(String(value));
+        // Handle fractional power/toughness like "0.5" by converting to null
+        const str = String(value);
+        if (str.includes('.') || str.includes('*') || str.includes('+') || str.includes('X')) {
+          return null;
+        }
+        const parsed = parseInt(str);
         return isNaN(parsed) ? null : parsed;
       };
 
@@ -152,9 +157,9 @@ export class CardDatabaseService {
         oracleText: cardData.oracle_text || null,
         colors: cardData.colors || [],
         colorIdentity: cardData.color_identity || [],
-        power: parseIntSafe(cardData.power),
-        toughness: parseIntSafe(cardData.toughness),
-        loyalty: parseIntSafe(cardData.loyalty),
+        power: cardData.power || null,
+        toughness: cardData.toughness || null,
+        loyalty: cardData.loyalty || null,
         rarity: cardData.rarity,
         setCode: cardData.set,
         setName: cardData.set_name,
