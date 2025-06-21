@@ -8,6 +8,7 @@ import { DeckImportDialog } from "@/components/DeckImportDialog";
 import { DeckFullscreenModal } from "@/components/deck-fullscreen-modal";
 import { SharedCardTile } from "@/components/shared-card-tile";
 import { StackedDeckDisplay } from "@/components/stacked-deck-display";
+import { EdhrecRecommendations } from "@/components/edhrec-recommendations";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

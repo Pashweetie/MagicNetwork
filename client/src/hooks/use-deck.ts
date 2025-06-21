@@ -241,6 +241,28 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
     saveDeckChanges(deckEntries, newCommander, format);
   }, [deckEntries, format, saveDeckChanges]);
 
+  const addCardByName = useCallback(async (cardName: string): Promise<boolean> => {
+    try {
+      // Search for the card by name
+      const response = await fetch(`/api/cards/search?q=${encodeURIComponent(cardName)}&page=1`);
+      if (!response.ok) return false;
+      
+      const searchResult = await response.json();
+      const exactMatch = searchResult.data.find((card: Card) => 
+        card.name.toLowerCase() === cardName.toLowerCase()
+      );
+      
+      if (exactMatch && canAddCard(exactMatch)) {
+        addCard(exactMatch);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error adding card by name:', error);
+      return false;
+    }
+  }, [canAddCard, addCard]);
+
   const setCommanderFromCard = useCallback((card: Card) => {
     const typeLine = card.type_line?.toLowerCase() || '';
     const isLegendary = typeLine.includes('legendary');

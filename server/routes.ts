@@ -9,11 +9,15 @@ import { desc, eq, and, count } from "drizzle-orm";
 import { z } from "zod";
 import { cardMatchesFilters } from "./utils/card-filters";
 import { registerCardAdminRoutes } from "./routes/card-admin";
+import { registerEdhrecRoutes } from "./routes/edhrec";
 import { cardDatabaseService } from "./services/card-database-service";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Register card admin routes
   registerCardAdminRoutes(app);
+  
+  // Register EDHREC routes
+  registerEdhrecRoutes(app);
 
   // Initialize card database migration and download in background
   console.log("Starting card database setup...");
