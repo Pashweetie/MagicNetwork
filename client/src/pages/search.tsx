@@ -36,6 +36,7 @@ export default function Search() {
   const [useManualFilters, setUseManualFilters] = useState(false);
   const [isDeckFullscreenOpen, setIsDeckFullscreenOpen] = useState(false);
   const [showEdhrecResults, setShowEdhrecResults] = useState(false);
+  const [linkedEdhrecCards, setLinkedEdhrecCards] = useState<Card[]>([]);
 
   
   const deck = useDeck();
@@ -107,6 +108,85 @@ export default function Search() {
     enabled: showEdhrecResults && !!deck.commander
   });
 
+  // Link EDHREC cards with Scryfall data
+  useEffect(() => {
+    if (!showEdhrecResults || !edhrecData || !deck.commander) {
+      setLinkedEdhrecCards([]);
+      return;
+    }
+
+    const linkCards = async () => {
+      const allEdhrecCards = [
+        ...edhrecData.cards.creatures,
+        ...edhrecData.cards.instants,
+        ...edhrecData.cards.sorceries,
+        ...edhrecData.cards.artifacts,
+        ...edhrecData.cards.enchantments,
+        ...edhrecData.cards.planeswalkers,
+        ...edhrecData.cards.lands
+      ];
+
+      const linkedCards = [];
+      
+      // Process cards in smaller batches to avoid overwhelming the API
+      const maxCards = Math.min(allEdhrecCards.length, 200);
+      for (let i = 0; i < maxCards; i += 5) {
+        const batch = allEdhrecCards.slice(i, i + 5);
+        const batchResults = await Promise.all(
+          batch.map(async (edhrecCard: any) => {
+            try {
+              // Search for exact card match using the card name
+              const searchResponse = await fetch(`/api/cards/search?q=${encodeURIComponent(edhrecCard.name)}&page=1`);
+              if (searchResponse.ok) {
+                const searchResult = await searchResponse.json();
+                const exactMatch = searchResult.data.find((card: any) => 
+                  card.name.toLowerCase() === edhrecCard.name.toLowerCase()
+                );
+                
+                if (exactMatch) {
+                  return {
+                    ...exactMatch,
+                    edhrec_rank: edhrecCard.num_decks,
+                    edhrec_synergy: edhrecCard.synergy,
+                    edhrec_url: edhrecCard.url
+                  };
+                } else {
+                  // Try fuzzy matching as fallback
+                  const fuzzyMatch = searchResult.data.find((card: any) => 
+                    card.name.toLowerCase().includes(edhrecCard.name.toLowerCase()) ||
+                    edhrecCard.name.toLowerCase().includes(card.name.toLowerCase())
+                  );
+                  if (fuzzyMatch) {
+                    return {
+                      ...fuzzyMatch,
+                      edhrec_rank: edhrecCard.num_decks,
+                      edhrec_synergy: edhrecCard.synergy,
+                      edhrec_url: edhrecCard.url
+                    };
+                  }
+                }
+              }
+              return null;
+            } catch (error) {
+              return null;
+            }
+          })
+        );
+        
+        linkedCards.push(...batchResults.filter(Boolean));
+        
+        // Small delay between batches
+        if (i + 5 < maxCards) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+      }
+
+      setLinkedEdhrecCards(linkedCards);
+    };
+
+    linkCards();
+  }, [showEdhrecResults, edhrecData, deck.commander]);
+
   // Only show cards when there's an active search or showing EDHREC results
   const shouldShowResults = searchQuery.trim() || useManualFilters || showEdhrecResults;
 
@@ -117,40 +197,11 @@ export default function Search() {
     if (!shouldShowResults) return [];
     
     if (showEdhrecResults && deck.commander && edhrecData) {
-      // Convert all EDHREC cards to searchable format
-      const allEdhrecCards = [
-        ...edhrecData.cards.creatures,
-        ...edhrecData.cards.instants,
-        ...edhrecData.cards.sorceries,
-        ...edhrecData.cards.artifacts,
-        ...edhrecData.cards.enchantments,
-        ...edhrecData.cards.planeswalkers,
-        ...edhrecData.cards.lands
-      ];
-      
-      // Convert to searchable card format and apply active filters
-      let filteredCards = allEdhrecCards.map((edhrecCard: any) => ({
-        id: edhrecCard.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-        name: edhrecCard.name,
-        mana_cost: '',
-        cmc: edhrecCard.cmc || 0,
-        type_line: edhrecCard.type_line || 'Unknown',
-        oracle_text: edhrecCard.oracle_text || '',
-        colors: [],
-        color_identity: edhrecCard.color_identity || [],
-        rarity: 'common' as const,
-        set: 'EDHREC',
-        set_name: 'EDHREC Recommendations',
-        prices: {
-          usd: edhrecCard.price ? edhrecCard.price.toString() : null
-        },
-        edhrec_rank: edhrecCard.num_decks,
-        edhrec_synergy: edhrecCard.synergy,
-        edhrec_url: edhrecCard.url,
-        is_edhrec_placeholder: true
-      }));
-
-      // Apply filters to EDHREC results
+      // Use stored linked cards if available, otherwise return empty array to trigger linking
+      if (linkedEdhrecCards.length > 0) {
+        let filteredCards = [...linkedEdhrecCards];
+        
+        // Apply filters to EDHREC results
       if (activeFilters.types?.length) {
         filteredCards = filteredCards.filter(card => 
           activeFilters.types!.some(type => 
@@ -189,7 +240,11 @@ export default function Search() {
         );
       }
 
-      return filteredCards;
+        return filteredCards;
+      }
+      
+      // Return empty array while cards are being linked
+      return [];
     }
     
     const searchData = data?.pages.flatMap(page => page.data) || [];
@@ -200,12 +255,11 @@ export default function Search() {
     }
     
     return searchData;
-  }, [data, shouldShowResults, preloadSearchResults, showEdhrecResults, deck.commander, edhrecData]);
+  }, [data, shouldShowResults, preloadSearchResults, showEdhrecResults, deck.commander, edhrecData, linkedEdhrecCards, activeFilters]);
 
 
 
-  const totalCards = showEdhrecResults && edhrecData ? 
-    Object.values(edhrecData.cards).flat().length : 
+  const totalCards = showEdhrecResults ? linkedEdhrecCards.length : 
     (shouldShowResults ? (data?.pages[0]?.total_cards || 0) : 0);
 
   const handleSearch = useCallback((query: string) => {
