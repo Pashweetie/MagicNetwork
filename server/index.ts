@@ -29,7 +29,7 @@ app.use((req, res, next) => {
   // Block direct Replit access with proper redirect
   if (host.includes('replit.app') || host.includes('replit.dev') || host.includes('repl.co')) {
     // Get current tunnel URL from global variable or fallback
-    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://addition-magnitude-applying-automobile.trycloudflare.com';
+    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://oral-utilize-required-closure.trycloudflare.com';
     
     // Return HTML redirect page for browser users
     if (req.get('accept')?.includes('text/html')) {
@@ -180,35 +180,10 @@ app.use((req, res, next) => {
 
 // Auto-start Cloudflare tunnel if configured
 function startCloudflareTunnel() {
-  const tunnelToken = process.env.CLOUDFLARE_TUNNEL_TOKEN;
-  const tunnelId = process.env.CLOUDFLARE_TUNNEL_ID;
-  const connectorId = process.env.CLOUDFLARE_CONNECTOR_ID;
+  console.log('Starting Cloudflare tunnel for public access...');
   
-  console.log('Checking Cloudflare tunnel configuration...');
-  
-  // Priority 1: Tunnel token (most reliable)
-  if (tunnelToken) {
-    console.log('Tunnel token found - starting permanent tunnel...');
-    startPermanentTunnel(tunnelToken);
-    return;
-  }
-  
-  // Priority 2: Named tunnel with ID
-  if (tunnelId) {
-    console.log(`Tunnel ID found: ${tunnelId}`);
-    startNamedTunnel(tunnelId);
-    return;
-  }
-  
-  // Priority 3: Connector approach
-  if (connectorId) {
-    console.log(`Connector ID found: ${connectorId}`);
-    startConnectorTunnel(connectorId);
-    return;
-  }
-  
-  // Fallback: Quick tunnel (temporary)
-  console.log('No permanent tunnel credentials configured, using temporary tunnel...');
+  // Use quick tunnel for reliable public access
+  // The tunnel token requires dashboard configuration which isn't set up
   startQuickTunnel();
 }
 
