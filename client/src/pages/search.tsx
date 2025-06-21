@@ -129,7 +129,7 @@ export default function Search() {
           ...edhrecData.cards.planeswalkers,
           ...edhrecData.cards.lands
         ];
-        return allEdhrecCards.map((edhrecCard: any) => ({
+        return allEdhrecCards.slice(0, 120).map((edhrecCard: any) => ({
           id: edhrecCard.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
           name: edhrecCard.name,
           mana_cost: '',
@@ -184,7 +184,8 @@ export default function Search() {
       const linkedCards = [];
       
       // Process cards in smaller batches to avoid overwhelming the API
-      for (let i = 0; i < allEdhrecCards.length; i += 5) {
+      const maxCards = Math.min(allEdhrecCards.length, 120);
+      for (let i = 0; i < maxCards; i += 5) {
         const batch = allEdhrecCards.slice(i, i + 5);
         const batchResults = await Promise.all(
           batch.map(async (edhrecCard: any) => {
@@ -230,8 +231,8 @@ export default function Search() {
         linkedCards.push(...batchResults.filter(Boolean));
         
         // Small delay between batches
-        if (i + 5 < allEdhrecCards.length) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+        if (i + 5 < maxCards) {
+          await new Promise(resolve => setTimeout(resolve, 50));
         }
       }
 
