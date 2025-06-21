@@ -29,7 +29,7 @@ app.use((req, res, next) => {
   // Block direct Replit access with proper redirect
   if (host.includes('replit.app') || host.includes('replit.dev') || host.includes('repl.co')) {
     // Get current tunnel URL from global variable or fallback
-    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://your-configured-hostname.com';
+    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://porter-entered-priorities-fitting.trycloudflare.com';
     
     // Return HTML redirect page for browser users
     if (req.get('accept')?.includes('text/html')) {
@@ -180,16 +180,8 @@ app.use((req, res, next) => {
 
 // Auto-start Cloudflare tunnel if configured
 function startCloudflareTunnel() {
-  const tunnelToken = process.env.CLOUDFLARE_TUNNEL_TOKEN;
-  
-  if (tunnelToken) {
-    console.log('Starting named tunnel with token...');
-    console.log('Note: This tunnel requires public hostname configuration in Cloudflare dashboard');
-    console.log('Visit https://one.dash.cloudflare.com/ > Access > Tunnels > Configure your tunnel');
-    startNamedTunnelDirect(tunnelToken);
-  } else {
-    console.log('No tunnel token configured - application only accessible via Replit URL');
-  }
+  console.log('Starting simple tunnel for immediate public access...');
+  startSimpleTunnel();
 }
 
 async function startNamedTunnel(tunnelId: string) {
@@ -317,38 +309,20 @@ async function createTunnelWithAccountId(apiToken: string, accountId: string): P
   }
 }
 
-function startNamedTunnelDirect(tunnelToken: string) {
-  console.log('Establishing tunnel connection...');
+function startSimpleTunnel() {
+  console.log('Creating public tunnel...');
   
-  const tunnel = spawn('cloudflared', [
-    'tunnel',
-    '--url', 'http://localhost:5000',
-    '--protocol', 'http2',  // Use HTTP/2 instead of QUIC for better compatibility
-    'run',
-    '--token', tunnelToken
-  ], {
-    stdio: ['ignore', 'pipe', 'pipe']
-  });
+  checkCloudflaredInstallation(() => {
+    const tunnel = spawn('cloudflared', [
+      'tunnel',
+      '--url', 'http://localhost:5000',
+      '--protocol', 'http2',
+      '--no-autoupdate'
+    ], {
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
 
-  tunnel.stdout.on('data', (data) => {
-    const output = data.toString();
-    if (output.includes('Registered tunnel connection')) {
-      console.log('Tunnel connection established successfully');
-      console.log('Configure public hostname at: https://one.dash.cloudflare.com/');
-    }
-  });
-
-  tunnel.stderr.on('data', (data) => {
-    const error = data.toString();
-    if (error.includes('ERR') && !error.includes('ICMP')) {
-      console.log(`Tunnel: ${error.trim()}`);
-    }
-  });
-
-  tunnel.on('exit', (code) => {
-    if (code !== 0) {
-      console.log(`Tunnel connection failed with code: ${code}`);
-    }
+    setupTunnelLogging(tunnel, 'Public Tunnel');
   });
 }
 
