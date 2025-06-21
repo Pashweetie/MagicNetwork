@@ -129,8 +129,8 @@ function VerticalStackedCards({
   }
 
   // Reversed image stack - bottom card on top, hover pushes cards above down
-  const TITLE_HEIGHT = 32;
-  const EXPANDED_CARD_HEIGHT = 240;
+  const TITLE_HEIGHT = 40;
+  const EXPANDED_CARD_HEIGHT = 280;
   const EXPANSION_SPACE = EXPANDED_CARD_HEIGHT - TITLE_HEIGHT;
 
   const calculatePositions = () => {
@@ -332,25 +332,11 @@ function ReversedStackCard({
   const canAddCard = quantity < maxCopies;
   const canRemoveCard = quantity > 0;
 
-  return (
-    <div className="relative h-full w-full cursor-pointer" onClick={() => onClick(card)}>
-      <div className="relative h-full bg-slate-700 border border-slate-600 rounded-lg overflow-hidden shadow-lg">
-        {/* Card Image - only show when expanded */}
-        {isExpanded && card.image_uris?.normal && (
-          <img
-            src={card.image_uris.normal}
-            alt={card.name}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-        )}
-
-        {/* Title Bar - always visible */}
-        <div 
-          className={`absolute top-0 left-0 right-0 h-8 bg-slate-700 border-b border-slate-600 flex items-center justify-between px-2 ${
-            isExpanded ? 'bg-black/80' : ''
-          }`}
-        >
+  if (!isExpanded) {
+    // Collapsed state - just show title bar
+    return (
+      <div className="relative h-full w-full cursor-pointer" onClick={() => onClick(card)}>
+        <div className="h-full bg-slate-700 border border-slate-600 rounded-lg flex items-center justify-between px-3 shadow-md hover:bg-slate-650 transition-colors">
           <div className="flex items-center gap-2 min-w-0">
             {quantity > 1 && (
               <Badge variant="secondary" className="text-xs bg-slate-600 text-white">
@@ -365,66 +351,94 @@ function ReversedStackCard({
             )}
           </div>
           
-          {!isExpanded && card.mana_cost && (
+          {card.mana_cost && (
             <span className="text-xs font-mono text-slate-400 flex-shrink-0">
               {card.mana_cost}
             </span>
           )}
         </div>
+      </div>
+    );
+  }
 
-        {/* Expanded Controls - only show when expanded */}
-        {isExpanded && (
-          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-2">
-            {onSetCommander && canBeCommander && (
-              <Button
-                size="sm"
-                variant={isCommander ? "default" : "secondary"}
-                className={`w-8 h-8 p-0 shadow-lg ${
-                  isCommander ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-slate-600 hover:bg-slate-500'
-                }`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSetCommander(card);
-                }}
-              >
-                <Crown className="w-3 h-3" />
-              </Button>
-            )}
-            
-            <Button
-              size="sm"
-              variant="destructive"
-              className="w-8 h-8 p-0 bg-red-600 hover:bg-red-700 shadow-lg"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove(card.id);
-              }}
-              disabled={!canRemoveCard}
-            >
-              <Minus className="w-3 h-3" />
-            </Button>
-            
-            <Button
-              size="sm"
-              variant="default"
-              className="w-8 h-8 p-0 bg-green-600 hover:bg-green-700 shadow-lg"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAdd(card);
-              }}
-              disabled={!canAddCard}
-            >
-              <Plus className="w-3 h-3" />
-            </Button>
-          </div>
-        )}
-
-        {/* Fallback for cards without images when expanded */}
-        {isExpanded && !card.image_uris?.normal && (
-          <div className="absolute inset-x-0 top-8 bottom-0 flex items-center justify-center text-slate-400 bg-slate-800">
+  // Expanded state - show full card
+  return (
+    <div className="relative h-full w-full cursor-pointer" onClick={() => onClick(card)}>
+      <div className="relative h-full bg-slate-700 border border-slate-600 rounded-lg overflow-hidden shadow-lg">
+        {/* Card Image */}
+        {card.image_uris?.normal ? (
+          <img
+            src={card.image_uris.normal}
+            alt={card.name}
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-800">
             <span className="text-sm text-center p-2">{card.name}</span>
           </div>
         )}
+
+        {/* Top badges overlay */}
+        <div className="absolute top-2 left-2 flex gap-2">
+          {quantity > 1 && (
+            <Badge variant="secondary" className="bg-black/80 text-white border-slate-600">
+              {quantity}x
+            </Badge>
+          )}
+          {isCommander && (
+            <div className="bg-yellow-600 rounded-full p-1">
+              <Crown className="w-4 h-4 text-white" />
+            </div>
+          )}
+        </div>
+
+
+
+        {/* Controls at bottom */}
+        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-2">
+          {onSetCommander && canBeCommander && (
+            <Button
+              size="sm"
+              variant={isCommander ? "default" : "secondary"}
+              className={`w-8 h-8 p-0 shadow-lg ${
+                isCommander ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-slate-600 hover:bg-slate-500'
+              }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSetCommander(card);
+              }}
+            >
+              <Crown className="w-3 h-3" />
+            </Button>
+          )}
+          
+          <Button
+            size="sm"
+            variant="destructive"
+            className="w-8 h-8 p-0 bg-red-600 hover:bg-red-700 shadow-lg"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(card.id);
+            }}
+            disabled={!canRemoveCard}
+          >
+            <Minus className="w-3 h-3" />
+          </Button>
+          
+          <Button
+            size="sm"
+            variant="default"
+            className="w-8 h-8 p-0 bg-green-600 hover:bg-green-700 shadow-lg"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAdd(card);
+            }}
+            disabled={!canAddCard}
+          >
+            <Plus className="w-3 h-3" />
+          </Button>
+        </div>
       </div>
     </div>
   );
