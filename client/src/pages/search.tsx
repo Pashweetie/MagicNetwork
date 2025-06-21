@@ -85,25 +85,24 @@ export default function Search() {
     refetch,
   } = useCardSearch(activeFilters);
 
-  // Load default results when no search query  
-  const defaultQuery = useCardSearch({ query: "" });
-  const shouldShowDefault = !searchQuery && !useManualFilters;
+  // Only show cards when there's an active search
+  const shouldShowResults = searchQuery.trim() || useManualFilters;
 
   // Flatten all pages of cards
   const allCards = useMemo(() => {
+    if (!shouldShowResults) return [];
+    
     const searchData = data?.pages.flatMap(page => page.data) || [];
-    const fallbackData = shouldShowDefault ? (defaultQuery.data?.pages.flatMap(page => page.data) || []) : [];
-    const cards = searchData.length > 0 ? searchData : fallbackData;
     
     // Preload images for search results
-    if (cards.length > 0) {
-      preloadSearchResults(cards);
+    if (searchData.length > 0) {
+      preloadSearchResults(searchData);
     }
     
-    return cards;
-  }, [data, defaultQuery.data, shouldShowDefault, preloadSearchResults]);
+    return searchData;
+  }, [data, shouldShowResults, preloadSearchResults]);
 
-  const totalCards = (data?.pages[0]?.total_cards) || (shouldShowDefault ? (defaultQuery.data?.pages[0]?.total_cards || 0) : 0);
+  const totalCards = shouldShowResults ? (data?.pages[0]?.total_cards || 0) : 0;
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
@@ -140,10 +139,10 @@ export default function Search() {
   };
 
   const handleLoadMore = useCallback(() => {
-    if (hasNextPage && !isFetching) {
+    if (hasNextPage && !isFetching && shouldShowResults) {
       fetchNextPage();
     }
-  }, [hasNextPage, isFetching, fetchNextPage]);
+  }, [hasNextPage, isFetching, fetchNextPage, shouldShowResults]);
 
   const handleRetry = () => {
     refetch();
