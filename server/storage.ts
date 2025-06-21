@@ -69,6 +69,8 @@ export class DatabaseStorage implements IStorage {
           const result = await cardDatabaseService.searchCards(filters, page);
           await this.cacheSearchResults(filters, page, result);
           return result;
+        } else {
+          console.log(`Local database has only ${cardCount} cards, using Scryfall for search`);
         }
       } catch (dbError) {
         console.log('Local database not ready, using Scryfall');
