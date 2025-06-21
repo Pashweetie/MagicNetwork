@@ -318,11 +318,12 @@ async function createTunnelWithAccountId(apiToken: string, accountId: string): P
 }
 
 function startNamedTunnelDirect(tunnelToken: string) {
-  console.log('Starting named tunnel with token...');
+  console.log('Establishing tunnel connection...');
   
   const tunnel = spawn('cloudflared', [
     'tunnel',
     '--url', 'http://localhost:5000',
+    '--protocol', 'http2',  // Use HTTP/2 instead of QUIC for better compatibility
     'run',
     '--token', tunnelToken
   ], {
@@ -331,24 +332,23 @@ function startNamedTunnelDirect(tunnelToken: string) {
 
   tunnel.stdout.on('data', (data) => {
     const output = data.toString();
-    console.log(`Tunnel: ${output.trim()}`);
-    
-    // Look for any public URL patterns
-    const urlMatch = output.match(/https:\/\/[a-zA-Z0-9.-]+/);
-    if (urlMatch) {
-      const publicUrl = urlMatch[0];
-      (global as any).currentTunnelUrl = publicUrl;
-      console.log(`Public URL found: ${publicUrl}`);
+    if (output.includes('Registered tunnel connection')) {
+      console.log('Tunnel connection established successfully');
+      console.log('Configure public hostname at: https://one.dash.cloudflare.com/');
     }
   });
 
   tunnel.stderr.on('data', (data) => {
     const error = data.toString();
-    console.log(`Tunnel: ${error.trim()}`);
+    if (error.includes('ERR') && !error.includes('ICMP')) {
+      console.log(`Tunnel: ${error.trim()}`);
+    }
   });
 
   tunnel.on('exit', (code) => {
-    console.log(`Tunnel process exited with code: ${code}`);
+    if (code !== 0) {
+      console.log(`Tunnel connection failed with code: ${code}`);
+    }
   });
 }
 
