@@ -338,6 +338,11 @@ export default function Search() {
                     Select a commander to see EDHREC recommendations
                   </p>
                 )}
+                {showEdhrecResults && edhrecError && (
+                  <p className="text-red-400 text-sm mt-1">
+                    Unable to load EDHREC data for this commander
+                  </p>
+                )}
               </div>
               <div className="flex items-center space-x-4">
                 <Select value={sortBy} onValueChange={setSortBy}>

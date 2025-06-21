@@ -1,4 +1,6 @@
 import { Card } from '@shared/schema';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 
 export interface EdhrecCard {
   name: string;
@@ -86,8 +88,6 @@ export class EdhrecService {
 
     try {
       // Since EDHREC blocks direct API access, we'll use a shell command approach
-      const { exec } = require('child_process');
-      const { promisify } = require('util');
       const execAsync = promisify(exec);
 
       const normalizedName = this.normalizeCommanderName(commander.name);
@@ -97,11 +97,20 @@ export class EdhrecService {
       
       const { stdout, stderr } = await execAsync(curlCommand);
       
-      if (stderr) {
+      if (stderr && stderr.trim()) {
         throw new Error(`Curl error: ${stderr}`);
       }
 
+      if (!stdout || stdout.trim() === '') {
+        throw new Error('Empty response from EDHREC');
+      }
+
       const edhrecData = JSON.parse(stdout);
+      
+      if (!edhrecData || !edhrecData.container || !edhrecData.container.json_dict) {
+        throw new Error('Invalid EDHREC response format');
+      }
+
       const recommendations = this.formatEdhrecData(edhrecData, commander);
 
       if (recommendations) {
