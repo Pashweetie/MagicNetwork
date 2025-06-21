@@ -831,14 +831,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         themesByCard[cardId] = [];
       });
 
+      // Group themes by card and theme name, keeping only the highest confidence
+      const themeMap = new Map<string, { theme: string, confidence: number }>();
+      
       themes.forEach(theme => {
-        if (!themesByCard[theme.card_id]) {
-          themesByCard[theme.card_id] = [];
+        const key = `${theme.card_id}-${theme.theme_name}`;
+        const existing = themeMap.get(key);
+        
+        if (!existing || theme.confidence > existing.confidence) {
+          themeMap.set(key, {
+            theme: theme.theme_name,
+            confidence: theme.confidence
+          });
         }
-        themesByCard[theme.card_id].push({
-          theme: theme.theme_name,
-          confidence: theme.confidence
-        });
+      });
+
+      // Convert back to the expected format
+      themes.forEach(theme => {
+        const key = `${theme.card_id}-${theme.theme_name}`;
+        const dedupedTheme = themeMap.get(key);
+        
+        if (dedupedTheme && themesByCard[theme.card_id]) {
+          // Only add if not already added (check by theme name)
+          const alreadyAdded = themesByCard[theme.card_id].some(t => t.theme === dedupedTheme.theme);
+          if (!alreadyAdded) {
+            themesByCard[theme.card_id].push(dedupedTheme);
+          }
+        }
       });
 
       res.json(themesByCard);
