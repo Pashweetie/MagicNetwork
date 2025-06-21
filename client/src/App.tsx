@@ -5,8 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BandwidthOptimizer } from "@/components/bandwidth-optimizer";
 import Search from "@/pages/search";
-import { AdminPage } from "@/pages/admin";
-import DataManagement from "@/pages/DataManagement";
+
 
 function Router() {
   const [location] = useLocation();
@@ -28,22 +27,7 @@ function Router() {
               >
                 Search
               </Link>
-              <Link
-                href="/admin"
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  location === '/admin' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
-                }`}
-              >
-                Admin
-              </Link>
-              <Link
-                href="/data"
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  location === '/data' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
-                }`}
-              >
-                Data Management
-              </Link>
+
             </div>
           </div>
         </div>
@@ -51,8 +35,6 @@ function Router() {
       
       <Switch>
         <Route path="/" component={Search} />
-        <Route path="/admin" component={AdminPage} />
-        <Route path="/data" component={DataManagement} />
         <Route component={() => <div className="flex items-center justify-center min-h-screen">Page not found</div>} />
       </Switch>
     </div>
