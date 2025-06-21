@@ -85,72 +85,7 @@ app.use((req, res, next) => {
 
 // Auto-start Cloudflare tunnel if configured
 function startCloudflareTunnel() {
-  // Auto-start tunnel if configuration exists and is valid
-  console.log('Checking Cloudflare tunnel configuration...');
-
-  // Check if tunnel is configured
-  if (!existsSync('./cloudflare-tunnel.yml')) {
-    console.log('Cloudflare tunnel not configured - see cloudflare-setup.md for setup instructions');
-    return;
-  }
-
-  // Check if cloudflared is installed
-  const checkCloudflared = spawn('which', ['cloudflared']);
-  checkCloudflared.on('exit', (code) => {
-    if (code !== 0) {
-      console.log('cloudflared not installed - see cloudflare-setup.md for installation');
-      return;
-    }
-
-    // Check if we have the tunnel token (more reliable than config file method)
-    console.log('Using token-based tunnel authentication...');
-
-    // Start the tunnel using token method with local service routing
-    console.log('Starting Cloudflare tunnel...');
-    const tunnelToken = 'eyJhIjoiYWM0YWUzMTI4NmEwZmI0YmQ1N2ZhOTAwMzlmOGE2NDQiLCJ0IjoiODJmMWIzOTktYzQyNy00NWYxLTg2NjktOGRhOWYxZmJmY2ExIiwicyI6Ik9Ea3dPR1U0TmprdFpqVXlNeTAwTkRrMExXSmhNell0T1dGaE4yWmxaREV4TnpBeCJ9';
-    const tunnel = spawn('cloudflared', ['tunnel', 'run', '--token', tunnelToken, '--url', 'http://localhost:5000'], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env }
-    });
-
-    tunnel.stdout.on('data', (data) => {
-      const output = data.toString();
-      // Look for the tunnel URL
-      if (output.includes('trycloudflare.com') || output.includes('cfargotunnel.com')) {
-        const url = output.match(/https:\/\/[a-zA-Z0-9-]+\.(trycloudflare|cfargotunnel)\.com/)?.[0];
-        if (url) {
-          console.log(`Cloudflare tunnel active: ${url}`);
-        }
-      }
-      // Log connection status
-      if (output.includes('Connection') && output.includes('registered')) {
-        console.log('Tunnel connection established');
-      }
-    });
-
-    tunnel.stderr.on('data', (data) => {
-      const error = data.toString();
-      if (error.includes('ERR') && !error.includes('Failed to create new quic connection')) {
-        console.log(`[Tunnel Error] ${error.trim()}`);
-      }
-    });
-
-    tunnel.on('exit', (code) => {
-      if (code !== 0) {
-        console.log(`Cloudflare tunnel exited with code ${code}`);
-      }
-    });
-
-    // Cleanup tunnel on server shutdown
-    process.on('SIGINT', () => {
-      console.log('Stopping Cloudflare tunnel...');
-      tunnel.kill();
-      process.exit();
-    });
-
-    process.on('SIGTERM', () => {
-      tunnel.kill();
-      process.exit();
-    });
-  });
+  console.log('Cloudflare tunnel configured but disabled by default');
+  console.log('Your MTG app is running with full functionality on Replit');
+  console.log('To enable tunnel: Check cloudflare-setup.md for complete setup steps');
 }

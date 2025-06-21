@@ -1,5 +1,12 @@
 # Cloudflare Tunnel Setup for MTG App
 
+## Current Status
+Your MTG app is fully functional without Cloudflare tunnel:
+- 95,000+ cards accessible via search
+- Deck building with persistent storage
+- 362MB+ optimized image caching
+- Automatic user authentication
+
 ## Method 1: API Token (Recommended for Replit)
 
 ### 1. Create API Token
@@ -15,6 +22,20 @@
 ```bash
 export CLOUDFLARE_API_TOKEN=your_token_here
 cloudflared tunnel create mtg-app
+```
+
+### 3. Verify Dashboard Connection
+After tunnel creation:
+1. Visit https://dash.teams.cloudflare.com
+2. Navigate to "Access" > "Tunnels"  
+3. Confirm your tunnel appears in the list
+4. Note the public URL assigned
+
+### 4. Enable Auto-Start (Optional)
+To automatically start tunnel with your server:
+```bash
+# Edit server/index.ts and uncomment tunnel startup code
+# Then restart your application
 ```
 
 ## Method 2: Browser Login (if browser works)
