@@ -93,18 +93,17 @@ export default function Search() {
   // Only show cards when there's an active search or showing EDHREC results
   const shouldShowResults = searchQuery.trim() || useManualFilters || showEdhrecResults;
 
-  // Fetch EDHREC-style recommendations when enabled
-  const { data: edhrecData, isLoading: isEdhrecLoading } = useQuery({
-    queryKey: ['edhrec-style-recommendations', deck.commander?.id, showEdhrecResults],
+  // Fetch EDHREC recommendations when enabled
+  const { data: edhrecData, isLoading: isEdhrecLoading, error: edhrecError } = useQuery({
+    queryKey: ['edhrec-recommendations', deck.commander?.id, showEdhrecResults],
     queryFn: async () => {
       if (!deck.commander || !showEdhrecResults) return null;
       
-      // Get recommendations using our existing API
-      const response = await fetch(`/api/cards/${deck.commander.id}/recommendations?type=synergy&limit=50`);
-      if (!response.ok) throw new Error('Failed to fetch recommendations');
-      
-      const recommendations = await response.json();
-      return recommendations.map((rec: any) => rec.card).filter(Boolean);
+      const response = await fetch(`/api/edhrec/commander/${deck.commander.id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch EDHREC recommendations');
+      }
+      return response.json();
     },
     enabled: showEdhrecResults && !!deck.commander
   });
@@ -114,8 +113,21 @@ export default function Search() {
     if (!shouldShowResults) return [];
     
     if (showEdhrecResults && deck.commander) {
-      // Show EDHREC-style recommendations instead of search results
-      return edhrecData || [];
+      // Show EDHREC recommendations instead of search results
+      if (edhrecData && edhrecData.cards) {
+        // Flatten all card categories from EDHREC data
+        const allEdhrecCards = [
+          ...edhrecData.cards.creatures,
+          ...edhrecData.cards.instants,
+          ...edhrecData.cards.sorceries,
+          ...edhrecData.cards.artifacts,
+          ...edhrecData.cards.enchantments,
+          ...edhrecData.cards.planeswalkers,
+          ...edhrecData.cards.lands
+        ];
+        return allEdhrecCards;
+      }
+      return [];
     }
     
     const searchData = data?.pages.flatMap(page => page.data) || [];
