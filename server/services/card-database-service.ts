@@ -119,7 +119,7 @@ export class CardDatabaseService {
         name: cardData.name,
         manaCost: cardData.mana_cost || null,
         cmc: cardData.cmc || 0,
-        typeLine: cardData.type_line,
+        typeLine: cardData.type_line || 'Unknown',
         oracleText: cardData.oracle_text || null,
         colors: cardData.colors || [],
         colorIdentity: cardData.color_identity || [],

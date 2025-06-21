@@ -94,7 +94,7 @@ export const cards = pgTable('cards', {
   name: text('name').notNull(),
   manaCost: text('mana_cost'),
   cmc: integer('cmc').notNull().default(0),
-  typeLine: text('type_line').notNull(),
+  typeLine: text('type_line'),
   oracleText: text('oracle_text'),
   colors: text('colors').array().notNull().default([]),
   colorIdentity: text('color_identity').array().notNull().default([]),
