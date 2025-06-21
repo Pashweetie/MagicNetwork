@@ -359,12 +359,24 @@ export function StackedDeckDisplay({
 
   // Trigger theme generation for cards without themes
   useEffect(() => {
+    if (!cardThemes) return;
+    
     const cardsWithoutThemes = cardIds.filter(cardId => {
-      const themes = cardThemes?.[cardId];
+      const themes = cardThemes[cardId];
       return !themes || themes.length === 0;
     });
 
+    console.log('Theme generation check:', {
+      totalCards: cardIds.length,
+      cardsWithThemes: cardIds.length - cardsWithoutThemes.length,
+      cardsWithoutThemes: cardsWithoutThemes.length,
+      cardThemesKeys: Object.keys(cardThemes),
+      sampleThemes: cardThemes[cardIds[0]]
+    });
+
     if (cardsWithoutThemes.length > 0) {
+      console.log('Generating themes for cards:', cardsWithoutThemes);
+      
       // Generate themes in background
       cardsWithoutThemes.forEach(async (cardId) => {
         try {
@@ -401,6 +413,16 @@ export function StackedDeckDisplay({
       deckEntries.forEach(entry => {
         const themes = cardThemes?.[entry.card.id] || [];
         const topTheme = getTopTheme(themes);
+        
+        // Debug logging for Abhorrent Oculus
+        if (entry.card.name.includes('Abhorrent Oculus')) {
+          console.log('Abhorrent Oculus debug:', {
+            cardId: entry.card.id,
+            themes: themes,
+            topTheme: topTheme,
+            cardThemes: cardThemes
+          });
+        }
         
         if (!groups.has(topTheme)) {
           groups.set(topTheme, []);
