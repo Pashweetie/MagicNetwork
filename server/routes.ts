@@ -8,13 +8,12 @@ import { db } from "./db";
 import { desc, eq, and, count } from "drizzle-orm";
 import { z } from "zod";
 import { cardMatchesFilters } from "./utils/card-filters";
-import { registerCardAdminRoutes } from "./routes/card-admin";
 import { registerEdhrecRoutes } from "./routes/edhrec";
 import { cardDatabaseService } from "./services/card-database-service";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Register card admin routes
-  registerCardAdminRoutes(app);
+  // Auth middleware must come first
+  await setupAuth(app);
   
   // Register EDHREC routes
   registerEdhrecRoutes(app);
@@ -28,8 +27,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Failed to initialize card database:", error);
     });
   });
-  // Auth middleware
-  await setupAuth(app);
   // Search cards endpoint
   app.get("/api/cards/search", async (req, res) => {
     try {
@@ -695,20 +692,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Generate recommendations for popular cards (admin endpoint)
-  app.post("/api/admin/generate-recommendations", isAuthenticated, async (req, res) => {
-    try {
-      const limit = parseInt(req.query.limit as string) || 50;
-      
-      // Theme generation is now handled automatically by AI service
-      console.log('Neural network handles recommendation generation automatically');
-      
-      res.json({ message: "Recommendation generation started" });
-    } catch (error) {
-      console.error('Recommendation generation error:', error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
+
 
   // Theme feedback endpoint
   app.post("/api/cards/:id/theme-feedback", async (req, res) => {
