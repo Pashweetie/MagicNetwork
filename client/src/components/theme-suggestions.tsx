@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@shared/schema";
 import { SharedCardTile } from "./shared-card-tile";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ interface ThemeGroup {
 }
 
 export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters }: ThemeSuggestionsProps) {
+  const queryClient = useQueryClient();
   const [userHasVoted, setUserHasVoted] = useState<{[theme: string]: boolean}>({});
   const [cardVotes, setCardVotes] = useState<{[cardId: string]: {[themeName: string]: 'up' | 'down'}}>({});
   
@@ -95,7 +96,10 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
         
         if (result.removed) {
           UIUtils.showToast(result.message || 'Theme removed', 'warning');
-          setTimeout(() => window.location.reload(), 1000);
+          // Refresh the theme suggestions data instead of reloading the page
+          queryClient.invalidateQueries({ 
+            queryKey: ['/api/cards', targetCard.id, 'theme-suggestions'] 
+          });
         } else {
           // Only update main theme confidence display if voting on the main card
           if (targetCard.id === card.id) {
