@@ -105,21 +105,26 @@ function startCloudflareTunnel() {
     // Check if we have the tunnel token (more reliable than config file method)
     console.log('Using token-based tunnel authentication...');
 
-    // Start the tunnel using token method (more reliable for Replit)
+    // Start the tunnel using token method with local service routing
     console.log('Starting Cloudflare tunnel...');
     const tunnelToken = 'eyJhIjoiYWM0YWUzMTI4NmEwZmI0YmQ1N2ZhOTAwMzlmOGE2NDQiLCJ0IjoiODJmMWIzOTktYzQyNy00NWYxLTg2NjktOGRhOWYxZmJmY2ExIiwicyI6Ik9Ea3dPR1U0TmprdFpqVXlNeTAwTkRrMExXSmhNell0T1dGaE4yWmxaREV4TnpBeCJ9';
-    const tunnel = spawn('cloudflared', ['tunnel', '--token', tunnelToken, 'run'], {
+    const tunnel = spawn('cloudflared', ['tunnel', 'run', '--token', tunnelToken, '--url', 'http://localhost:5000'], {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env }
     });
 
     tunnel.stdout.on('data', (data) => {
       const output = data.toString();
-      if (output.includes('https://')) {
-        const url = output.match(/https:\/\/[^\s]+/)?.[0];
-        console.log(`🌐 Cloudflare tunnel active: ${url}`);
-      } else if (output.includes('INF')) {
-        console.log(`[Tunnel] ${output.trim()}`);
+      // Look for the tunnel URL
+      if (output.includes('trycloudflare.com') || output.includes('cfargotunnel.com')) {
+        const url = output.match(/https:\/\/[a-zA-Z0-9-]+\.(trycloudflare|cfargotunnel)\.com/)?.[0];
+        if (url) {
+          console.log(`Cloudflare tunnel active: ${url}`);
+        }
+      }
+      // Log connection status
+      if (output.includes('Connection') && output.includes('registered')) {
+        console.log('Tunnel connection established');
       }
     });
 
