@@ -144,12 +144,20 @@ function startNamedTunnel(tunnelId: string) {
   
   // Check if cloudflared is installed
   checkCloudflaredInstallation(() => {
-    const tunnel = spawn('cloudflared', ['tunnel', 'run', tunnelId], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, TUNNEL_ORIGIN_SERVER_NAME: 'localhost:5000' }
+    // Try different approaches based on tunnel configuration
+    const tunnel = spawn('cloudflared', ['tunnel', '--url', 'http://localhost:5000', 'run', tunnelId], {
+      stdio: ['ignore', 'pipe', 'pipe']
     });
 
     setupTunnelLogging(tunnel, 'Named Tunnel');
+    
+    // If named tunnel fails, fallback to quick tunnel
+    tunnel.on('exit', (code) => {
+      if (code !== 0) {
+        console.log('Named tunnel failed, falling back to quick tunnel...');
+        setTimeout(() => startQuickTunnel(), 2000);
+      }
+    });
   });
 }
 
@@ -238,8 +246,15 @@ function setupTunnelLogging(tunnel: any, tunnelType: string) {
   
   tunnel.stderr.on('data', (data: Buffer) => {
     const error = data.toString();
+    console.log(`Tunnel output: ${error.trim()}`);
+    
     if (error.includes('ERROR') || error.includes('WARN')) {
       console.log(`⚠️  Tunnel warning: ${error.trim()}`);
+    }
+    
+    // Check for authentication issues
+    if (error.includes('authentication') || error.includes('login')) {
+      console.log('Authentication required - ensure tunnel is properly configured in Cloudflare dashboard');
     }
   });
   
