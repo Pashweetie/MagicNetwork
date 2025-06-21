@@ -56,7 +56,7 @@ export function registerEdhrecRoutes(app: Express) {
   });
 
   // Get EDHREC cache statistics (for debugging)
-  app.get("/api/edhrec/cache/stats", async (_req: Request, res: Response) => {
+  app.get("/api/edhrec/cache/stats", isAuthenticated, async (_req: Request, res: Response) => {
     try {
       const stats = edhrecService.getCacheStats();
       res.json(stats);
@@ -67,7 +67,7 @@ export function registerEdhrecRoutes(app: Express) {
   });
 
   // Clear EDHREC cache
-  app.post("/api/edhrec/cache/clear", async (_req: Request, res: Response) => {
+  app.post("/api/edhrec/cache/clear", isAuthenticated, async (_req: Request, res: Response) => {
     try {
       edhrecService.clearCache();
       res.json({ success: true, message: 'Cache cleared successfully' });
@@ -78,7 +78,7 @@ export function registerEdhrecRoutes(app: Express) {
   });
 
   // Refresh specific commander data
-  app.post("/api/edhrec/commander/:id/refresh", async (req: Request, res: Response) => {
+  app.post("/api/edhrec/commander/:id/refresh", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       

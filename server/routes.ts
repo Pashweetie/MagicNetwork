@@ -752,7 +752,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Deck persistence endpoints
-  app.get("/api/decks", async (req, res) => {
+  app.get("/api/decks", isAuthenticated, async (req, res) => {
     try {
       const userId = 1; // Would come from auth
       const decks = await storage.getUserDecks(userId);
@@ -763,7 +763,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/decks", async (req, res) => {
+  app.post("/api/decks", isAuthenticated, async (req, res) => {
     try {
       const userId = 1; // Would come from auth
       const deck = await storage.createDeck({
@@ -777,7 +777,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/decks/:id", async (req, res) => {
+  app.get("/api/decks/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = 1; // Would come from auth
       const deck = await storage.getDeck(parseInt(req.params.id), userId);
@@ -791,7 +791,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/decks/:id", async (req, res) => {
+  app.put("/api/decks/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = 1; // Would come from auth
       const deck = await storage.updateDeck(parseInt(req.params.id), userId, req.body);
@@ -805,7 +805,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/decks/:id", async (req, res) => {
+  app.delete("/api/decks/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = 1; // Would come from auth
       const success = await storage.deleteDeck(parseInt(req.params.id), userId);
@@ -820,7 +820,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User deck management routes
-  app.get('/api/user/deck', async (req: any, res) => {
+  app.get('/api/user/deck', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub || 'demo-user';
       const deckData = await storage.getUserDeck(userId);
@@ -832,7 +832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get themes for multiple cards (bulk endpoint for deck categorization)
-  app.post('/api/cards/bulk-themes', async (req: Request, res: Response) => {
+  app.post('/api/cards/bulk-themes', isAuthenticated, async (req: Request, res: Response) => {
     try {
       const { cardIds } = req.body;
       
@@ -891,7 +891,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/user/deck', async (req: any, res) => {
+  app.put('/api/user/deck', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub || 'demo-user';
       const deckData = req.body;
@@ -904,7 +904,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Import deck from text
-  app.post('/api/user/deck/import', async (req: any, res) => {
+  app.post('/api/user/deck/import', isAuthenticated, async (req: any, res) => {
     try {
       // Use a default user ID for now since auth might not be set up
       const userId = req.user?.claims?.sub || 'demo-user';
