@@ -627,25 +627,7 @@ export default function Search() {
               />
             )}
 
-            {/* Loading and pagination */}
-            {isFetching && (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-              </div>
-            )}
-
-            {hasNextPage && !isFetching && (
-              <div className="flex justify-center py-8">
-                <Button 
-                  onClick={handleLoadMore}
-                  variant="outline"
-                  disabled={isFetching}
-                >
-                  Load More
-                </Button>
-              </div>
-            )}
-            
+            {/* Loading indicator */}
             {isFetching && (
               <div className="flex justify-center py-8">
                 <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>
