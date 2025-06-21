@@ -18,8 +18,8 @@ export class CardDatabaseService {
     // Check if we have any cards in the database
     const cardCount = await this.getCardCount();
     
-    if (cardCount === 0) {
-      console.log("No cards found in database. Starting bulk download...");
+    if (cardCount < 50000) { // Consider incomplete if less than ~50k cards
+      console.log(`Database has ${cardCount} cards. Completing download...`);
       await this.downloadAllCards();
     } else {
       console.log(`Database already contains ${cardCount} cards`);
