@@ -1,10 +1,11 @@
 import { Express, Request, Response } from 'express';
 import { edhrecService } from '../services/edhrec-service';
 import { storage } from '../storage';
+import { isAuthenticated } from '../replitAuth';
 
 export function registerEdhrecRoutes(app: Express) {
   // Get EDHREC recommendations for a commander
-  app.get("/api/edhrec/commander/:id", async (req: Request, res: Response) => {
+  app.get("/api/edhrec/commander/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       
@@ -38,7 +39,7 @@ export function registerEdhrecRoutes(app: Express) {
   });
 
   // Search for a specific card on EDHREC
-  app.get("/api/edhrec/card/:name", async (req: Request, res: Response) => {
+  app.get("/api/edhrec/card/:name", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const { name } = req.params;
       const cardData = await edhrecService.searchEdhrecCard(name);

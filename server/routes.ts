@@ -27,8 +27,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Failed to initialize card database:", error);
     });
   });
-  // Search cards endpoint
-  app.get("/api/cards/search", async (req, res) => {
+  // Search cards endpoint - protected
+  app.get("/api/cards/search", isAuthenticated, async (req, res) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       
@@ -114,7 +114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get single card endpoint
-  app.get("/api/cards/:id", async (req, res) => {
+  app.get("/api/cards/:id", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const card = await storage.getCard(id);
@@ -131,8 +131,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get random card endpoint
-  app.get("/api/cards/random", async (req, res) => {
+  // Get random card endpoint - protected
+  app.get("/api/cards/random", isAuthenticated, async (req, res) => {
     try {
       const card = await storage.getRandomCard();
       res.json(card);
@@ -143,7 +143,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Card recommendations endpoint - using new algorithms directly
-  app.get("/api/cards/:id/recommendations", async (req, res) => {
+  app.get("/api/cards/:id/recommendations", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const { type = 'synergy', limit = 10, filters } = req.query;
@@ -209,7 +209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Personalized recommendations endpoint
-  app.get("/api/users/:userId/recommendations", async (req, res) => {
+  app.get("/api/users/:userId/recommendations", isAuthenticated, async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
       const limit = parseInt(req.query.limit as string) || 20;
@@ -224,7 +224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Track user interaction endpoint
-  app.post("/api/interactions", async (req, res) => {
+  app.post("/api/interactions", isAuthenticated, async (req, res) => {
     try {
       const { cardId, interactionType, metadata } = req.body;
       const userId = 1; // Default user for now
@@ -244,7 +244,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Context-aware suggestions endpoint
-  app.get("/api/suggestions/contextual", async (req, res) => {
+  app.get("/api/suggestions/contextual", isAuthenticated, async (req, res) => {
     try {
       const { limit = 20 } = req.query;
       
@@ -263,7 +263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Theme suggestions endpoint - get themes for a card with example cards
-  app.get("/api/cards/:id/theme-suggestions", async (req, res) => {
+  app.get("/api/cards/:id/theme-suggestions", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const { filters } = req.query;
