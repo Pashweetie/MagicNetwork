@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@shared/schema";
 import { DeckEntry } from "@/hooks/use-deck";
 import { Button } from "@/components/ui/button";
@@ -6,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Minus, Crown } from "lucide-react";
 import { CachedImage } from "@/components/cached-image";
+import { apiRequest } from "@/lib/queryClient";
 
 type SortOption = 'name' | 'name_desc' | 'mana_value' | 'price' | 'type';
-type CategoryOption = 'type' | 'mana_value' | 'none';
+type CategoryOption = 'type' | 'mana_value' | 'top_theme' | 'all_themes' | 'none';
 
 interface StackedDeckDisplayProps {
   deckEntries: DeckEntry[];
@@ -60,6 +62,27 @@ const getManaValueCategory = (card: Card): string => {
   if (cmc >= 7) return '7+ Mana';
   
   return 'Unknown';
+};
+
+const getTopTheme = (cardThemes: Array<{ theme: string, confidence: number }>): string => {
+  if (!cardThemes || cardThemes.length === 0) return 'No Theme';
+  
+  // Find highest confidence
+  const maxConfidence = Math.max(...cardThemes.map(t => t.confidence));
+  
+  // Get all themes with max confidence
+  const topThemes = cardThemes.filter(t => t.confidence === maxConfidence);
+  
+  // Return random one if tied, otherwise the single top theme
+  return topThemes[Math.floor(Math.random() * topThemes.length)]?.theme || 'No Theme';
+};
+
+const getThemesAbove50 = (cardThemes: Array<{ theme: string, confidence: number }>): string[] => {
+  if (!cardThemes || cardThemes.length === 0) return ['No Theme'];
+  
+  const validThemes = cardThemes.filter(t => t.confidence >= 50).map(t => t.theme);
+  
+  return validThemes.length > 0 ? validThemes : ['No Theme'];
 };
 
 const sortCards = (cards: DeckEntry[], sortBy: SortOption): DeckEntry[] => {
@@ -310,6 +333,21 @@ export function StackedDeckDisplay({
   const [sortBy, setSortBy] = useState<SortOption>('type');
   const [categoryBy, setCategoryBy] = useState<CategoryOption>('type');
 
+  // Fetch themes for all cards in deck when using theme categorization
+  const cardIds = deckEntries.map(entry => entry.card.id);
+  const { data: cardThemes } = useQuery({
+    queryKey: ['/api/cards/bulk-themes', cardIds],
+    queryFn: async () => {
+      if (cardIds.length === 0) return {};
+      const response = await apiRequest('/api/cards/bulk-themes', {
+        method: 'POST',
+        body: JSON.stringify({ cardIds }),
+      });
+      return response;
+    },
+    enabled: (categoryBy === 'top_theme' || categoryBy === 'all_themes') && cardIds.length > 0,
+  });
+
 
   const categorizedCards = useMemo((): CategoryGroup[] => {
     if (categoryBy === 'none') {
@@ -322,6 +360,71 @@ export function StackedDeckDisplay({
       }];
     }
 
+    if (categoryBy === 'top_theme') {
+      const groups = new Map<string, DeckEntry[]>();
+      
+      deckEntries.forEach(entry => {
+        const themes = cardThemes?.[entry.card.id] || [];
+        const topTheme = getTopTheme(themes);
+        
+        if (!groups.has(topTheme)) {
+          groups.set(topTheme, []);
+        }
+        groups.get(topTheme)!.push(entry);
+      });
+
+      // Sort themes alphabetically, but put "No Theme" last
+      const sortedThemes = Array.from(groups.keys()).sort((a, b) => {
+        if (a === 'No Theme') return 1;
+        if (b === 'No Theme') return -1;
+        return a.localeCompare(b);
+      });
+
+      return sortedThemes.map(theme => {
+        const cards = sortCards(groups.get(theme)!, sortBy);
+        return {
+          name: theme,
+          cards,
+          totalQuantity: cards.reduce((sum, entry) => sum + entry.quantity, 0),
+          isExpanded: true
+        };
+      });
+    }
+
+    if (categoryBy === 'all_themes') {
+      const groups = new Map<string, DeckEntry[]>();
+      
+      deckEntries.forEach(entry => {
+        const themes = cardThemes?.[entry.card.id] || [];
+        const validThemes = getThemesAbove50(themes);
+        
+        validThemes.forEach(theme => {
+          if (!groups.has(theme)) {
+            groups.set(theme, []);
+          }
+          groups.get(theme)!.push(entry);
+        });
+      });
+
+      // Sort themes alphabetically, but put "No Theme" last
+      const sortedThemes = Array.from(groups.keys()).sort((a, b) => {
+        if (a === 'No Theme') return 1;
+        if (b === 'No Theme') return -1;
+        return a.localeCompare(b);
+      });
+
+      return sortedThemes.map(theme => {
+        const cards = sortCards(groups.get(theme)!, sortBy);
+        return {
+          name: theme,
+          cards,
+          totalQuantity: cards.reduce((sum, entry) => sum + entry.quantity, 0),
+          isExpanded: true
+        };
+      });
+    }
+
+    // Original type and mana value categorization
     const groups = new Map<string, DeckEntry[]>();
     
     deckEntries.forEach(entry => {
@@ -350,7 +453,7 @@ export function StackedDeckDisplay({
           isExpanded: true
         };
       });
-  }, [deckEntries, sortBy, categoryBy]);
+  }, [deckEntries, sortBy, categoryBy, cardThemes]);
 
   const canBeCommander = (card: Card) => {
     const typeLine = card.type_line?.toLowerCase() || '';
@@ -389,6 +492,8 @@ export function StackedDeckDisplay({
               <SelectContent>
                 <SelectItem value="type">Card Type</SelectItem>
                 <SelectItem value="mana_value">Mana Value</SelectItem>
+                <SelectItem value="top_theme">Top Theme</SelectItem>
+                <SelectItem value="all_themes">All Themes (50%+)</SelectItem>
                 <SelectItem value="none">No Grouping</SelectItem>
               </SelectContent>
             </Select>

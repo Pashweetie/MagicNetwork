@@ -793,6 +793,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get themes for multiple cards (bulk endpoint for deck categorization)
+  app.post('/api/cards/bulk-themes', async (req: Request, res: Response) => {
+    try {
+      const { cardIds } = req.body;
+      
+      if (!cardIds || !Array.isArray(cardIds)) {
+        return res.status(400).json({ error: 'cardIds array is required' });
+      }
+
+      const { db } = await import('./db');
+      const { cardThemes } = await import('@shared/schema');
+      const { inArray, desc } = await import('drizzle-orm');
+
+      // Fetch all themes for the requested cards, ordered by confidence descending
+      const themes = await db
+        .select()
+        .from(cardThemes)
+        .where(inArray(cardThemes.card_id, cardIds))
+        .orderBy(desc(cardThemes.confidence));
+
+      // Group themes by card ID
+      const themesByCard: { [cardId: string]: Array<{ theme: string, confidence: number }> } = {};
+      
+      cardIds.forEach(cardId => {
+        themesByCard[cardId] = [];
+      });
+
+      themes.forEach(theme => {
+        if (!themesByCard[theme.card_id]) {
+          themesByCard[theme.card_id] = [];
+        }
+        themesByCard[theme.card_id].push({
+          theme: theme.theme_name,
+          confidence: theme.confidence
+        });
+      });
+
+      res.json(themesByCard);
+    } catch (error) {
+      console.error('Bulk themes error:', error);
+      res.status(500).json({ error: 'Failed to fetch card themes' });
+    }
+  });
+
   app.put('/api/user/deck', async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub || 'demo-user';
