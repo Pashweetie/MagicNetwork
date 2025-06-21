@@ -114,8 +114,43 @@ export default function Search() {
     if (!shouldShowResults) return [];
     
     if (showEdhrecResults && deck.commander) {
-      // Show linked EDHREC cards
-      return linkedEdhrecCards;
+      // Show linked EDHREC cards if available, otherwise show basic EDHREC data
+      if (linkedEdhrecCards.length > 0) {
+        return linkedEdhrecCards;
+      } else if (edhrecData && edhrecData.cards) {
+        // Show basic EDHREC cards as fallback
+        const allEdhrecCards = [
+          ...edhrecData.cards.creatures,
+          ...edhrecData.cards.instants,
+          ...edhrecData.cards.sorceries,
+          ...edhrecData.cards.artifacts,
+          ...edhrecData.cards.enchantments,
+          ...edhrecData.cards.planeswalkers,
+          ...edhrecData.cards.lands
+        ];
+        
+        return allEdhrecCards.slice(0, 50).map((edhrecCard: any) => ({
+          id: edhrecCard.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+          name: edhrecCard.name,
+          mana_cost: '',
+          cmc: edhrecCard.cmc || 0,
+          type_line: edhrecCard.type_line || 'Unknown',
+          oracle_text: edhrecCard.oracle_text || '',
+          colors: [],
+          color_identity: edhrecCard.color_identity || [],
+          rarity: 'common' as const,
+          set: 'EDHREC',
+          set_name: 'EDHREC Recommendations',
+          prices: {
+            usd: edhrecCard.price ? edhrecCard.price.toString() : null
+          },
+          edhrec_rank: edhrecCard.num_decks,
+          edhrec_synergy: edhrecCard.synergy,
+          edhrec_url: edhrecCard.url,
+          is_edhrec_placeholder: true
+        }));
+      }
+      return [];
     }
     
     const searchData = data?.pages.flatMap(page => page.data) || [];
@@ -146,35 +181,68 @@ export default function Search() {
         ...edhrecData.cards.lands
       ];
 
-      const linkedCards = await Promise.all(
-        allEdhrecCards.slice(0, 50).map(async (edhrecCard: any) => {
-          try {
-            // Search for exact card match
-            const searchResponse = await fetch(`/api/cards/search?q="${encodeURIComponent(edhrecCard.name)}"&page=1`);
-            if (searchResponse.ok) {
-              const searchResult = await searchResponse.json();
-              const exactMatch = searchResult.data.find((card: any) => 
-                card.name.toLowerCase() === edhrecCard.name.toLowerCase()
-              );
-              
-              if (exactMatch) {
-                return {
-                  ...exactMatch,
-                  edhrec_rank: edhrecCard.num_decks,
-                  edhrec_synergy: edhrecCard.synergy,
-                  edhrec_url: edhrecCard.url
-                };
-              }
-            }
-            return null;
-          } catch (error) {
-            console.error(`Error linking ${edhrecCard.name}:`, error);
-            return null;
-          }
-        })
-      );
+      console.log(`Linking ${allEdhrecCards.length} EDHREC cards...`);
 
-      setLinkedEdhrecCards(linkedCards.filter(Boolean));
+      const linkedCards = [];
+      
+      // Process cards in smaller batches to avoid overwhelming the API
+      for (let i = 0; i < Math.min(allEdhrecCards.length, 30); i += 5) {
+        const batch = allEdhrecCards.slice(i, i + 5);
+        const batchResults = await Promise.all(
+          batch.map(async (edhrecCard: any) => {
+            try {
+              // Search for exact card match using the card name
+              const searchResponse = await fetch(`/api/cards/search?q=${encodeURIComponent(edhrecCard.name)}&page=1`);
+              if (searchResponse.ok) {
+                const searchResult = await searchResponse.json();
+                const exactMatch = searchResult.data.find((card: any) => 
+                  card.name.toLowerCase() === edhrecCard.name.toLowerCase()
+                );
+                
+                if (exactMatch) {
+                  console.log(`Found match for: ${edhrecCard.name}`);
+                  return {
+                    ...exactMatch,
+                    edhrec_rank: edhrecCard.num_decks,
+                    edhrec_synergy: edhrecCard.synergy,
+                    edhrec_url: edhrecCard.url
+                  };
+                } else {
+                  console.log(`No exact match for: ${edhrecCard.name}, found ${searchResult.data.length} results`);
+                  // Try fuzzy matching as fallback
+                  const fuzzyMatch = searchResult.data.find((card: any) => 
+                    card.name.toLowerCase().includes(edhrecCard.name.toLowerCase()) ||
+                    edhrecCard.name.toLowerCase().includes(card.name.toLowerCase())
+                  );
+                  if (fuzzyMatch) {
+                    console.log(`Found fuzzy match: ${fuzzyMatch.name} for ${edhrecCard.name}`);
+                    return {
+                      ...fuzzyMatch,
+                      edhrec_rank: edhrecCard.num_decks,
+                      edhrec_synergy: edhrecCard.synergy,
+                      edhrec_url: edhrecCard.url
+                    };
+                  }
+                }
+              }
+              return null;
+            } catch (error) {
+              console.error(`Error linking ${edhrecCard.name}:`, error);
+              return null;
+            }
+          })
+        );
+        
+        linkedCards.push(...batchResults.filter(Boolean));
+        
+        // Small delay between batches
+        if (i + 5 < allEdhrecCards.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
+      console.log(`Successfully linked ${linkedCards.length} cards`);
+      setLinkedEdhrecCards(linkedCards);
     };
 
     linkCards();
