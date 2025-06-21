@@ -140,16 +140,19 @@ export function EdhrecRecommendations({ commander, onAddCard }: EdhrecRecommenda
   const handleScroll = (event: React.UIEvent<HTMLDivElement>, categoryKey: string) => {
     const target = event.currentTarget;
     const { scrollTop, scrollHeight, clientHeight } = target;
-    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 100;
+    // More generous threshold for triggering load
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 200;
 
     if (isNearBottom && recommendations) {
       const currentCount = displayCounts[categoryKey] || ITEMS_PER_PAGE;
       const totalCards = recommendations.cards[categoryKey as keyof typeof recommendations.cards]?.length || 0;
       
       if (currentCount < totalCards) {
+        const newCount = Math.min(currentCount + ITEMS_PER_PAGE, totalCards);
+        
         setDisplayCounts(prev => ({
           ...prev,
-          [categoryKey]: Math.min(currentCount + ITEMS_PER_PAGE, totalCards)
+          [categoryKey]: newCount
         }));
       }
     }
@@ -239,7 +242,7 @@ export function EdhrecRecommendations({ commander, onAddCard }: EdhrecRecommenda
             return (
               <TabsContent key={category.key} value={category.key}>
                 <div 
-                  className="h-96 overflow-y-auto"
+                  className="h-96 overflow-y-auto border border-slate-600 rounded-lg"
                   onScroll={(e) => handleScroll(e, category.key)}
                 >
                   <div className="space-y-2 pr-4">
@@ -255,7 +258,7 @@ export function EdhrecRecommendations({ commander, onAddCard }: EdhrecRecommenda
                       <div className="text-center py-4">
                         <div className="flex items-center justify-center space-x-2 text-slate-400">
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span className="text-sm">Loading more cards...</span>
+                          <span className="text-sm">Showing {displayCount} of {category.cards.length} cards</span>
                         </div>
                       </div>
                     )}
