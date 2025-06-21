@@ -335,9 +335,9 @@ export function StackedDeckDisplay({
   const [sortBy, setSortBy] = useState<SortOption>('type');
   const [categoryBy, setCategoryBy] = useState<CategoryOption>('type');
 
-  // Fetch themes for all cards in deck when using theme categorization
+  // Fetch themes for all cards in deck - always fetch to enable theme categorization
   const cardIds = deckEntries.map(entry => entry.card.id);
-  const { data: cardThemes } = useQuery({
+  const { data: cardThemes, refetch: refetchThemes } = useQuery({
     queryKey: ['/api/cards/bulk-themes', cardIds],
     queryFn: async () => {
       if (cardIds.length === 0) return {};
@@ -353,8 +353,35 @@ export function StackedDeckDisplay({
       }
       return await response.json();
     },
-    enabled: (categoryBy === 'top_theme' || categoryBy === 'all_themes') && cardIds.length > 0,
+    enabled: cardIds.length > 0,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
+
+  // Trigger theme generation for cards without themes
+  useEffect(() => {
+    const cardsWithoutThemes = cardIds.filter(cardId => {
+      const themes = cardThemes?.[cardId];
+      return !themes || themes.length === 0;
+    });
+
+    if (cardsWithoutThemes.length > 0) {
+      // Generate themes in background
+      cardsWithoutThemes.forEach(async (cardId) => {
+        try {
+          await fetch(`/api/cards/${cardId}/theme-suggestions`);
+        } catch (error) {
+          console.warn(`Failed to generate themes for card ${cardId}`);
+        }
+      });
+
+      // Refetch themes after a delay to allow generation
+      const timer = setTimeout(() => {
+        refetchThemes();
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [cardIds, cardThemes, refetchThemes]);
 
 
   const categorizedCards = useMemo((): CategoryGroup[] => {

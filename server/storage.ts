@@ -560,6 +560,14 @@ export class DatabaseStorage implements IStorage {
 
       await this.saveUserDeck(userId, deckData);
 
+      // Generate themes for imported cards in background
+      if (importedCards.length > 0) {
+        console.log(`Generating themes for ${importedCards.length} imported cards...`);
+        this.generateThemesForCards(importedCards.map(card => card.cardId)).catch(error => {
+          console.error('Background theme generation failed:', error);
+        });
+      }
+
       return {
         success: true,
         message: `Successfully imported ${importedCards.length} card${importedCards.length !== 1 ? 's' : ''}${failedCards.length > 0 ? ` (${failedCards.length} failed)` : ''}`,
@@ -669,6 +677,32 @@ export class DatabaseStorage implements IStorage {
       prices: row.prices,
       legalities: row.legalities,
     };
+  }
+
+  private async generateThemesForCards(cardIds: string[]): Promise<void> {
+    try {
+      const { aiRecommendationService } = await import("./services/ai-recommendation-service");
+      
+      for (const cardId of cardIds) {
+        try {
+          // Get card details
+          const cardResult = await db.execute(sql`
+            SELECT * FROM cards WHERE id = ${cardId} LIMIT 1
+          `);
+          
+          if (cardResult.rows && cardResult.rows.length > 0) {
+            const card = this.convertRawDbCardToCard(cardResult.rows[0]);
+            await aiRecommendationService.generateCardThemes(card);
+          }
+        } catch (error) {
+          console.error(`Failed to generate themes for card ${cardId}:`, error);
+        }
+      }
+      
+      console.log(`Theme generation completed for ${cardIds.length} cards`);
+    } catch (error) {
+      console.error('Theme generation service error:', error);
+    }
   }
 }
 
