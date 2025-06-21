@@ -1,40 +1,38 @@
-# Cloudflare Tunnel Setup Guide
+# Permanent Tunnel Setup Guide
+
+Your current API token doesn't have the required permissions. Here's how to fix it:
+
+## Option 1: Create a Tunnel Token (Recommended)
+
+1. Go to [Cloudflare Zero Trust Dashboard](https://one.dash.cloudflare.com/)
+2. Navigate to "Access" > "Tunnels"
+3. Click "Create a tunnel"
+4. Choose "Cloudflared" and give it a name like "mtg-app"
+5. On the next screen, copy the tunnel token (long string starting with "ey...")
+6. Add this as `CLOUDFLARE_TUNNEL_TOKEN` in your Replit secrets (not CLOUDFLARE_API_TOKEN)
+
+## Option 2: Fix API Token Permissions
+
+1. Go to [API Tokens](https://dash.cloudflare.com/profile/api-tokens)
+2. Edit your existing token or create a new one with these permissions:
+   - **Account**: Cloudflare Tunnel:Edit
+   - **Account**: Account:Read  
+   - **Zone**: Zone:Read (if you have domains)
+3. Account resources: Include all accounts
+4. Replace the current token in your secrets
 
 ## Current Status
-Your MTG app automatically starts a Cloudflare tunnel on server boot. Currently using quick tunnel (temporary URL).
 
-## Setting Up Permanent Tunnel
+Your app is working with a temporary tunnel URL that changes on restart:
+- Current URL: https://reactions-baker-specialized-susan.trycloudflare.com
+- This URL will change when your server restarts
+- For production, you need a permanent tunnel
 
-### Step 1: Get Your Tunnel Credentials
-Go to [Cloudflare Zero Trust Dashboard](https://dash.teams.cloudflare.com):
-1. Navigate to Access > Tunnels
-2. Find your tunnel and note:
-   - **Tunnel ID**: Found in the tunnel details
-   - **Connector ID**: Found in the connector section (if using connectors)
+## After Setup
 
-### Step 2: Add to Replit Secrets
-In your Replit project:
-1. Click the "Secrets" tab in the left sidebar
-2. Add one of these secrets:
+Once you have the proper token, your tunnel will:
+- Have a permanent URL that never changes
+- Work reliably in production
+- Provide better performance and security
 
-**Option A: For Named Tunnels**
-- Key: `CLOUDFLARE_TUNNEL_ID`
-- Value: Your tunnel ID (e.g., `82f1b399-c427-45f1-8669-8da9f1fbfca1`)
-
-**Option B: For Connector-Based Tunnels**
-- Key: `CLOUDFLARE_CONNECTOR_ID`  
-- Value: Your connector ID
-
-### Step 3: Restart the Application
-The tunnel will automatically use your credentials on next server restart.
-
-## Tunnel Status Logs
-Watch the console for these status messages:
-- `🌐 Checking Cloudflare tunnel configuration...`
-- `📋 Tunnel ID found:` or `🔗 Connector ID found:`
-- `🌍 Tunnel URL: https://your-domain.com`
-- `✅ Tunnel connection established`
-- `🛡️ DDoS protection active`
-
-## No Configuration Needed
-If no secrets are set, the system automatically falls back to quick tunnel with a temporary URL.
+The redirect protection is already in place - users trying to access the Replit URL directly will be redirected to your tunnel URL.

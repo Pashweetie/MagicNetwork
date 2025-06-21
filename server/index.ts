@@ -29,7 +29,7 @@ app.use((req, res, next) => {
   // Block direct Replit access with proper redirect
   if (host.includes('replit.app') || host.includes('replit.dev') || host.includes('repl.co')) {
     // Get current tunnel URL from global variable or fallback
-    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://silly-belt-tee-find.trycloudflare.com';
+    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://reactions-baker-specialized-susan.trycloudflare.com';
     
     // Return HTML redirect page for browser users
     if (req.get('accept')?.includes('text/html')) {
@@ -180,52 +180,68 @@ app.use((req, res, next) => {
 
 // Auto-start Cloudflare tunnel if configured
 function startCloudflareTunnel() {
+  const tunnelToken = process.env.CLOUDFLARE_TUNNEL_TOKEN;
   const tunnelId = process.env.CLOUDFLARE_TUNNEL_ID;
   const connectorId = process.env.CLOUDFLARE_CONNECTOR_ID;
   
-  console.log('🌐 Checking Cloudflare tunnel configuration...');
+  console.log('Checking Cloudflare tunnel configuration...');
   
-  // If we have tunnel ID, use named tunnel approach
+  // Priority 1: Tunnel token (most reliable)
+  if (tunnelToken) {
+    console.log('Tunnel token found - starting permanent tunnel...');
+    startPermanentTunnel(tunnelToken);
+    return;
+  }
+  
+  // Priority 2: Named tunnel with ID
   if (tunnelId) {
-    console.log(`📋 Tunnel ID found: ${tunnelId}`);
+    console.log(`Tunnel ID found: ${tunnelId}`);
     startNamedTunnel(tunnelId);
     return;
   }
   
-  // If we have connector ID, use connector approach
+  // Priority 3: Connector approach
   if (connectorId) {
-    console.log(`🔗 Connector ID found: ${connectorId}`);
+    console.log(`Connector ID found: ${connectorId}`);
     startConnectorTunnel(connectorId);
     return;
   }
   
-  // Fallback to quick tunnel (no auth required)
-  console.log('⚡ No tunnel credentials configured, starting quick tunnel...');
+  // Fallback: Quick tunnel (temporary)
+  console.log('No permanent tunnel credentials configured, using temporary tunnel...');
   startQuickTunnel();
 }
 
 async function startNamedTunnel(tunnelId: string) {
-  console.log('🚀 Starting named Cloudflare tunnel...');
+  console.log('Starting named Cloudflare tunnel...');
   
   checkCloudflaredInstallation(async () => {
     const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+    const tunnelToken = process.env.CLOUDFLARE_TUNNEL_TOKEN;
     
+    // Check for tunnel token first (preferred method)
+    if (tunnelToken) {
+      console.log('Using tunnel token for permanent connection...');
+      startPermanentTunnel(tunnelToken);
+      return;
+    }
+    
+    // Try API token method
     if (apiToken) {
-      console.log('🔑 Using API token authentication...');
-      
-      // Try to create a permanent tunnel via API
+      console.log('Using API token authentication...');
       try {
-        const tunnelToken = await createTunnelViaAPI(apiToken);
-        if (tunnelToken) {
-          startPermanentTunnel(tunnelToken);
+        const generatedToken = await createTunnelViaAPI(apiToken);
+        if (generatedToken) {
+          startPermanentTunnel(generatedToken);
           return;
         }
       } catch (error) {
-        console.log('API tunnel creation failed, using quick tunnel...');
+        console.log('API token lacks required permissions, using quick tunnel...');
       }
     }
     
     // Fallback to quick tunnel
+    console.log('No valid tunnel credentials found, using temporary tunnel...');
     setTimeout(() => startQuickTunnel(), 1000);
   });
 }
