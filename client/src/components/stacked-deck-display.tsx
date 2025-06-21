@@ -339,11 +339,17 @@ export function StackedDeckDisplay({
     queryKey: ['/api/cards/bulk-themes', cardIds],
     queryFn: async () => {
       if (cardIds.length === 0) return {};
-      const response = await apiRequest('/api/cards/bulk-themes', {
+      const response = await fetch('/api/cards/bulk-themes', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ cardIds }),
       });
-      return response;
+      if (!response.ok) {
+        throw new Error('Failed to fetch card themes');
+      }
+      return await response.json();
     },
     enabled: (categoryBy === 'top_theme' || categoryBy === 'all_themes') && cardIds.length > 0,
   });
