@@ -71,4 +71,76 @@ export function registerCardAdminRoutes(app: Express) {
       res.status(500).json({ error: "Failed to get last update time" });
     }
   });
+
+  // New enhanced database management endpoints
+  app.get("/api/admin/database/stats", async (_req: Request, res: Response) => {
+    try {
+      const [cardCount, rulingsCount, lastUpdate] = await Promise.all([
+        db.select({ count: sql<number>`count(*)` }).from(cards),
+        db.select({ count: sql<number>`count(*)` }).from(cardRulings),
+        cardDatabaseService.getLastUpdateTime()
+      ]);
+
+      const [missingOracleText, missingKeywords] = await Promise.all([
+        db.select({ count: sql<number>`count(*)` }).from(cards).where(sql`oracle_text IS NULL OR oracle_text = ''`),
+        db.select({ count: sql<number>`count(*)` }).from(cards).where(sql`array_length(keywords, 1) IS NULL OR array_length(keywords, 1) = 0`)
+      ]);
+
+      res.json({
+        cards: cardCount[0]?.count || 0,
+        rulings: rulingsCount[0]?.count || 0,
+        lastUpdate,
+        missingData: {
+          cardsWithoutOracleText: missingOracleText[0]?.count || 0,
+          cardsWithoutKeywords: missingKeywords[0]?.count || 0,
+          cardsWithoutRulings: Math.max(0, (cardCount[0]?.count || 0) - (rulingsCount[0]?.count || 0))
+        }
+      });
+    } catch (error) {
+      console.error("Error getting database stats:", error);
+      res.status(500).json({ error: "Failed to get database statistics" });
+    }
+  });
+
+  app.get("/api/admin/database/bulk-data-info", async (_req: Request, res: Response) => {
+    try {
+      const response = await fetch("https://api.scryfall.com/bulk-data");
+      const data = await response.json();
+      
+      const bulkDataInfo = data.data.map((item: any) => ({
+        type: item.type,
+        name: item.name,
+        description: item.description,
+        size: item.compressed_size || 0,
+        lastUpdated: item.updated_at
+      }));
+
+      res.json(bulkDataInfo);
+    } catch (error) {
+      console.error("Error getting bulk data info:", error);
+      res.status(500).json({ error: "Failed to get bulk data information" });
+    }
+  });
+
+  app.post("/api/admin/database/download-enhanced-cards", async (_req: Request, res: Response) => {
+    try {
+      // Trigger download of missing data
+      cardDatabaseService.downloadMissingData();
+      res.json({ success: true, message: "Enhanced card data download started" });
+    } catch (error) {
+      console.error("Error starting enhanced download:", error);
+      res.status(500).json({ error: "Failed to start enhanced download" });
+    }
+  });
+
+  app.post("/api/admin/database/download-rulings", async (_req: Request, res: Response) => {
+    try {
+      // Trigger rulings download
+      cardDatabaseService.checkAndDownloadRulings();
+      res.json({ success: true, message: "Rulings download started" });
+    } catch (error) {
+      console.error("Error starting rulings download:", error);
+      res.status(500).json({ error: "Failed to start rulings download" });
+    }
+  });
 }

@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Download, Database, FileText, AlertTriangle, CheckCircle, Info } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
