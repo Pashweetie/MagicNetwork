@@ -144,20 +144,44 @@ function startNamedTunnel(tunnelId: string) {
   
   // Check if cloudflared is installed
   checkCloudflaredInstallation(() => {
-    // Try different approaches based on tunnel configuration
-    const tunnel = spawn('cloudflared', ['tunnel', '--url', 'http://localhost:5000', 'run', tunnelId], {
-      stdio: ['ignore', 'pipe', 'pipe']
-    });
-
-    setupTunnelLogging(tunnel, 'Named Tunnel');
+    const apiToken = process.env.CLOUDFLARE_API_TOKEN;
     
-    // If named tunnel fails, fallback to quick tunnel
-    tunnel.on('exit', (code) => {
-      if (code !== 0) {
-        console.log('Named tunnel failed, falling back to quick tunnel...');
-        setTimeout(() => startQuickTunnel(), 2000);
-      }
-    });
+    if (apiToken) {
+      console.log('🔑 Using API token for tunnel authentication');
+      // Use API token for authentication
+      const tunnel = spawn('cloudflared', [
+        'tunnel', 
+        '--url', 'http://localhost:5000',
+        'run', tunnelId
+      ], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, CLOUDFLARE_API_TOKEN: apiToken }
+      });
+
+      setupTunnelLogging(tunnel, 'Named Tunnel with API Token');
+      
+      tunnel.on('exit', (code) => {
+        if (code !== 0) {
+          console.log('Named tunnel with API token failed, falling back to quick tunnel...');
+          setTimeout(() => startQuickTunnel(), 2000);
+        }
+      });
+    } else {
+      console.log('❌ No API token found, trying certificate-based authentication...');
+      // Fallback to certificate-based authentication
+      const tunnel = spawn('cloudflared', ['tunnel', '--url', 'http://localhost:5000', 'run', tunnelId], {
+        stdio: ['ignore', 'pipe', 'pipe']
+      });
+
+      setupTunnelLogging(tunnel, 'Named Tunnel');
+      
+      tunnel.on('exit', (code) => {
+        if (code !== 0) {
+          console.log('Named tunnel failed, falling back to quick tunnel...');
+          setTimeout(() => startQuickTunnel(), 2000);
+        }
+      });
+    }
   });
 }
 
