@@ -336,7 +336,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Theme voting endpoint
-  app.post('/api/cards/:cardId/theme-vote', async (req, res) => {
+  app.post('/api/cards/:cardId/theme-vote', isAuthenticated, async (req, res) => {
     try {
       const { cardId } = req.params;
       const { themeName, vote } = req.body;
@@ -450,7 +450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Recommendation voting endpoint
-  app.post('/api/recommendations/:recommendationId/vote', async (req, res) => {
+  app.post('/api/recommendations/:recommendationId/vote', isAuthenticated, async (req, res) => {
     try {
       const { recommendationId } = req.params;
       const { vote } = req.body;
@@ -526,7 +526,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Theme upvote endpoint (alias for theme-vote)
-  app.post('/api/cards/:cardId/upvote-theme', async (req, res) => {
+  app.post('/api/cards/:cardId/upvote-theme', isAuthenticated, async (req, res) => {
     try {
       const { cardId } = req.params;
       const { theme, categoryName } = req.body;
@@ -562,7 +562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Card-theme relevance voting endpoint
-  app.post('/api/cards/:cardId/theme-relevance-vote', async (req, res) => {
+  app.post('/api/cards/:cardId/theme-relevance-vote', isAuthenticated, async (req, res) => {
     try {
       const { cardId } = req.params;
       const { themeName, vote, sourceCardId } = req.body;
@@ -598,7 +598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get similar cards based on tags
-  app.get('/api/cards/:cardId/similar-by-tags', async (req, res) => {
+  app.get('/api/cards/:cardId/similar-by-tags', isAuthenticated, async (req, res) => {
     try {
       const { cardId } = req.params;
       const filters = req.query as any;
@@ -612,7 +612,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get synergistic cards based on tag relationships
-  app.get('/api/cards/:cardId/synergistic-by-tags', async (req, res) => {
+  app.get('/api/cards/:cardId/synergistic-by-tags', isAuthenticated, async (req, res) => {
     try {
       const { cardId } = req.params;
       const filters = req.query as any;
@@ -626,7 +626,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Theme-based synergy endpoint
-  app.get("/api/cards/:cardId/theme-synergies", async (req, res) => {
+  app.get("/api/cards/:cardId/theme-synergies", isAuthenticated, async (req, res) => {
     try {
       const { cardId } = req.params;
       const { filters } = req.query;
@@ -672,7 +672,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // On-demand theme card loading
-  app.get('/api/cards/:cardId/theme/:themeName/cards', async (req, res) => {
+  app.get('/api/cards/:cardId/theme/:themeName/cards', isAuthenticated, async (req, res) => {
     try {
       const { cardId, themeName } = req.params;
       const filters = req.query as any;
@@ -695,7 +695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Theme feedback endpoint
-  app.post("/api/cards/:id/theme-feedback", async (req, res) => {
+  app.post("/api/cards/:id/theme-feedback", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const { themeName, feedback, reason } = req.body;
@@ -716,7 +716,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Card recommendation feedback endpoint
-  app.post("/api/cards/:sourceId/recommendation-feedback", async (req, res) => {
+  app.post("/api/cards/:sourceId/recommendation-feedback", isAuthenticated, async (req, res) => {
     try {
       const { sourceId } = req.params;
       const { recommendedCardId, helpful, recommendationType } = req.body;
