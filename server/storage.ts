@@ -445,7 +445,7 @@ export class DatabaseStorage implements IStorage {
       // Single query to get all matching cards from database
       const dbCards = await scryfallService.searchCards({
         query: cardNames.map(name => `!"${name}"`).join(' OR ')
-      }, 1, 1000); // Get up to 1000 results in one query
+      });
       
       const linkedCards: Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}> = [];
       

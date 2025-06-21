@@ -146,35 +146,42 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
             updateUserSession(user, tokenResponse);
             return next();
           } catch (error) {
-            // Fall through to auto-assign anonymous user
+            // Fall through to client-provided user ID
           }
         }
       }
     }
 
-    // Auto-assign anonymous user token for API protection
-    let userId = (req.session as any)?.autoUserId;
+    // Check for client-provided user ID in headers
+    let userId = req.headers['x-user-id'] as string;
+    
+    if (!userId) {
+      // Check session as fallback
+      userId = (req.session as any)?.autoUserId;
+    }
     
     if (!userId) {
       // Generate a unique anonymous user ID
       userId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       (req.session as any).autoUserId = userId;
-      
-      // Create anonymous user in database
+    }
+    
+    // Ensure user exists in database
+    let dbUser = await storage.getUser(userId);
+    if (!dbUser) {
       await storage.createUser({
+        id: userId,
         username: userId,
-        email: `${userId}@anonymous.local`,
-        isAdmin: false
+        email: `${userId}@anonymous.local`
       });
-      
-      console.log(`🔑 Auto-assigned user token: ${userId}`);
+      console.log(`🔑 Created new user: ${userId}`);
     }
 
-    // Attach anonymous user to request
+    // Attach user to request
     (req as any).user = { claims: { sub: userId } };
     return next();
   } catch (error) {
-    console.error("Auto-authentication error:", error);
+    console.error("Authentication error:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

@@ -107,11 +107,9 @@ export type SearchResponse = z.infer<typeof searchResponseSchema>;
 
 // Database tables
 export const users = pgTable('users', {
-  id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
+  id: text('id').primaryKey(),
   username: text('username').notNull().unique(),
-  email: text('email').notNull().unique(),
-  passwordHash: text('password_hash').notNull(),
-  isAdmin: boolean('is_admin').default(false).notNull(),
+  email: text('email').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -332,7 +330,7 @@ export const cardThemeFeedback = pgTable('card_theme_feedback', {
 
 
 // Zod schemas for database operations
-export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
+export const insertUserSchema = createInsertSchema(users).omit({ createdAt: true });
 
 // Insert schemas for new card tables
 export const insertCardSchema = createInsertSchema(cards).omit({ lastUpdated: true });
