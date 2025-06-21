@@ -6,10 +6,20 @@ export class BulkImportService {
   async findCardsByNames(cardNames: string[]): Promise<Map<string, Card>> {
     const cardMap = new Map<string, Card>();
     
-    try {
-      // Fallback to individual queries since complex ANY queries had issues
-        for (const row of result.rows) {
-          const card = this.convertRowToCard(row as any);
+    // Use individual queries for reliability
+    for (const cardName of cardNames) {
+      try {
+        const result = await db.execute(sql`
+          SELECT id, name, mana_cost, cmc, type_line, oracle_text, colors, 
+                 color_identity, power, toughness, rarity, set_code, set_name,
+                 image_uris, card_faces, prices, legalities
+          FROM cards 
+          WHERE name = ${cardName}
+          LIMIT 1
+        `);
+        
+        if (result.rows && result.rows.length > 0) {
+          const card = this.convertRowToCard(result.rows[0] as any);
           cardMap.set(card.name.toLowerCase(), card);
           
           // Also map double-faced card names
@@ -18,31 +28,10 @@ export class BulkImportService {
             cardMap.set(mainName.toLowerCase(), card);
           }
         }
+      } catch (individualError) {
+        console.error(`Failed to find card "${cardName}":`, individualError);
       }
-    } catch (error) {
-      console.error('Bulk import service error:', error);
     }
-    
-    // Always use individual queries for reliability
-      for (const cardName of cardNames) {
-        try {
-          const result = await db.execute(sql`
-            SELECT id, name, mana_cost, cmc, type_line, oracle_text, colors, 
-                   color_identity, power, toughness, rarity, set_code, set_name,
-                   image_uris, card_faces, prices, legalities
-            FROM cards 
-            WHERE name = ${cardName}
-            LIMIT 1
-          `);
-          
-          if (result.rows && result.rows.length > 0) {
-            const card = this.convertRowToCard(result.rows[0] as any);
-            cardMap.set(card.name.toLowerCase(), card);
-          }
-        } catch (individualError) {
-          console.error(`Failed to find card "${cardName}":`, individualError);
-        }
-      }
     
     return cardMap;
   }
