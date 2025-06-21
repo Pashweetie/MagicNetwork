@@ -253,16 +253,7 @@ export default function Search() {
                     >
                       <X className="w-3 h-3" />
                     </Button>
-                    {/* EDHREC Toggle Button */}
-                    <Button
-                      size="sm"
-                      variant={showEdhrecResults ? "default" : "outline"}
-                      className={showEdhrecResults ? "bg-purple-600 hover:bg-purple-700" : "border-purple-500/50 text-purple-400 hover:bg-purple-900/20"}
-                      onClick={() => setShowEdhrecResults(!showEdhrecResults)}
-                    >
-                      <Zap className="w-3 h-3 mr-1" />
-                      EDHREC
-                    </Button>
+
                   </div>
                 )}
               </div>
@@ -294,28 +285,11 @@ export default function Search() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-white">
-                  {(isFetching || isEdhrecLoading) ? 
-                    (showEdhrecResults ? 'Loading EDHREC recommendations...' : 'Searching...') : 
-                    showEdhrecResults ? 
-                      `EDHREC recommendations for ${deck.commander?.name} (${totalCards.toLocaleString()} cards)` :
-                      `${totalCards.toLocaleString()} cards found`
-                  }
+                  {isFetching ? 'Searching...' : `${totalCards.toLocaleString()} cards found`}
                 </h2>
-                {!showEdhrecResults && (
-                  <p className="text-sm text-slate-400">
-                    Showing results for: <span className="font-mono text-blue-400">{getDisplayQuery()}</span>
-                  </p>
-                )}
-                {showEdhrecResults && !deck.commander && (
-                  <p className="text-yellow-400 text-sm mt-1">
-                    Select a commander to see EDHREC recommendations
-                  </p>
-                )}
-                {showEdhrecResults && edhrecError && (
-                  <p className="text-red-400 text-sm mt-1">
-                    Unable to load EDHREC data for this commander
-                  </p>
-                )}
+                <p className="text-sm text-slate-400">
+                  Showing results for: <span className="font-mono text-blue-400">{getDisplayQuery()}</span>
+                </p>
               </div>
               <div className="flex items-center space-x-4">
                 <Select value={sortBy} onValueChange={setSortBy}>
