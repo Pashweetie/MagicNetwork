@@ -29,7 +29,7 @@ app.use((req, res, next) => {
   // Block direct Replit access with proper redirect
   if (host.includes('replit.app') || host.includes('replit.dev') || host.includes('repl.co')) {
     // Get current tunnel URL from global variable or fallback
-    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://porter-entered-priorities-fitting.trycloudflare.com';
+    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://ensemble-parcel-franchise-safely.trycloudflare.com';
     
     // Return HTML redirect page for browser users
     if (req.get('accept')?.includes('text/html')) {
@@ -315,7 +315,7 @@ function startSimpleTunnel() {
   checkCloudflaredInstallation(() => {
     const tunnel = spawn('cloudflared', [
       'tunnel',
-      '--url', 'http://localhost:5000',
+      '--url', 'http://127.0.0.1:5000',
       '--protocol', 'http2',
       '--no-autoupdate'
     ], {
@@ -323,6 +323,14 @@ function startSimpleTunnel() {
     });
 
     setupTunnelLogging(tunnel, 'Public Tunnel');
+    
+    tunnel.on('exit', (code, signal) => {
+      console.log(`Tunnel process exited with code ${code}, signal ${signal}`);
+      if (code !== 0) {
+        console.log('Restarting tunnel in 5 seconds...');
+        setTimeout(() => startSimpleTunnel(), 5000);
+      }
+    });
   });
 }
 
