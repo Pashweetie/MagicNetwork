@@ -2,7 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { spawn } from "child_process";
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 
 
 
@@ -85,11 +85,8 @@ app.use((req, res, next) => {
 
 // Auto-start Cloudflare tunnel if configured
 function startCloudflareTunnel() {
-  // Only auto-start if explicitly enabled via environment variable
-  if (!process.env.ENABLE_TUNNEL) {
-    console.log('Cloudflare tunnel auto-start disabled - set ENABLE_TUNNEL=true to enable');
-    return;
-  }
+  // Auto-start tunnel if configuration exists and is valid
+  console.log('Checking Cloudflare tunnel configuration...');
 
   // Check if tunnel is configured
   if (!existsSync('./cloudflare-tunnel.yml')) {
@@ -106,8 +103,7 @@ function startCloudflareTunnel() {
     }
 
     // Check if tunnel config has been updated from template
-    const fs = require('fs');
-    const config = fs.readFileSync('./cloudflare-tunnel.yml', 'utf8');
+    const config = readFileSync('./cloudflare-tunnel.yml', 'utf8');
     if (config.includes('YOUR_TUNNEL_ID_HERE')) {
       console.log('Cloudflare tunnel config not updated - edit cloudflare-tunnel.yml with your tunnel ID');
       return;
@@ -123,14 +119,17 @@ function startCloudflareTunnel() {
     tunnel.stdout.on('data', (data) => {
       const output = data.toString();
       if (output.includes('https://')) {
-        console.log(`Cloudflare tunnel active: ${output.match(/https:\/\/[^\s]+/)?.[0]}`);
+        const url = output.match(/https:\/\/[^\s]+/)?.[0];
+        console.log(`🌐 Cloudflare tunnel active: ${url}`);
+      } else if (output.includes('INF')) {
+        console.log(`[Tunnel] ${output.trim()}`);
       }
     });
 
     tunnel.stderr.on('data', (data) => {
       const error = data.toString();
-      if (error.includes('ERR')) {
-        console.log(`Tunnel error: ${error}`);
+      if (error.includes('ERR') && !error.includes('Failed to create new quic connection')) {
+        console.log(`[Tunnel Error] ${error.trim()}`);
       }
     });
 
