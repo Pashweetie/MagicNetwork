@@ -266,23 +266,46 @@ export class EdhrecService {
     };
   }
 
+  private async fetchFromEdhrec(url: string): Promise<any> {
+    try {
+      const execAsync = promisify(exec);
+      const curlCommand = `curl -s -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -H "Referer: https://edhrec.com/" "${url}"`;
+      
+      const { stdout, stderr } = await execAsync(curlCommand);
+      
+      if (stderr && stderr.trim()) {
+        throw new Error(`Curl error: ${stderr}`);
+      }
+
+      if (!stdout || stdout.trim() === '') {
+        throw new Error('Empty response from EDHREC');
+      }
+
+      return JSON.parse(stdout);
+    } catch (error) {
+      console.error('Error fetching from EDHREC:', error);
+      throw error;
+    }
+  }
+
   async searchEdhrecCard(cardName: string): Promise<EdhrecCard | null> {
     try {
       const normalizedName = this.normalizeCommanderName(cardName);
-      const url = `${this.BASE_URL}/cards/${normalizedName}`;
+      const url = `https://json.edhrec.com/pages/cards/${normalizedName}.json`;
       const data = await this.fetchFromEdhrec(url);
       
-      if (data && data.card) {
+      if (data && data.container && data.container.json_dict) {
+        const cardData = data.container.json_dict;
         return {
-          name: data.card.name || cardName,
-          url: data.card.url || `https://edhrec.com/cards/${encodeURIComponent(cardName)}`,
-          num_decks: data.card.num_decks || 0,
-          synergy: data.card.synergy || 0,
-          price: data.card.price || 0,
-          color_identity: data.card.color_identity || [],
-          type_line: data.card.type_line || '',
-          cmc: data.card.cmc || 0,
-          oracle_text: data.card.oracle_text
+          name: cardData.name || cardName,
+          url: cardData.url || `https://edhrec.com/cards/${encodeURIComponent(cardName)}`,
+          num_decks: cardData.num_decks || 0,
+          synergy: cardData.synergy || 0,
+          price: cardData.price || 0,
+          color_identity: cardData.color_identity || [],
+          type_line: cardData.type_line || '',
+          cmc: cardData.cmc || 0,
+          oracle_text: cardData.oracle_text
         };
       }
       
