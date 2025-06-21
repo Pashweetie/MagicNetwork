@@ -27,6 +27,7 @@ export function useCachedImage(
   const loadImage = useCallback(async () => {
     if (!originalUrl) {
       setSrc(fallbackUrl || null);
+      setIsLoading(false);
       return;
     }
 
@@ -43,14 +44,15 @@ export function useCachedImage(
         return;
       }
 
-      // If not in cache, cache it now
+      // If not in cache, try to cache it now
       cachedUrl = await imageCache.cacheImage(originalUrl);
       setSrc(cachedUrl);
       
     } catch (err) {
       console.warn('Failed to load cached image:', originalUrl, err);
       setError(err instanceof Error ? err.message : 'Failed to load image');
-      setSrc(fallbackUrl || originalUrl);
+      // Fall back to original URL if caching fails
+      setSrc(originalUrl);
     } finally {
       setIsLoading(false);
     }
@@ -63,8 +65,11 @@ export function useCachedImage(
   useEffect(() => {
     if (!lazy || priority) {
       loadImage();
+    } else {
+      // For lazy loading, start with original URL and upgrade to cached version
+      setSrc(originalUrl);
     }
-  }, [loadImage, lazy, priority]);
+  }, [loadImage, lazy, priority, originalUrl]);
 
   // For lazy loading, we'll expose the load function
   const startLoading = useCallback(() => {

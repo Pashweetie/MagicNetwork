@@ -79,15 +79,14 @@ export function CachedImage({
     );
   }
 
-  if (!cachedSrc && error) {
+  if (!cachedSrc && (error || !src)) {
     return (
       <div 
         className={`bg-slate-800 flex items-center justify-center text-slate-400 ${className}`}
         style={style}
       >
         <div className="text-center p-2">
-          <div className="text-xs mb-1">Image failed to load</div>
-          <div className="text-xs opacity-75">{alt}</div>
+          <div className="text-xs">{alt}</div>
         </div>
       </div>
     );
@@ -101,8 +100,8 @@ export function CachedImage({
       className={className}
       style={style}
       loading={loading}
+      onLoad={() => onLoad?.()}
       onError={(e) => {
-        console.warn('Image load error:', src);
         onError?.();
         // Fallback to text display
         const img = e.target as HTMLImageElement;

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Minus, Crown } from "lucide-react";
 import { CardUtils, COLOR_MAPPING } from "@shared/utils/card-utils";
-import { CachedImage } from "@/components/cached-image";
+import { SimpleCardImage } from "@/components/simple-card-image";
 
 interface BaseCardTileProps {
   card: Card;
@@ -63,11 +63,10 @@ function SearchVariant({
     >
       <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700 hover:border-slate-500">
         <div className="aspect-[3/4] relative">
-          <CachedImage
+          <SimpleCardImage
             src={cardImage}
             alt={card.name}
             className="w-full h-full object-cover"
-            lazy={true}
           />
           {/* Price overlay in bottom left corner */}
           {price && (
@@ -103,11 +102,10 @@ function DeckVariant({
         className="aspect-[2.5/3.5] bg-slate-700 rounded-lg overflow-hidden cursor-pointer transition-transform hover:scale-110 hover:z-20"
         onClick={() => onClick(card)}
       >
-        <CachedImage
+        <SimpleCardImage
           src={cardImage}
           alt={card.name}
           className="w-full h-full object-cover"
-          priority={true}
         />
       </div>
 

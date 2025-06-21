@@ -80,26 +80,42 @@ class ImageCacheManager {
       const existing = await this.getImage(url);
       if (existing) return existing;
 
-      // Fetch the image
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`Failed to fetch image: ${response.status}`);
+      // Fetch the image with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      const response = await fetch(url, { 
+        signal: controller.signal,
+        mode: 'cors'
+      });
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status}`);
+      }
       
       const blob = await response.blob();
+      
+      // Validate it's actually an image
+      if (!blob.type.startsWith('image/')) {
+        throw new Error('Response is not an image');
+      }
+      
       const blobUrl = URL.createObjectURL(blob);
 
-      // Store in IndexedDB
-      await this.storeInIndexedDB({
+      // Store in IndexedDB (don't await to avoid blocking)
+      this.storeInIndexedDB({
         url,
         blob,
         timestamp: Date.now(),
         size: blob.size
-      });
+      }).catch(console.warn);
 
       // Add to memory cache
       this.addToMemoryCache(url, blobUrl);
 
-      // Clean up if cache is too large
-      await this.cleanupIfNeeded();
+      // Clean up if cache is too large (async)
+      this.cleanupIfNeeded().catch(console.warn);
 
       return blobUrl;
     } catch (error) {
