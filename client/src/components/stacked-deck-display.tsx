@@ -17,6 +17,7 @@ interface StackedDeckDisplayProps {
   onSetCommander?: (card: Card) => void;
   commander?: Card | null;
   getMaxCopies: (card: Card) => number;
+  viewMode: 'grid' | 'list';
 }
 
 interface CategoryGroup {
@@ -91,7 +92,7 @@ interface VerticalStackedCardsProps {
   commander?: Card | null;
   canBeCommander: (card: Card) => boolean;
   getMaxCopies: (card: Card) => number;
-  viewMode: 'text' | 'image';
+  viewMode: 'grid' | 'list';
 }
 
 function VerticalStackedCards({
@@ -107,7 +108,7 @@ function VerticalStackedCards({
 }: VerticalStackedCardsProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  if (viewMode === 'text') {
+  if (viewMode === 'list') {
     return (
       <div className="space-y-1">
         {cards.map((entry) => (
@@ -436,11 +437,12 @@ export function StackedDeckDisplay({
   onClick,
   onSetCommander,
   commander,
-  getMaxCopies
+  getMaxCopies,
+  viewMode
 }: StackedDeckDisplayProps) {
   const [sortBy, setSortBy] = useState<SortOption>('type');
   const [categoryBy, setCategoryBy] = useState<CategoryOption>('type');
-  const [viewMode, setViewMode] = useState<'text' | 'image'>('text');
+
   // All categories are always expanded in the new horizontal layout
 
   const categorizedCards = useMemo((): CategoryGroup[] => {
@@ -496,19 +498,6 @@ export function StackedDeckDisplay({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4 p-4 bg-slate-800 rounded-lg">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-400">View:</span>
-            <Select value={viewMode} onValueChange={(value: 'text' | 'image') => setViewMode(value)}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="text">Text List</SelectItem>
-                <SelectItem value="image">Card Images</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           <div className="flex items-center gap-2">
             <span className="text-sm text-slate-400">Sort by:</span>
             <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
