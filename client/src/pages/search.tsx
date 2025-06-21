@@ -115,7 +115,7 @@ export default function Search() {
     if (showEdhrecResults && deck.commander) {
       // Show EDHREC recommendations instead of search results
       if (edhrecData && edhrecData.cards) {
-        // Flatten all card categories from EDHREC data
+        // Flatten all card categories from EDHREC data and convert to Card objects
         const allEdhrecCards = [
           ...edhrecData.cards.creatures,
           ...edhrecData.cards.instants,
@@ -125,7 +125,29 @@ export default function Search() {
           ...edhrecData.cards.planeswalkers,
           ...edhrecData.cards.lands
         ];
-        return allEdhrecCards;
+        
+        // Transform EDHREC cards to Card objects
+        const transformedCards = allEdhrecCards.map((edhrecCard: any) => ({
+          id: edhrecCard.name.toLowerCase().replace(/[^a-z0-9]/g, '-'), // Generate ID from name
+          name: edhrecCard.name,
+          mana_cost: '',
+          cmc: edhrecCard.cmc || 0,
+          type_line: edhrecCard.type_line || 'Unknown',
+          oracle_text: edhrecCard.oracle_text || '',
+          colors: [],
+          color_identity: edhrecCard.color_identity || [],
+          rarity: 'common' as const,
+          set: 'EDHREC',
+          set_name: 'EDHREC Recommendations',
+          prices: {
+            usd: edhrecCard.price ? edhrecCard.price.toString() : null
+          },
+          // Add EDHREC-specific metadata
+          edhrec_rank: edhrecCard.num_decks,
+          edhrec_synergy: edhrecCard.synergy
+        }));
+        
+        return transformedCards;
       }
       return [];
     }
@@ -491,10 +513,10 @@ export default function Search() {
               <div className="mb-4 p-4 bg-purple-900/20 border border-purple-500/30 rounded-lg">
                 <div className="flex items-center space-x-2 text-purple-300">
                   <Zap className="w-4 h-4" />
-                  <span className="text-sm font-medium">EDHREC-style recommendations powered by AI analysis</span>
+                  <span className="text-sm font-medium">Real EDHREC recommendations for {deck.commander.name}</span>
                 </div>
                 <p className="text-xs text-purple-400 mt-1">
-                  These recommendations are based on card synergies and themes similar to EDHREC data
+                  Showing authentic EDHREC data with synergy scores and deck inclusion rates
                 </p>
               </div>
             )}
