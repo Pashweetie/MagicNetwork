@@ -39,7 +39,6 @@ export function CardGrid({ cards, isLoading, hasMore, onLoadMore, onRetry, error
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !isLoading) {
-          console.log('Intersection triggered, loading more cards...');
           onLoadMore();
         }
       },

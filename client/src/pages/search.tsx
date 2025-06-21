@@ -298,19 +298,10 @@ export default function Search() {
   };
 
   const handleLoadMore = useCallback(() => {
-    console.log('handleLoadMore called:', { 
-      hasNextPage, 
-      isFetching, 
-      isFetchingNextPage,
-      shouldShowResults,
-      pagesCount: data?.pages?.length,
-      totalCards: data?.pages?.[0]?.total_cards 
-    });
     if (hasNextPage && !isFetching && shouldShowResults && !showEdhrecResults) {
-      console.log('Fetching next page...');
       fetchNextPage();
     }
-  }, [hasNextPage, isFetching, isFetchingNextPage, fetchNextPage, shouldShowResults, showEdhrecResults, data]);
+  }, [hasNextPage, isFetching, fetchNextPage, shouldShowResults, showEdhrecResults]);
 
   const handleRetry = () => {
     refetch();
