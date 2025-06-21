@@ -36,6 +36,7 @@ export default function Search() {
   const [useManualFilters, setUseManualFilters] = useState(false);
   const [isDeckFullscreenOpen, setIsDeckFullscreenOpen] = useState(false);
   const [showEdhrecResults, setShowEdhrecResults] = useState(false);
+  const [linkedEdhrecCards, setLinkedEdhrecCards] = useState<Card[]>([]);
   
   const deck = useDeck();
   const { preloadSearchResults } = useCardImagePreloader();
@@ -113,43 +114,8 @@ export default function Search() {
     if (!shouldShowResults) return [];
     
     if (showEdhrecResults && deck.commander) {
-      // Show EDHREC recommendations instead of search results
-      if (edhrecData && edhrecData.cards) {
-        // Flatten all card categories from EDHREC data and convert to Card objects
-        const allEdhrecCards = [
-          ...edhrecData.cards.creatures,
-          ...edhrecData.cards.instants,
-          ...edhrecData.cards.sorceries,
-          ...edhrecData.cards.artifacts,
-          ...edhrecData.cards.enchantments,
-          ...edhrecData.cards.planeswalkers,
-          ...edhrecData.cards.lands
-        ];
-        
-        // Transform EDHREC cards to Card objects
-        const transformedCards = allEdhrecCards.map((edhrecCard: any) => ({
-          id: edhrecCard.name.toLowerCase().replace(/[^a-z0-9]/g, '-'), // Generate ID from name
-          name: edhrecCard.name,
-          mana_cost: '',
-          cmc: edhrecCard.cmc || 0,
-          type_line: edhrecCard.type_line || 'Unknown',
-          oracle_text: edhrecCard.oracle_text || '',
-          colors: [],
-          color_identity: edhrecCard.color_identity || [],
-          rarity: 'common' as const,
-          set: 'EDHREC',
-          set_name: 'EDHREC Recommendations',
-          prices: {
-            usd: edhrecCard.price ? edhrecCard.price.toString() : null
-          },
-          // Add EDHREC-specific metadata
-          edhrec_rank: edhrecCard.num_decks,
-          edhrec_synergy: edhrecCard.synergy
-        }));
-        
-        return transformedCards;
-      }
-      return [];
+      // Show linked EDHREC cards
+      return linkedEdhrecCards;
     }
     
     const searchData = data?.pages.flatMap(page => page.data) || [];
@@ -160,9 +126,61 @@ export default function Search() {
     }
     
     return searchData;
-  }, [data, shouldShowResults, preloadSearchResults, showEdhrecResults, deck.commander, edhrecData]);
+  }, [data, shouldShowResults, preloadSearchResults, showEdhrecResults, deck.commander, linkedEdhrecCards]);
 
-  const totalCards = showEdhrecResults ? allCards.length : (shouldShowResults ? (data?.pages[0]?.total_cards || 0) : 0);
+  // Link EDHREC cards with Scryfall data
+  useEffect(() => {
+    if (!showEdhrecResults || !edhrecData || !deck.commander) {
+      setLinkedEdhrecCards([]);
+      return;
+    }
+
+    const linkCards = async () => {
+      const allEdhrecCards = [
+        ...edhrecData.cards.creatures,
+        ...edhrecData.cards.instants,
+        ...edhrecData.cards.sorceries,
+        ...edhrecData.cards.artifacts,
+        ...edhrecData.cards.enchantments,
+        ...edhrecData.cards.planeswalkers,
+        ...edhrecData.cards.lands
+      ];
+
+      const linkedCards = await Promise.all(
+        allEdhrecCards.slice(0, 50).map(async (edhrecCard: any) => {
+          try {
+            // Search for exact card match
+            const searchResponse = await fetch(`/api/cards/search?q="${encodeURIComponent(edhrecCard.name)}"&page=1`);
+            if (searchResponse.ok) {
+              const searchResult = await searchResponse.json();
+              const exactMatch = searchResult.data.find((card: any) => 
+                card.name.toLowerCase() === edhrecCard.name.toLowerCase()
+              );
+              
+              if (exactMatch) {
+                return {
+                  ...exactMatch,
+                  edhrec_rank: edhrecCard.num_decks,
+                  edhrec_synergy: edhrecCard.synergy,
+                  edhrec_url: edhrecCard.url
+                };
+              }
+            }
+            return null;
+          } catch (error) {
+            console.error(`Error linking ${edhrecCard.name}:`, error);
+            return null;
+          }
+        })
+      );
+
+      setLinkedEdhrecCards(linkedCards.filter(Boolean));
+    };
+
+    linkCards();
+  }, [showEdhrecResults, edhrecData, deck.commander]);
+
+  const totalCards = showEdhrecResults ? linkedEdhrecCards.length : (shouldShowResults ? (data?.pages[0]?.total_cards || 0) : 0);
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
