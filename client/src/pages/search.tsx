@@ -128,7 +128,6 @@ export default function Search() {
           ...edhrecData.cards.planeswalkers,
           ...edhrecData.cards.lands
         ];
-        
         return allEdhrecCards.slice(0, 50).map((edhrecCard: any) => ({
           id: edhrecCard.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
           name: edhrecCard.name,
@@ -181,8 +180,6 @@ export default function Search() {
         ...edhrecData.cards.lands
       ];
 
-      console.log(`Linking ${allEdhrecCards.length} EDHREC cards...`);
-
       const linkedCards = [];
       
       // Process cards in smaller batches to avoid overwhelming the API
@@ -200,7 +197,6 @@ export default function Search() {
                 );
                 
                 if (exactMatch) {
-                  console.log(`Found match for: ${edhrecCard.name}`);
                   return {
                     ...exactMatch,
                     edhrec_rank: edhrecCard.num_decks,
@@ -208,14 +204,12 @@ export default function Search() {
                     edhrec_url: edhrecCard.url
                   };
                 } else {
-                  console.log(`No exact match for: ${edhrecCard.name}, found ${searchResult.data.length} results`);
                   // Try fuzzy matching as fallback
                   const fuzzyMatch = searchResult.data.find((card: any) => 
                     card.name.toLowerCase().includes(edhrecCard.name.toLowerCase()) ||
                     edhrecCard.name.toLowerCase().includes(card.name.toLowerCase())
                   );
                   if (fuzzyMatch) {
-                    console.log(`Found fuzzy match: ${fuzzyMatch.name} for ${edhrecCard.name}`);
                     return {
                       ...fuzzyMatch,
                       edhrec_rank: edhrecCard.num_decks,
@@ -227,7 +221,6 @@ export default function Search() {
               }
               return null;
             } catch (error) {
-              console.error(`Error linking ${edhrecCard.name}:`, error);
               return null;
             }
           })
@@ -241,7 +234,6 @@ export default function Search() {
         }
       }
 
-      console.log(`Successfully linked ${linkedCards.length} cards`);
       setLinkedEdhrecCards(linkedCards);
     };
 
