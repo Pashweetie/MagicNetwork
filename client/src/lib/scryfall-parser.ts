@@ -1,5 +1,9 @@
 import { SearchFilters } from "@shared/schema";
 
+// Import the shared parser
+import { ScryfallQueryParser } from "@shared/scryfall-parser";
+export { ScryfallQueryParser };
+
 export class ScryfallParser {
   // Convert SearchFilters to Scryfall query string for search bar display
   static filtersToQuery(filters: SearchFilters): string {
@@ -299,7 +303,8 @@ export class ScryfallParser {
   }
 }
 
-export class ScryfallQueryParser {
+// Remove the duplicate class since we're using the shared one
+class LocalScryfallQueryParser {
   private static colorMap: Record<string, string> = {
     'w': 'W',
     'u': 'U', 

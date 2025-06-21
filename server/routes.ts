@@ -36,27 +36,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const page = parseInt(req.query.page as string) || 1;
       
       // Parse query parameters into filters
-      const filters = {
-        query: req.query.q as string,
+      let filters: any = {
         colors: req.query.colors ? (req.query.colors as string).split(',') : undefined,
         types: req.query.types ? (req.query.types as string).split(',') : undefined,
+        subtypes: req.query.subtypes ? (req.query.subtypes as string).split(',') : undefined,
+        supertypes: req.query.supertypes ? (req.query.supertypes as string).split(',') : undefined,
         rarities: req.query.rarities ? (req.query.rarities as string).split(',') : undefined,
         format: req.query.format as string,
+        legal: req.query.legal as string,
+        banned: req.query.banned as string,
+        restricted: req.query.restricted as string,
         minMv: req.query.minMv ? parseInt(req.query.minMv as string) : undefined,
         maxMv: req.query.maxMv ? parseInt(req.query.maxMv as string) : undefined,
         includeMulticolored: req.query.includeMulticolored === 'true',
+        colorless: req.query.colorless === 'true',
+        monocolor: req.query.monocolor === 'true',
+        multicolor: req.query.multicolor === 'true',
         oracleText: req.query.oracleText as string,
         set: req.query.set as string,
+        sets: req.query.sets ? (req.query.sets as string).split(',') : undefined,
+        block: req.query.block as string,
         artist: req.query.artist as string,
         power: req.query.power as string,
+        minPower: req.query.minPower ? parseInt(req.query.minPower as string) : undefined,
+        maxPower: req.query.maxPower ? parseInt(req.query.maxPower as string) : undefined,
         toughness: req.query.toughness as string,
+        minToughness: req.query.minToughness ? parseInt(req.query.minToughness as string) : undefined,
+        maxToughness: req.query.maxToughness ? parseInt(req.query.maxToughness as string) : undefined,
         loyalty: req.query.loyalty as string,
+        minLoyalty: req.query.minLoyalty ? parseInt(req.query.minLoyalty as string) : undefined,
+        maxLoyalty: req.query.maxLoyalty ? parseInt(req.query.maxLoyalty as string) : undefined,
         minPrice: req.query.minPrice ? parseFloat(req.query.minPrice as string) : undefined,
         maxPrice: req.query.maxPrice ? parseFloat(req.query.maxPrice as string) : undefined,
+        year: req.query.year ? parseInt(req.query.year as string) : undefined,
+        minYear: req.query.minYear ? parseInt(req.query.minYear as string) : undefined,
+        maxYear: req.query.maxYear ? parseInt(req.query.maxYear as string) : undefined,
+        layout: req.query.layout as string,
+        frame: req.query.frame as string,
+        frameEffects: req.query.frameEffects ? (req.query.frameEffects as string).split(',') : undefined,
+        watermark: req.query.watermark as string,
+        language: req.query.language as string,
+        game: req.query.game as string,
+        cube: req.query.cube as string,
+        is: req.query.is ? (req.query.is as string).split(',') : undefined,
+        not: req.query.not ? (req.query.not as string).split(',') : undefined,
         colorIdentity: req.query.colorIdentity ? (req.query.colorIdentity as string).split(',') : undefined,
         keywords: req.query.keywords ? (req.query.keywords as string).split(',') : undefined,
         produces: req.query.produces ? (req.query.produces as string).split(',') : undefined,
       };
+
+      // If there's a query parameter 'q', parse it as Scryfall syntax
+      if (req.query.q) {
+        const { ScryfallQueryParser } = await import("../shared/scryfall-parser");
+        const parsedFilters = ScryfallQueryParser.parseQuery(req.query.q as string);
+        // Merge parsed filters with existing filters, giving priority to parsed filters
+        filters = { ...filters, ...parsedFilters };
+      }
+
+      // Set the query field for basic text search
+      if (req.query.q && !filters.oracleText && !Object.keys(filters).some(key => 
+        key !== 'query' && filters[key] !== undefined && filters[key] !== null && 
+        (Array.isArray(filters[key]) ? filters[key].length > 0 : true)
+      )) {
+        filters.query = req.query.q as string;
+      }
 
       // Validate filters
       const validatedFilters = searchFiltersSchema.parse(filters);
