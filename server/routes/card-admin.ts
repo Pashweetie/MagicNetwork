@@ -3,10 +3,11 @@ import { cardDatabaseService } from "../services/card-database-service";
 import { db } from "../db";
 import { cards, cardRulings } from "@shared/schema";
 import { sql } from "drizzle-orm";
+import { isAuthenticated } from "../replitAuth";
 
 export function registerCardAdminRoutes(app: Express) {
   // Initialize card database
-  app.post("/api/admin/cards/initialize", async (_req: Request, res: Response) => {
+  app.post("/api/admin/cards/initialize", isAuthenticated, async (_req: Request, res: Response) => {
     try {
       await cardDatabaseService.initializeDatabase();
       res.json({ success: true, message: "Card database initialization started" });
@@ -17,13 +18,13 @@ export function registerCardAdminRoutes(app: Express) {
   });
 
   // Get download progress
-  app.get("/api/admin/cards/download-progress", (_req: Request, res: Response) => {
+  app.get("/api/admin/cards/download-progress", isAuthenticated, (_req: Request, res: Response) => {
     const progress = cardDatabaseService.getDownloadProgress();
     res.json(progress);
   });
 
   // Get card count
-  app.get("/api/admin/cards/count", async (_req: Request, res: Response) => {
+  app.get("/api/admin/cards/count", isAuthenticated, async (_req: Request, res: Response) => {
     try {
       const count = await cardDatabaseService.getCardCount();
       res.json({ count });
@@ -34,7 +35,7 @@ export function registerCardAdminRoutes(app: Express) {
   });
 
   // Force download all cards
-  app.post("/api/admin/cards/download", async (_req: Request, res: Response) => {
+  app.post("/api/admin/cards/download", isAuthenticated, async (_req: Request, res: Response) => {
     try {
       await cardDatabaseService.downloadAllCards();
       res.json({ success: true, message: "Card download completed" });
@@ -45,7 +46,7 @@ export function registerCardAdminRoutes(app: Express) {
   });
 
   // Check for updates manually
-  app.post("/api/admin/cards/check-updates", async (_req: Request, res: Response) => {
+  app.post("/api/admin/cards/check-updates", isAuthenticated, async (_req: Request, res: Response) => {
     try {
       await cardDatabaseService.checkForUpdates();
       res.json({ success: true, message: "Update check completed" });
@@ -56,7 +57,7 @@ export function registerCardAdminRoutes(app: Express) {
   });
 
   // Get last update time
-  app.get("/api/admin/cards/last-update", async (_req: Request, res: Response) => {
+  app.get("/api/admin/cards/last-update", isAuthenticated, async (_req: Request, res: Response) => {
     try {
       const lastUpdate = await cardDatabaseService.getLastUpdateTime();
       const daysSinceUpdate = lastUpdate ? 
@@ -73,7 +74,7 @@ export function registerCardAdminRoutes(app: Express) {
   });
 
   // New enhanced database management endpoints
-  app.get("/api/admin/database/stats", async (_req: Request, res: Response) => {
+  app.get("/api/admin/database/stats", isAuthenticated, async (_req: Request, res: Response) => {
     try {
       const [cardCount, rulingsCount, lastUpdate] = await Promise.all([
         db.select({ count: sql<number>`count(*)` }).from(cards),
@@ -102,7 +103,7 @@ export function registerCardAdminRoutes(app: Express) {
     }
   });
 
-  app.get("/api/admin/database/bulk-data-info", async (_req: Request, res: Response) => {
+  app.get("/api/admin/database/bulk-data-info", isAuthenticated, async (_req: Request, res: Response) => {
     try {
       const response = await fetch("https://api.scryfall.com/bulk-data");
       const data = await response.json();
@@ -122,7 +123,7 @@ export function registerCardAdminRoutes(app: Express) {
     }
   });
 
-  app.post("/api/admin/database/download-enhanced-cards", async (_req: Request, res: Response) => {
+  app.post("/api/admin/database/download-enhanced-cards", isAuthenticated, async (_req: Request, res: Response) => {
     try {
       // Trigger download of missing data
       cardDatabaseService.downloadMissingData();
@@ -133,7 +134,7 @@ export function registerCardAdminRoutes(app: Express) {
     }
   });
 
-  app.post("/api/admin/database/download-rulings", async (_req: Request, res: Response) => {
+  app.post("/api/admin/database/download-rulings", isAuthenticated, async (_req: Request, res: Response) => {
     try {
       // Trigger rulings download
       cardDatabaseService.checkAndDownloadRulings();
