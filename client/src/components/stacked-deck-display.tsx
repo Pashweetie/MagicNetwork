@@ -121,8 +121,8 @@ function VerticalStackedCards({
           const isHovered = hoveredIndex === index;
           // Title-readable stacking: first card at top (translateY=0), subsequent cards below
           const translateY = index * CARD_SPACING;
-          // Higher z-index for cards that appear earlier in the list (at top)
-          const zIndex = isHovered ? 100 : (cards.length - index);
+          // Lower z-index for cards that appear earlier in the list (topmost card lowest in stack)
+          const zIndex = isHovered ? 100 : (index + 1);
 
           return (
             <StackedCard
