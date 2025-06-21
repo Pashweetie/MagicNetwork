@@ -362,8 +362,8 @@ export function StackedDeckDisplay({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4 p-4 bg-slate-800 rounded-lg">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-4 p-3 bg-slate-800 rounded-lg">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-sm text-slate-400">Sort by:</span>
@@ -401,47 +401,33 @@ export function StackedDeckDisplay({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-4">
-        {categorizedCards.map(category => (
-          <UICard key={category.name} className="bg-slate-800 border-slate-700 flex-shrink-0">
-            <Collapsible
-              open={category.isExpanded}
-              onOpenChange={() => toggleCategory(category.name)}
-            >
-              <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-slate-750 transition-colors py-3">
-                  <CardTitle className="flex items-center justify-between text-lg">
-                    <div className="flex items-center gap-2">
-                      <span>{category.name}</span>
-                      <Badge variant="secondary" className="text-xs">
-                        {category.totalQuantity}
-                      </Badge>
-                    </div>
-                    {category.isExpanded ? (
-                      <ChevronUp className="w-4 h-4" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4" />
-                    )}
-                  </CardTitle>
-                </CardHeader>
-              </CollapsibleTrigger>
-              
-              <CollapsibleContent>
-                <CardContent className="pt-0">
-                  <VerticalStackedCards
-                    cards={category.cards}
-                    onAdd={onAdd}
-                    onRemove={onRemove}
-                    onClick={onClick}
-                    onSetCommander={onSetCommander}
-                    commander={commander}
-                    canBeCommander={canBeCommander}
-                    getMaxCopies={getMaxCopies}
-                  />
-                </CardContent>
-              </CollapsibleContent>
-            </Collapsible>
-          </UICard>
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+        {categorizedCards.map((group) => (
+          <div key={group.name} className="bg-slate-800 rounded-lg border border-slate-700">
+            <div className="p-3 border-b border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="text-lg font-medium text-white">
+                  {group.name}
+                </div>
+                <Badge variant="secondary" className="bg-slate-700 text-slate-300">
+                  {group.totalQuantity}
+                </Badge>
+              </div>
+            </div>
+            
+            <div className="p-2">
+              <VerticalStackedCards
+                cards={group.cards}
+                onAdd={onAdd}
+                onRemove={onRemove}
+                onClick={onClick}
+                onSetCommander={onSetCommander}
+                commander={commander}
+                canBeCommander={canBeCommander}
+                getMaxCopies={getMaxCopies}
+              />
+            </div>
+          </div>
         ))}
       </div>
     </div>
