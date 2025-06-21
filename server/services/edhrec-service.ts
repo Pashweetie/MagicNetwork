@@ -229,28 +229,28 @@ export class EdhrecService {
       lands: []
     };
 
-    // Process each card section with increased limits
+    // Process each card section without artificial limits
     cardSections.forEach((section: any) => {
       const sectionName = (section.tag || section.header || '').toLowerCase();
       const sectionCards = formatCards(section.cardviews || section.cards || []);
 
       if (sectionName.includes('creature')) {
-        cardsByType.creatures.push(...sectionCards.slice(0, 60)); // Increased from default
+        cardsByType.creatures.push(...sectionCards); // No limit - use all available
       } else if (sectionName.includes('instant')) {
-        cardsByType.instants.push(...sectionCards.slice(0, 40));
+        cardsByType.instants.push(...sectionCards); // No limit - use all available
       } else if (sectionName.includes('sorcery')) {
-        cardsByType.sorceries.push(...sectionCards.slice(0, 40));
+        cardsByType.sorceries.push(...sectionCards); // No limit - use all available
       } else if (sectionName.includes('artifact')) {
-        cardsByType.artifacts.push(...sectionCards.slice(0, 40));
+        cardsByType.artifacts.push(...sectionCards); // No limit - use all available
       } else if (sectionName.includes('enchantment')) {
-        cardsByType.enchantments.push(...sectionCards.slice(0, 40));
+        cardsByType.enchantments.push(...sectionCards); // No limit - use all available
       } else if (sectionName.includes('planeswalker')) {
-        cardsByType.planeswalkers.push(...sectionCards.slice(0, 20));
+        cardsByType.planeswalkers.push(...sectionCards); // No limit - use all available
       } else if (sectionName.includes('land')) {
-        cardsByType.lands.push(...sectionCards.slice(0, 50));
+        cardsByType.lands.push(...sectionCards); // No limit - use all available
       } else {
-        // These might be theme sections - add to creatures but limit
-        cardsByType.creatures.push(...sectionCards.slice(0, 15));
+        // These might be theme sections - add to creatures
+        cardsByType.creatures.push(...sectionCards.slice(0, 20)); // Keep some limit for theme sections
       }
     });
 
