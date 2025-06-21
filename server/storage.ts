@@ -55,11 +55,11 @@ export class DatabaseStorage implements IStorage {
 
   async searchCards(filters: SearchFilters, page: number = 1): Promise<SearchResponse> {
     try {
-      // Check cache first
-      const cachedResult = await this.getCachedSearchResults(filters, page);
-      if (cachedResult) {
-        return cachedResult;
-      }
+      // Temporarily disable cache for debugging pagination
+      // const cachedResult = await this.getCachedSearchResults(filters, page);
+      // if (cachedResult) {
+      //   return cachedResult;
+      // }
 
       // Try local database first if available
       try {

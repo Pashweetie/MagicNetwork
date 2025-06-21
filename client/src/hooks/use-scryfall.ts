@@ -42,6 +42,7 @@ export function useCardSearch(filters: SearchFilters, enabled: boolean = true) {
       return await response.json() as SearchResponse;
     },
     getNextPageParam: (lastPage, pages) => {
+      console.log('getNextPageParam:', { has_more: lastPage.has_more, currentPages: pages.length, nextPage: lastPage.has_more ? pages.length + 1 : undefined });
       return lastPage.has_more ? pages.length + 1 : undefined;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes

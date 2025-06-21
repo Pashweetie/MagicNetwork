@@ -298,12 +298,19 @@ export default function Search() {
   };
 
   const handleLoadMore = useCallback(() => {
-    console.log('handleLoadMore called:', { hasNextPage, isFetching, shouldShowResults });
-    if (hasNextPage && !isFetching && shouldShowResults) {
+    console.log('handleLoadMore called:', { 
+      hasNextPage, 
+      isFetching, 
+      isFetchingNextPage,
+      shouldShowResults,
+      pagesCount: data?.pages?.length,
+      totalCards: data?.pages?.[0]?.total_cards 
+    });
+    if (hasNextPage && !isFetching && shouldShowResults && !showEdhrecResults) {
       console.log('Fetching next page...');
       fetchNextPage();
     }
-  }, [hasNextPage, isFetching, fetchNextPage, shouldShowResults]);
+  }, [hasNextPage, isFetching, isFetchingNextPage, fetchNextPage, shouldShowResults, showEdhrecResults, data]);
 
   const handleRetry = () => {
     refetch();
@@ -651,11 +658,6 @@ export default function Search() {
                 onRetry={handleRetry}
                 error={error?.message}
               />
-              
-              {/* Debug info */}
-              <div className="text-xs text-slate-500 p-4 bg-slate-800 mt-4">
-                {`Debug: hasNextPage=${hasNextPage}, isFetching=${isFetching}, isFetchingNextPage=${isFetchingNextPage}, pages=${data?.pages?.length || 0}, totalCards=${allCards.length}`}
-              </div>
             )}
 
             {/* Initial loading indicator */}
