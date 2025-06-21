@@ -7,22 +7,7 @@ export class BulkImportService {
     const cardMap = new Map<string, Card>();
     
     try {
-      // Use direct SQL to avoid schema issues
-      const placeholders = cardNames.map(() => '?').join(',');
-      const query = `
-        SELECT id, name, mana_cost, cmc, type_line, oracle_text, colors, 
-               color_identity, power, toughness, rarity, set_code, set_name,
-               image_uris, card_faces, prices, legalities, collector_number,
-               artist, released_at
-        FROM cards 
-        WHERE name = ANY($1)
-        OR name ILIKE ANY($2)
-      `;
-      
-      const exactNames = cardNames;
-      const fuzzyNames = cardNames.map(name => `%${name}%`);
-      
-      const result = await db.execute(sql.raw(query, [exactNames, fuzzyNames]));
+      // Skip the complex ANY query and just use individual fallback queries
       
       if (result.rows) {
         for (const row of result.rows) {
