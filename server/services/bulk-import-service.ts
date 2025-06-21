@@ -7,9 +7,7 @@ export class BulkImportService {
     const cardMap = new Map<string, Card>();
     
     try {
-      // Skip the complex ANY query and just use individual fallback queries
-      
-      if (result.rows) {
+      // Fallback to individual queries since complex ANY queries had issues
         for (const row of result.rows) {
           const card = this.convertRowToCard(row as any);
           cardMap.set(card.name.toLowerCase(), card);
@@ -23,8 +21,9 @@ export class BulkImportService {
       }
     } catch (error) {
       console.error('Bulk import service error:', error);
-      
-      // Fallback to individual queries
+    }
+    
+    // Always use individual queries for reliability
       for (const cardName of cardNames) {
         try {
           const result = await db.execute(sql`
@@ -44,7 +43,6 @@ export class BulkImportService {
           console.error(`Failed to find card "${cardName}":`, individualError);
         }
       }
-    }
     
     return cardMap;
   }
