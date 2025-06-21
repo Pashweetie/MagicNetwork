@@ -592,38 +592,35 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Searching for ${cardNames.length} cards in local database...`);
       
-      // Direct database query for efficiency - search for exact matches first, then fuzzy
-      const exactMatches = await db.select()
-        .from(cards)
-        .where(
-          inArray(cards.name, cardNames)
-        );
-
-      const foundNames = new Set(exactMatches.map(c => c.name));
-      const remainingNames = cardNames.filter(name => !foundNames.has(name));
+      const foundCards: Card[] = [];
       
-      let fuzzyMatches: any[] = [];
-      if (remainingNames.length > 0) {
-        // For remaining cards, try fuzzy matching
-        fuzzyMatches = await db.select()
-          .from(cards)
-          .where(
-            or(
-              ...remainingNames.map(name => 
-                or(
-                  ilike(cards.name, `%${name}%`),
-                  ilike(cards.name, `${name} //%`), // For double-faced cards
-                  ilike(cards.name, `%// ${name}`)   // For reverse side matches
-                )
-              )
-            )
-          );
+      // Use Drizzle ORM approach to avoid SQL issues
+      for (const cardName of cardNames) {
+        try {
+          // First try exact match
+          let result = await db.select()
+            .from(cards)
+            .where(eq(cards.name, cardName))
+            .limit(1);
+          
+          // If no exact match, try fuzzy match
+          if (result.length === 0) {
+            result = await db.select()
+              .from(cards)
+              .where(ilike(cards.name, `%${cardName}%`))
+              .limit(1);
+          }
+
+          if (result.length > 0) {
+            foundCards.push(this.convertDbCardToCard(result[0]));
+          }
+        } catch (error) {
+          console.error(`Error searching for card "${cardName}":`, error);
+        }
       }
 
-      const allResults = [...exactMatches, ...fuzzyMatches];
-      console.log(`Found ${allResults.length} cards in local database`);
-      
-      return allResults.map(this.convertDbCardToCard);
+      console.log(`Found ${foundCards.length} cards in local database`);
+      return foundCards;
     } catch (error) {
       console.error('Bulk card search error:', error);
       return [];
@@ -634,21 +631,43 @@ export class DatabaseStorage implements IStorage {
     return {
       id: dbCard.id,
       name: dbCard.name,
-      mana_cost: dbCard.manaCost,
+      mana_cost: dbCard.manaCost || dbCard.mana_cost,
       cmc: dbCard.cmc,
-      type_line: dbCard.typeLine,
-      oracle_text: dbCard.oracleText,
+      type_line: dbCard.typeLine || dbCard.type_line,
+      oracle_text: dbCard.oracleText || dbCard.oracle_text,
       colors: dbCard.colors,
-      color_identity: dbCard.colorIdentity,
+      color_identity: dbCard.colorIdentity || dbCard.color_identity,
       power: dbCard.power,
       toughness: dbCard.toughness,
       rarity: dbCard.rarity,
-      set: dbCard.setCode,
-      set_name: dbCard.setName,
-      image_uris: dbCard.imageUris,
-      card_faces: dbCard.cardFaces,
+      set: dbCard.setCode || dbCard.set_code,
+      set_name: dbCard.setName || dbCard.set_name,
+      image_uris: dbCard.imageUris || dbCard.image_uris,
+      card_faces: dbCard.cardFaces || dbCard.card_faces,
       prices: dbCard.prices,
       legalities: dbCard.legalities,
+    };
+  }
+
+  private convertRawDbCardToCard(row: any): Card {
+    return {
+      id: row.id,
+      name: row.name,
+      mana_cost: row.mana_cost,
+      cmc: row.cmc,
+      type_line: row.type_line,
+      oracle_text: row.oracle_text,
+      colors: row.colors,
+      color_identity: row.color_identity,
+      power: row.power,
+      toughness: row.toughness,
+      rarity: row.rarity,
+      set: row.set_code,
+      set_name: row.set_name,
+      image_uris: row.image_uris,
+      card_faces: row.card_faces,
+      prices: row.prices,
+      legalities: row.legalities,
     };
   }
 }
