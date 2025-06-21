@@ -246,6 +246,7 @@ export default function Search() {
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
+    setUseManualFilters(false); // Switch back to query-based filters when searching
     
     // Parse query and update filters
     if (query.trim()) {

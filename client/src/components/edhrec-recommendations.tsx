@@ -142,7 +142,9 @@ export function EdhrecRecommendations({ commander, onAddCard }: EdhrecRecommenda
     const target = event.currentTarget;
     const { scrollTop, scrollHeight, clientHeight } = target;
     // More generous threshold for triggering load
-    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 200;
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 100;
+    
+    console.log(`Scroll event: ${categoryKey}, scrollTop: ${scrollTop}, scrollHeight: ${scrollHeight}, clientHeight: ${clientHeight}, isNearBottom: ${isNearBottom}`);
 
     if (isNearBottom && recommendations) {
       const currentCount = displayCounts[categoryKey] || ITEMS_PER_PAGE;
@@ -150,6 +152,7 @@ export function EdhrecRecommendations({ commander, onAddCard }: EdhrecRecommenda
       
       if (currentCount < totalCards) {
         const newCount = Math.min(currentCount + ITEMS_PER_PAGE, totalCards);
+        console.log(`Loading more ${categoryKey}: ${currentCount} -> ${newCount} of ${totalCards}`);
         
         setDisplayCounts(prev => ({
           ...prev,
