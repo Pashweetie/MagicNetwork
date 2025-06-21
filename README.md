@@ -72,8 +72,11 @@ Required:
 - `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` - Database credentials
 
 Optional:
-- `ENABLE_TUNNEL=true` - Auto-start Cloudflare tunnel
+- `CLOUDFLARE_TUNNEL_ID` - Your tunnel ID for named tunnels
+- `CLOUDFLARE_CONNECTOR_ID` - Your connector ID for connector-based tunnels
 - `NODE_ENV=development` - Development mode
+
+Note: If no Cloudflare credentials are provided, a quick tunnel will be started automatically.
 
 ## API Endpoints
 

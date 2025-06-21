@@ -115,49 +115,158 @@ app.use((req, res, next) => {
 
 // Auto-start Cloudflare tunnel if configured
 function startCloudflareTunnel() {
-  // Only start tunnel if token is provided via environment variable
-  const tunnelToken = process.env.CLOUDFLARE_TUNNEL_TOKEN;
-  if (!tunnelToken) {
-    console.log('Cloudflare tunnel: CLOUDFLARE_TUNNEL_TOKEN not configured');
+  const tunnelId = process.env.CLOUDFLARE_TUNNEL_ID;
+  const connectorId = process.env.CLOUDFLARE_CONNECTOR_ID;
+  
+  console.log('🌐 Checking Cloudflare tunnel configuration...');
+  
+  // If we have tunnel ID, use named tunnel approach
+  if (tunnelId) {
+    console.log(`📋 Tunnel ID found: ${tunnelId}`);
+    startNamedTunnel(tunnelId);
     return;
   }
+  
+  // If we have connector ID, use connector approach
+  if (connectorId) {
+    console.log(`🔗 Connector ID found: ${connectorId}`);
+    startConnectorTunnel(connectorId);
+    return;
+  }
+  
+  // Fallback to quick tunnel (no auth required)
+  console.log('⚡ No tunnel credentials configured, starting quick tunnel...');
+  startQuickTunnel();
+}
 
+function startNamedTunnel(tunnelId: string) {
+  console.log('🚀 Starting named Cloudflare tunnel...');
+  
   // Check if cloudflared is installed
-  const checkCloudflared = spawn('which', ['cloudflared']);
-  checkCloudflared.on('exit', (code) => {
-    if (code !== 0) {
-      console.log('Cloudflare tunnel: cloudflared not installed');
-      return;
-    }
+  checkCloudflaredInstallation(() => {
+    const tunnel = spawn('cloudflared', ['tunnel', 'run', tunnelId], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, TUNNEL_ORIGIN_SERVER_NAME: 'localhost:5000' }
+    });
 
-    console.log('Starting Cloudflare tunnel for MTG app...');
-    
-    const tunnel = spawn('cloudflared', ['tunnel', 'run', '--token', tunnelToken, '--url', 'http://localhost:5000'], {
+    setupTunnelLogging(tunnel, 'Named Tunnel');
+  });
+}
+
+function startConnectorTunnel(connectorId: string) {
+  console.log('🔗 Starting connector-based Cloudflare tunnel...');
+  
+  checkCloudflaredInstallation(() => {
+    const tunnel = spawn('cloudflared', ['tunnel', '--connector-id', connectorId, '--url', 'http://localhost:5000'], {
       stdio: ['ignore', 'pipe', 'pipe']
     });
 
-    tunnel.stdout.on('data', (data) => {
-      const output = data.toString();
-      if (output.includes('trycloudflare.com')) {
-        const url = output.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/)?.[0];
-        if (url) {
-          console.log(`Cloudflare tunnel active: ${url}`);
-          console.log('MTG app now protected with enterprise-level security and caching');
-        }
-      }
-      if (output.includes('Connection') && output.includes('registered')) {
-        console.log('Tunnel connection established - DDoS protection and global CDN active');
-      }
+    setupTunnelLogging(tunnel, 'Connector Tunnel');
+  });
+}
+
+function startQuickTunnel() {
+  console.log('⚡ Starting quick Cloudflare tunnel (temporary URL)...');
+  
+  checkCloudflaredInstallation(() => {
+    const tunnel = spawn('cloudflared', ['tunnel', '--url', 'http://localhost:5000'], {
+      stdio: ['ignore', 'pipe', 'pipe']
     });
 
-    // Cleanup on server shutdown
-    process.on('SIGINT', () => {
-      tunnel.kill();
-      process.exit();
-    });
-    process.on('SIGTERM', () => {
-      tunnel.kill();
-      process.exit();
-    });
+    setupTunnelLogging(tunnel, 'Quick Tunnel');
+  });
+}
+
+function checkCloudflaredInstallation(callback: () => void) {
+  const checkCloudflared = spawn('which', ['cloudflared']);
+  checkCloudflared.on('exit', (code) => {
+    if (code !== 0) {
+      console.log('❌ cloudflared not installed - installing now...');
+      installCloudflared(callback);
+    } else {
+      console.log('✅ cloudflared found');
+      callback();
+    }
+  });
+}
+
+function installCloudflared(callback: () => void) {
+  console.log('📦 Installing cloudflared...');
+  const install = spawn('bash', ['-c', 'curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb && sudo dpkg -i cloudflared.deb && rm cloudflared.deb'], {
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+  
+  install.on('exit', (code) => {
+    if (code === 0) {
+      console.log('✅ cloudflared installed successfully');
+      callback();
+    } else {
+      console.log('❌ Failed to install cloudflared');
+    }
+  });
+}
+
+function setupTunnelLogging(tunnel: any, tunnelType: string) {
+  let tunnelUrl = '';
+  let isConnected = false;
+  
+  tunnel.stdout.on('data', (data: Buffer) => {
+    const output = data.toString();
+    
+    // Extract tunnel URL
+    const urlMatch = output.match(/https:\/\/[a-zA-Z0-9-]+\.(?:trycloudflare\.com|cfargotunnel\.com)/);
+    if (urlMatch && !tunnelUrl) {
+      tunnelUrl = urlMatch[0];
+      console.log(`🌍 ${tunnelType} URL: ${tunnelUrl}`);
+      console.log('🔒 MTG app now protected with Cloudflare security');
+    }
+    
+    // Connection status
+    if (output.includes('Connection') && output.includes('registered') && !isConnected) {
+      isConnected = true;
+      console.log('✅ Tunnel connection established');
+      console.log('🛡️  DDoS protection active');
+      console.log('🚀 Global CDN enabled');
+      console.log('📊 Analytics and bot filtering active');
+    }
+    
+    // Log important status updates
+    if (output.includes('serve') || output.includes('Registered') || output.includes('started')) {
+      console.log(`📡 Tunnel: ${output.trim()}`);
+    }
+  });
+  
+  tunnel.stderr.on('data', (data: Buffer) => {
+    const error = data.toString();
+    if (error.includes('ERROR') || error.includes('WARN')) {
+      console.log(`⚠️  Tunnel warning: ${error.trim()}`);
+    }
+  });
+  
+  tunnel.on('exit', (code: number) => {
+    if (code === 0) {
+      console.log('🔄 Tunnel exited gracefully');
+    } else {
+      console.log(`❌ Tunnel exited with code ${code}`);
+    }
+  });
+  
+  // Periodic status check
+  const statusInterval = setInterval(() => {
+    if (isConnected && tunnelUrl) {
+      console.log(`💫 Tunnel status: Active (${tunnelUrl})`);
+    }
+  }, 300000); // Every 5 minutes
+  
+  // Cleanup on server shutdown
+  process.on('SIGINT', () => {
+    clearInterval(statusInterval);
+    tunnel.kill();
+    process.exit();
+  });
+  process.on('SIGTERM', () => {
+    clearInterval(statusInterval);
+    tunnel.kill();
+    process.exit();
   });
 }
