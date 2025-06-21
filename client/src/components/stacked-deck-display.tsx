@@ -4,9 +4,7 @@ import { DeckEntry } from "@/hooks/use-deck";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Card as UICard, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp, Plus, Minus, Crown } from "lucide-react";
+import { Plus, Minus, Crown } from "lucide-react";
 import { CachedImage } from "@/components/cached-image";
 
 type SortOption = 'name' | 'name_desc' | 'mana_value' | 'price' | 'type';
@@ -311,7 +309,6 @@ export function StackedDeckDisplay({
 }: StackedDeckDisplayProps) {
   const [sortBy, setSortBy] = useState<SortOption>('type');
   const [categoryBy, setCategoryBy] = useState<CategoryOption>('type');
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Creatures', 'Lands', 'Instants', 'Sorceries', 'Enchantments', 'Artifacts', 'Planeswalkers', 'Other', 'Battles']));
 
 
   const categorizedCards = useMemo((): CategoryGroup[] => {
@@ -350,20 +347,10 @@ export function StackedDeckDisplay({
           name: category,
           cards,
           totalQuantity: cards.reduce((sum, entry) => sum + entry.quantity, 0),
-          isExpanded: expandedCategories.has(category)
+          isExpanded: true
         };
       });
-  }, [deckEntries, sortBy, categoryBy, expandedCategories]);
-
-  const toggleCategory = (categoryName: string) => {
-    const newExpanded = new Set(expandedCategories);
-    if (newExpanded.has(categoryName)) {
-      newExpanded.delete(categoryName);
-    } else {
-      newExpanded.add(categoryName);
-    }
-    setExpandedCategories(newExpanded);
-  };
+  }, [deckEntries, sortBy, categoryBy]);
 
   const canBeCommander = (card: Card) => {
     const typeLine = card.type_line?.toLowerCase() || '';
@@ -413,47 +400,31 @@ export function StackedDeckDisplay({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-1">
+      <div className="flex flex-wrap gap-1">
         {categorizedCards.map((group) => (
-          <Collapsible
-            key={group.name}
-            open={group.isExpanded}
-            onOpenChange={() => toggleCategory(group.name)}
-          >
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                className="w-full justify-between p-2 h-auto hover:bg-transparent"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="text-lg font-medium text-white">
-                    {group.name}
-                  </div>
-                  <Badge variant="secondary" className="bg-slate-700 text-slate-300 text-xs">
-                    {group.totalQuantity}
-                  </Badge>
-                </div>
-                {group.isExpanded ? (
-                  <ChevronDown className="h-4 w-4 text-slate-400" />
-                ) : (
-                  <ChevronUp className="h-4 w-4 text-slate-400" />
-                )}
-              </Button>
-            </CollapsibleTrigger>
+          <div key={group.name} className="flex-shrink-0 min-w-[200px] max-w-[250px]">
+            <div className="mb-2">
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-medium text-white">
+                  {group.name}
+                </h3>
+                <Badge variant="secondary" className="bg-slate-700 text-slate-300 text-xs">
+                  {group.totalQuantity}
+                </Badge>
+              </div>
+            </div>
             
-            <CollapsibleContent>
-              <VerticalStackedCards
-                cards={group.cards}
-                onAdd={onAdd}
-                onRemove={onRemove}
-                onClick={onClick}
-                onSetCommander={onSetCommander}
-                commander={commander}
-                canBeCommander={canBeCommander}
-                getMaxCopies={getMaxCopies}
-              />
-            </CollapsibleContent>
-          </Collapsible>
+            <VerticalStackedCards
+              cards={group.cards}
+              onAdd={onAdd}
+              onRemove={onRemove}
+              onClick={onClick}
+              onSetCommander={onSetCommander}
+              commander={commander}
+              canBeCommander={canBeCommander}
+              getMaxCopies={getMaxCopies}
+            />
+          </div>
         ))}
       </div>
     </div>
