@@ -37,9 +37,30 @@ export interface EdhrecRecommendations {
 
 export class EdhrecService {
   private readonly BASE_URL = 'https://json.edhrec.com/pages/commanders';
-  private cache = new Map<string, { data: EdhrecRecommendations; timestamp: number }>();
-  private readonly CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days for better caching
+  private cache = new Map<string, { data: EdhrecRecommendations; createdAt: number; lastAccessed: number }>();
+  private readonly CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+  private readonly CLEANUP_INTERVAL = 60 * 60 * 1000; // Clean up every hour
   private requestQueue: Map<string, Promise<any>> = new Map(); // Prevent duplicate requests
+  private cleanupTimer: NodeJS.Timeout | null = null;
+
+  constructor() {
+    this.startCleanupTimer();
+  }
+
+  private startCleanupTimer(): void {
+    this.cleanupTimer = setInterval(() => {
+      this.cleanupExpiredEntries();
+    }, this.CLEANUP_INTERVAL);
+  }
+
+  private cleanupExpiredEntries(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.cache.entries()) {
+      if (now - entry.lastAccessed > this.CACHE_TTL) {
+        this.cache.delete(key);
+      }
+    }
+  }
 
   private normalizeCommanderName(name: string): string {
     // EDHREC expects commander names in lowercase with no symbols and dashes instead of spaces
@@ -80,10 +101,13 @@ export class EdhrecService {
   async getCommanderRecommendations(commander: Card): Promise<EdhrecRecommendations | null> {
     const commanderName = this.normalizeCommanderName(commander.name);
     const cacheKey = `commander:${commanderName}`;
+    const now = Date.now();
 
-    // Check cache first
+    // Check cache first and update last accessed time
     const cached = this.cache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+    if (cached && now - cached.lastAccessed < this.CACHE_TTL) {
+      // Update last accessed time to extend the cache life
+      cached.lastAccessed = now;
       return cached.data;
     }
 
@@ -105,7 +129,8 @@ export class EdhrecService {
       if (recommendations) {
         this.cache.set(cacheKey, {
           data: recommendations,
-          timestamp: Date.now()
+          createdAt: now,
+          lastAccessed: now
         });
         return recommendations;
       }
@@ -204,37 +229,40 @@ export class EdhrecService {
       lands: []
     };
 
-    // Process each card section
+    // Process each card section with increased limits
     cardSections.forEach((section: any) => {
       const sectionName = (section.tag || section.header || '').toLowerCase();
       const sectionCards = formatCards(section.cardviews || section.cards || []);
 
       if (sectionName.includes('creature')) {
-        cardsByType.creatures.push(...sectionCards);
+        cardsByType.creatures.push(...sectionCards.slice(0, 60)); // Increased from default
       } else if (sectionName.includes('instant')) {
-        cardsByType.instants.push(...sectionCards);
+        cardsByType.instants.push(...sectionCards.slice(0, 40));
       } else if (sectionName.includes('sorcery')) {
-        cardsByType.sorceries.push(...sectionCards);
+        cardsByType.sorceries.push(...sectionCards.slice(0, 40));
       } else if (sectionName.includes('artifact')) {
-        cardsByType.artifacts.push(...sectionCards);
+        cardsByType.artifacts.push(...sectionCards.slice(0, 40));
       } else if (sectionName.includes('enchantment')) {
-        cardsByType.enchantments.push(...sectionCards);
+        cardsByType.enchantments.push(...sectionCards.slice(0, 40));
       } else if (sectionName.includes('planeswalker')) {
-        cardsByType.planeswalkers.push(...sectionCards);
+        cardsByType.planeswalkers.push(...sectionCards.slice(0, 20));
       } else if (sectionName.includes('land')) {
-        cardsByType.lands.push(...sectionCards);
+        cardsByType.lands.push(...sectionCards.slice(0, 50));
       } else {
-        // For sections without clear type, distribute cards based on first letter or add to creatures
-        cardsByType.creatures.push(...sectionCards.slice(0, 10));
+        // These might be theme sections - add to creatures but limit
+        cardsByType.creatures.push(...sectionCards.slice(0, 15));
       }
     });
+
+    // Extract themes from the data
+    const themes = extractThemes(data);
     
     return {
       commander: commander.name,
       total_decks: data.container?.json_dict?.num_decks || data.num_decks || 0,
       updated_at: new Date().toISOString(),
       cards: cardsByType,
-      themes: [] // EDHREC themes would need separate parsing if available
+      themes: themes
     };
   }
 
@@ -269,11 +297,29 @@ export class EdhrecService {
     this.cache.clear();
   }
 
-  getCacheStats(): { size: number; keys: string[] } {
+  getCacheStats(): { size: number; keys: string[]; totalCachedCards: number } {
+    let totalCards = 0;
+    for (const entry of this.cache.values()) {
+      const cards = entry.data.cards;
+      totalCards += cards.creatures.length + cards.instants.length + cards.sorceries.length + 
+                   cards.artifacts.length + cards.enchantments.length + cards.planeswalkers.length + cards.lands.length;
+    }
+    
     return {
       size: this.cache.size,
-      keys: Array.from(this.cache.keys())
+      keys: Array.from(this.cache.keys()),
+      totalCachedCards: totalCards
     };
+  }
+
+  // Cleanup timer management
+  destroy(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
+    this.cache.clear();
+    this.requestQueue.clear();
   }
 }
 
