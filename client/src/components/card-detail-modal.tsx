@@ -7,6 +7,7 @@ import { ThemeSuggestions } from "./theme-suggestions";
 import { ThemeBasedSynergies } from "./theme-based-synergies";
 import { SharedCardTile } from "./shared-card-tile";
 import { CachedImage } from "@/components/cached-image";
+import { DualFacedCardModal } from "@/components/dual-faced-card";
 import { Card } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { useDeck } from "@/hooks/use-deck";

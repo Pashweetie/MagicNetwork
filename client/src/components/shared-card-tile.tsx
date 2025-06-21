@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Minus, Crown } from "lucide-react";
 import { CardUtils, COLOR_MAPPING } from "@shared/utils/card-utils";
 import { SimpleCardImage } from "@/components/simple-card-image";
+import { DualFacedCard } from "@/components/dual-faced-card";
 
 interface BaseCardTileProps {
   card: Card;
@@ -102,10 +103,10 @@ function DeckVariant({
         className="aspect-[2.5/3.5] bg-slate-700 rounded-lg overflow-hidden cursor-pointer transition-transform hover:scale-110 hover:z-20"
         onClick={() => onClick(card)}
       >
-        <SimpleCardImage
-          src={cardImage}
-          alt={card.name}
+        <DualFacedCard
+          card={card}
           className="w-full h-full object-cover"
+          showFlipButton={false}
         />
       </div>
 

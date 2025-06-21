@@ -7,7 +7,23 @@ export class ScryfallService {
     const parts: string[] = [];
     
     if (filters.query) {
-      parts.push(filters.query);
+      // Handle multiple type filters like "t:land t:snow" properly
+      const query = filters.query.trim();
+      const typeMatches = query.match(/t:(\w+)/g);
+      
+      if (typeMatches && typeMatches.length > 1) {
+        // Extract all type conditions and combine them
+        const types = typeMatches.map(match => match.replace('t:', ''));
+        parts.push(`t:"${types.join(' ')}"`);
+        
+        // Add remaining query parts
+        const remainingQuery = query.replace(/t:\w+/g, '').trim();
+        if (remainingQuery) {
+          parts.push(remainingQuery);
+        }
+      } else {
+        parts.push(query);
+      }
     }
     
     if (filters.colors && filters.colors.length > 0) {
