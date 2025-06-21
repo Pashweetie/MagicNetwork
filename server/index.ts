@@ -115,6 +115,13 @@ app.use((req, res, next) => {
 
 // Auto-start Cloudflare tunnel if configured
 function startCloudflareTunnel() {
+  // Only start tunnel if token is provided via environment variable
+  const tunnelToken = process.env.CLOUDFLARE_TUNNEL_TOKEN;
+  if (!tunnelToken) {
+    console.log('Cloudflare tunnel: CLOUDFLARE_TUNNEL_TOKEN not configured');
+    return;
+  }
+
   // Check if cloudflared is installed
   const checkCloudflared = spawn('which', ['cloudflared']);
   checkCloudflared.on('exit', (code) => {
@@ -124,7 +131,6 @@ function startCloudflareTunnel() {
     }
 
     console.log('Starting Cloudflare tunnel for MTG app...');
-    const tunnelToken = 'eyJhIjoiYWM0YWUzMTI4NmEwZmI0YmQ1N2ZhOTAwMzlmOGE2NDQiLCJ0IjoiODJmMWIzOTktYzQyNy00NWYxLTg2NjktOGRhOWYxZmJmY2ExIiwicyI6Ik9Ea3dPR1U0TmprdFpqVXlNeTAwTkRrMExXSmhNell0T1dGaE4yWmxaREV4TnpBeCJ9';
     
     const tunnel = spawn('cloudflared', ['tunnel', 'run', '--token', tunnelToken, '--url', 'http://localhost:5000'], {
       stdio: ['ignore', 'pipe', 'pipe']

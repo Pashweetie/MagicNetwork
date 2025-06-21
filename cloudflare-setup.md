@@ -19,7 +19,7 @@ Your MTG app is fully functional without Cloudflare tunnel:
 4. Copy the generated token
 
 ### 2. Alternative: Use Existing Tunnel
-Since you already have a working tunnel (ID: 82f1b399-c427-45f1-8669-8da9f1fbfca1), you can:
+Since you already have a working tunnel (ID: [YOUR_TUNNEL_ID]), you can:
 
 ```bash
 # Check existing tunnels with your API token

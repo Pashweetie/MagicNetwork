@@ -8,12 +8,12 @@
 # 4. Update the tunnel ID below with your actual tunnel ID
 # 5. Run: cloudflared tunnel --config cloudflare-tunnel.yml run
 
-tunnel: 82f1b399-c427-45f1-8669-8da9f1fbfca1
-credentials-file: /home/runner/.cloudflared/82f1b399-c427-45f1-8669-8da9f1fbfca1.json
+tunnel: ${CLOUDFLARE_TUNNEL_ID}
+credentials-file: /home/runner/.cloudflared/${CLOUDFLARE_TUNNEL_ID}.json
 
 # Route all traffic to your Replit app
 ingress:
-  - hostname: mtg-app-82f1b399.trycloudflare.com
+  - hostname: ${CLOUDFLARE_TUNNEL_HOSTNAME}
     service: http://localhost:5000
     # Enable Cloudflare features
     originRequest:
