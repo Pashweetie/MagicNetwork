@@ -15,6 +15,7 @@ import { Card as UICard, CardContent, CardHeader, CardTitle } from "@/components
 import { Grid, List, Package, Settings, X, Crown, ChevronUp, ChevronDown, Upload, Trash2 } from "lucide-react";
 import { useCardSearch } from "@/hooks/use-scryfall";
 import { useDeck, FORMATS } from "@/hooks/use-deck";
+import { useCardImagePreloader } from "@/hooks/use-image-preloader";
 import { ScryfallQueryParser, ScryfallParser } from "@/lib/scryfall-parser";
 import { SearchFilters } from "@shared/schema";
 import { Link } from "wouter";
@@ -32,6 +33,7 @@ export default function Search() {
   const [useManualFilters, setUseManualFilters] = useState(false);
   
   const deck = useDeck();
+  const { preloadSearchResults } = useCardImagePreloader();
 
   // Use either parsed query filters OR manual filters, with commander and format restrictions
   const activeFilters = useMemo(() => {
@@ -91,8 +93,15 @@ export default function Search() {
   const allCards = useMemo(() => {
     const searchData = data?.pages.flatMap(page => page.data) || [];
     const fallbackData = shouldShowDefault ? (defaultQuery.data?.pages.flatMap(page => page.data) || []) : [];
-    return searchData.length > 0 ? searchData : fallbackData;
-  }, [data, defaultQuery.data, shouldShowDefault]);
+    const cards = searchData.length > 0 ? searchData : fallbackData;
+    
+    // Preload images for search results
+    if (cards.length > 0) {
+      preloadSearchResults(cards);
+    }
+    
+    return cards;
+  }, [data, defaultQuery.data, shouldShowDefault, preloadSearchResults]);
 
   const totalCards = (data?.pages[0]?.total_cards) || (shouldShowDefault ? (defaultQuery.data?.pages[0]?.total_cards || 0) : 0);
 

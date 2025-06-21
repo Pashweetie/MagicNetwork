@@ -20,6 +20,8 @@ interface UpdateInfo {
 }
 
 export function AdminPage() {
+  const { toast } = useToast();
+  const { stats, refreshStats, clearCache, formatBytes } = useImageCacheStats();
   const [cardCount, setCardCount] = useState<number>(0);
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress>({
     current: 0,
@@ -31,7 +33,6 @@ export function AdminPage() {
     daysSinceUpdate: null
   });
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
 
   const fetchCardCount = async () => {
     try {
