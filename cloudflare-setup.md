@@ -23,16 +23,16 @@ Since you already have a working tunnel (ID: [YOUR_TUNNEL_ID]), you can:
 
 ```bash
 # Check existing tunnels with your API token
-export CLOUDFLARE_API_TOKEN=4v6CWooEyqISzuRS7jifKvhB2D7fZ-O-7ilTJvc4
-curl -X GET "https://api.cloudflare.com/client/v4/accounts/ac4ae31286a0fb4bd57fa90039f8a644/cfd_tunnel" \
+export CLOUDFLARE_API_TOKEN=YOUR_CLOUDFLARE_API_TOKEN_HERE
+curl -X GET "https://api.cloudflare.com/client/v4/accounts/YOUR_ACCOUNT_ID_HERE/cfd_tunnel" \
   -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"
 ```
 
 ### 3. Direct API Method (Bypass Certificate Issue)
 ```bash
 # Create tunnel via API instead of CLI
-curl -X POST "https://api.cloudflare.com/client/v4/accounts/ac4ae31286a0fb4bd57fa90039f8a644/cfd_tunnel" \
-  -H "Authorization: Bearer 4v6CWooEyqISzuRS7jifKvhB2D7fZ-O-7ilTJvc4" \
+curl -X POST "https://api.cloudflare.com/client/v4/accounts/YOUR_ACCOUNT_ID_HERE/cfd_tunnel" \
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
   -H "Content-Type: application/json" \
   --data '{"name":"mtg-app-api"}'
 ```
