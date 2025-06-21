@@ -29,7 +29,7 @@ app.use((req, res, next) => {
   // Block direct Replit access with proper redirect
   if (host.includes('replit.app') || host.includes('replit.dev') || host.includes('repl.co')) {
     // Get current tunnel URL from global variable or fallback
-    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://oral-utilize-required-closure.trycloudflare.com';
+    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://your-configured-hostname.com';
     
     // Return HTML redirect page for browser users
     if (req.get('accept')?.includes('text/html')) {
@@ -180,11 +180,16 @@ app.use((req, res, next) => {
 
 // Auto-start Cloudflare tunnel if configured
 function startCloudflareTunnel() {
-  console.log('Starting Cloudflare tunnel for public access...');
+  const tunnelToken = process.env.CLOUDFLARE_TUNNEL_TOKEN;
   
-  // Use quick tunnel for reliable public access
-  // The tunnel token requires dashboard configuration which isn't set up
-  startQuickTunnel();
+  if (tunnelToken) {
+    console.log('Starting named tunnel with token...');
+    console.log('Note: This tunnel requires public hostname configuration in Cloudflare dashboard');
+    console.log('Visit https://one.dash.cloudflare.com/ > Access > Tunnels > Configure your tunnel');
+    startNamedTunnelDirect(tunnelToken);
+  } else {
+    console.log('No tunnel token configured - application only accessible via Replit URL');
+  }
 }
 
 async function startNamedTunnel(tunnelId: string) {
@@ -312,42 +317,38 @@ async function createTunnelWithAccountId(apiToken: string, accountId: string): P
   }
 }
 
-function startPermanentTunnel(tunnelToken: string) {
-  console.log('Starting permanent tunnel with token...');
+function startNamedTunnelDirect(tunnelToken: string) {
+  console.log('Starting named tunnel with token...');
   
   const tunnel = spawn('cloudflared', [
     'tunnel',
     '--url', 'http://localhost:5000',
-    '--protocol', 'http2',
-    '--no-autoupdate',
     'run',
     '--token', tunnelToken
   ], {
     stdio: ['ignore', 'pipe', 'pipe']
   });
 
-  // Tunnel tokens don't provide public URLs - they need to be configured in dashboard
-  // Start quick tunnel as backup for public access
-  console.log('Tunnel token authenticated successfully');
-  console.log('Note: Tunnel tokens require dashboard configuration for public access');
-  console.log('Starting quick tunnel for immediate public access...');
-  setTimeout(() => startQuickTunnel(), 2000);
-
   tunnel.stdout.on('data', (data) => {
     const output = data.toString();
-    if (output.includes('Registered tunnel connection')) {
-      console.log('Tunnel connection registered');
+    console.log(`Tunnel: ${output.trim()}`);
+    
+    // Look for any public URL patterns
+    const urlMatch = output.match(/https:\/\/[a-zA-Z0-9.-]+/);
+    if (urlMatch) {
+      const publicUrl = urlMatch[0];
+      (global as any).currentTunnelUrl = publicUrl;
+      console.log(`Public URL found: ${publicUrl}`);
     }
   });
 
   tunnel.stderr.on('data', (data) => {
-    console.log(`Tunnel error: ${data.toString().trim()}`);
+    const error = data.toString();
+    console.log(`Tunnel: ${error.trim()}`);
   });
 
   tunnel.on('exit', (code) => {
-    if (code !== 0) {
-      console.log('Permanent tunnel process failed');
-    }
+    console.log(`Tunnel process exited with code: ${code}`);
   });
 }
 
@@ -372,7 +373,7 @@ function startQuickTunnel() {
     // Use HTTP instead of QUIC for better stability in containerized environments
     const tunnel = spawn('cloudflared', [
       'tunnel', 
-      '--url', 'http://localhost:5000',
+      '--url', 'http://0.0.0.0:5000',  // Changed from localhost to 0.0.0.0
       '--protocol', 'http2',
       '--no-autoupdate'
     ], {
