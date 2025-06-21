@@ -1,18 +1,26 @@
 # Cloudflare Tunnel Setup for MTG App
 
-## Quick Setup (No Custom Domain Required)
+## Method 1: API Token (Recommended for Replit)
 
-### 1. Install Cloudflared
+### 1. Create API Token
+1. Visit https://dash.cloudflare.com/profile/api-tokens
+2. Click "Create Token" → "Custom token"
+3. Set permissions:
+   - **Account**: Cloudflare Tunnel:Edit
+   - **Zone**: Zone:Read
+   - **Zone**: DNS:Edit
+4. Copy the generated token
+
+### 2. Set Token and Create Tunnel
 ```bash
-curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-sudo dpkg -i cloudflared.deb
+export CLOUDFLARE_API_TOKEN=your_token_here
+cloudflared tunnel create mtg-app
 ```
 
-### 2. Authenticate with Cloudflare
+## Method 2: Browser Login (if browser works)
 ```bash
 cloudflared tunnel login
 ```
-This opens a browser window to log into your Cloudflare account and authorize the tunnel.
 
 ### 3. Create a Tunnel
 ```bash
