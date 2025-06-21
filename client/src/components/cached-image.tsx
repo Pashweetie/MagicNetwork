@@ -101,28 +101,7 @@ export function CachedImage({
       style={style}
       loading={loading}
       onLoad={() => onLoad?.()}
-      onError={(e) => {
-        onError?.();
-        // Fallback to text display
-        const img = e.target as HTMLImageElement;
-        img.style.display = 'none';
-        const parent = img.parentElement;
-        if (parent) {
-          // Clear existing content safely
-          parent.textContent = '';
-          
-          // Create fallback element using DOM methods (XSS-safe)
-          const fallbackDiv = document.createElement('div');
-          fallbackDiv.className = 'w-full h-full flex items-center justify-center text-slate-400 bg-slate-800 p-2';
-          
-          const span = document.createElement('span');
-          span.className = 'text-sm text-center';
-          span.textContent = alt; // textContent is XSS-safe
-          
-          fallbackDiv.appendChild(span);
-          parent.appendChild(fallbackDiv);
-        }
-      }}
+      onError={() => onError?.()}
     />
   );
 }
