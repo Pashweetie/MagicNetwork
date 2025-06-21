@@ -483,7 +483,7 @@ export class DatabaseStorage implements IStorage {
       const failedCards: string[] = [];
       let commander: Card | null = null;
 
-      console.log(`Starting bulk import of ${lines.length} lines`);
+      console.log(`Starting efficient bulk import of ${lines.length} lines`);
 
       // Parse all card names from the deck text
       const cardEntries: Array<{name: string, quantity: number, isCommander: boolean}> = [];
@@ -512,26 +512,16 @@ export class DatabaseStorage implements IStorage {
         cardEntries.push({ name: cardName, quantity, isCommander });
       }
 
-      console.log(`Parsed ${cardEntries.length} card entries, searching database...`);
+      console.log(`Parsed ${cardEntries.length} card entries, using optimized bulk search...`);
 
-      // Bulk search all card names at once using the database
+      // Use the new bulk import service
+      const { bulkImportService } = await import("./services/bulk-import-service");
       const cardNames = cardEntries.map(entry => entry.name);
-      const foundCards = await this.bulkFindCardsByNames(cardNames);
-      
-      // Create lookup map for found cards
-      const cardMap = new Map<string, Card>();
-      foundCards.forEach(card => {
-        cardMap.set(card.name.toLowerCase(), card);
-        // Also add variations for double-faced cards
-        if (card.name.includes(' // ')) {
-          const mainName = card.name.split(' // ')[0];
-          cardMap.set(mainName.toLowerCase(), card);
-        }
-      });
+      const cardMap = await bulkImportService.findCardsByNames(cardNames);
 
-      // Match entries to found cards
       const importedCards: Array<{cardId: string, quantity: number}> = [];
       
+      // Match entries to found cards
       for (const entry of cardEntries) {
         const foundCard = cardMap.get(entry.name.toLowerCase());
         
@@ -549,7 +539,7 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
-      console.log(`Bulk import complete: ${importedCards.length} imported, ${failedCards.length} failed`);
+      console.log(`Efficient import complete: ${importedCards.length} imported, ${failedCards.length} failed`);
 
       if (importedCards.length === 0) {
         return {
@@ -594,25 +584,35 @@ export class DatabaseStorage implements IStorage {
       
       const foundCards: Card[] = [];
       
-      // Use Drizzle ORM approach to avoid SQL issues
+      // Use direct SQL queries to avoid Drizzle schema issues
       for (const cardName of cardNames) {
         try {
           // First try exact match
-          let result = await db.select()
-            .from(cards)
-            .where(eq(cards.name, cardName))
-            .limit(1);
+          let result = await db.execute(sql`
+            SELECT id, name, mana_cost, cmc, type_line, oracle_text, colors, 
+                   color_identity, power, toughness, rarity, set_code, set_name,
+                   image_uris, card_faces, prices, legalities, collector_number,
+                   artist, released_at
+            FROM cards 
+            WHERE name = ${cardName}
+            LIMIT 1
+          `);
           
           // If no exact match, try fuzzy match
-          if (result.length === 0) {
-            result = await db.select()
-              .from(cards)
-              .where(ilike(cards.name, `%${cardName}%`))
-              .limit(1);
+          if (result.rows.length === 0) {
+            result = await db.execute(sql`
+              SELECT id, name, mana_cost, cmc, type_line, oracle_text, colors, 
+                     color_identity, power, toughness, rarity, set_code, set_name,
+                     image_uris, card_faces, prices, legalities, collector_number,
+                     artist, released_at
+              FROM cards 
+              WHERE name ILIKE ${'%' + cardName + '%'}
+              LIMIT 1
+            `);
           }
 
-          if (result.length > 0) {
-            foundCards.push(this.convertDbCardToCard(result[0]));
+          if (result.rows.length > 0) {
+            foundCards.push(this.convertRawDbCardToCard(result.rows[0]));
           }
         } catch (error) {
           console.error(`Error searching for card "${cardName}":`, error);
