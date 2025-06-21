@@ -841,47 +841,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { db } = await import('./db');
-      const { cardThemes } = await import('@shared/schema');
-      const { inArray, desc } = await import('drizzle-orm');
+      const { cardThemes, cards } = await import('@shared/schema');
+      const { inArray, desc, eq } = await import('drizzle-orm');
 
-      // Fetch all themes for the requested cards, ordered by confidence descending
+      // First, get card names for the provided IDs
+      const cardData = await db
+        .select({ id: cards.id, name: cards.name })
+        .from(cards)
+        .where(inArray(cards.id, cardIds));
+
+      // Create maps for lookup
+      const cardIdToName = new Map<string, string>();
+      const cardNameToIds = new Map<string, string[]>();
+      
+      cardData.forEach(card => {
+        cardIdToName.set(card.id, card.name);
+        if (!cardNameToIds.has(card.name)) {
+          cardNameToIds.set(card.name, []);
+        }
+        cardNameToIds.get(card.name)!.push(card.id);
+      });
+
+      const cardNames = Array.from(cardNameToIds.keys());
+
+      // Fetch themes by card name (works across all printings)
       const themes = await db
         .select()
         .from(cardThemes)
-        .where(inArray(cardThemes.card_id, cardIds))
+        .where(inArray(cardThemes.card_name, cardNames))
         .orderBy(desc(cardThemes.confidence));
 
-      // Group themes by card ID
+      // Group themes by card ID (not card name, for frontend compatibility)
       const themesByCard: { [cardId: string]: Array<{ theme: string, confidence: number }> } = {};
       
       cardIds.forEach(cardId => {
         themesByCard[cardId] = [];
       });
 
-      // Group themes by card and theme name, keeping only the highest confidence
-      const themeMap = new Map<string, { cardId: string, theme: string, confidence: number }>();
+      // Group themes by card name and theme name, keeping only the highest confidence
+      const themeMap = new Map<string, { cardName: string, theme: string, confidence: number }>();
       
       themes.forEach(theme => {
-        const key = `${theme.card_id}-${theme.theme_name}`;
+        const key = `${theme.card_name}-${theme.theme_name}`;
         const existing = themeMap.get(key);
         
         if (!existing || theme.confidence > existing.confidence) {
           themeMap.set(key, {
-            cardId: theme.card_id,
+            cardName: theme.card_name,
             theme: theme.theme_name,
             confidence: theme.confidence
           });
         }
       });
 
-      // Convert the deduplicated themes back to the expected format
+      // Convert themes back to card ID format for frontend
       themeMap.forEach(dedupedTheme => {
-        if (themesByCard[dedupedTheme.cardId]) {
-          themesByCard[dedupedTheme.cardId].push({
-            theme: dedupedTheme.theme,
-            confidence: dedupedTheme.confidence
-          });
-        }
+        const cardIdsForName = cardNameToIds.get(dedupedTheme.cardName) || [];
+        cardIdsForName.forEach(cardId => {
+          if (themesByCard[cardId]) {
+            themesByCard[cardId].push({
+              theme: dedupedTheme.theme,
+              confidence: dedupedTheme.confidence
+            });
+          }
+        });
       });
 
       res.json(themesByCard);

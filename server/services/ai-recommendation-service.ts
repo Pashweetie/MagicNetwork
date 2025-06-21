@@ -72,14 +72,14 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
       const response = await AIUtils.generateWithAI(this.textGenerator, this.provider, prompt);
       
       if (response) {
-        await this.parseAndStoreThemes(card.id, response);
+        await this.parseAndStoreThemes(card.id, card.name, response);
       }
     } catch (error) {
       console.error('AI theme generation failed:', error);
     }
   }
 
-  private async parseAndStoreThemes(cardId: string, response: string): Promise<void> {
+  private async parseAndStoreThemes(cardId: string, cardName: string, response: string): Promise<void> {
     const lines = response.split('\n').filter(line => line.includes(':'));
     
     for (const line of lines) {
@@ -92,6 +92,7 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
           try {
             await db.insert(cardThemes).values({
               card_id: cardId,
+              card_name: cardName,
               theme_name: themeName.trim(),
               confidence: confidence,
             });
