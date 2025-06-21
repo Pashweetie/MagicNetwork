@@ -112,6 +112,7 @@ export default function Search() {
   useEffect(() => {
     if (!showEdhrecResults || !edhrecData || !deck.commander) {
       setLinkedEdhrecCards([]);
+      setEdhrecDisplayCount(EDHREC_PAGE_SIZE);
       return;
     }
 
@@ -192,6 +193,10 @@ export default function Search() {
 
 
 
+  // State for EDHREC pagination
+  const [edhrecDisplayCount, setEdhrecDisplayCount] = useState(50);
+  const EDHREC_PAGE_SIZE = 50;
+
   // Flatten all pages of cards
   const allCards = useMemo(() => {
     if (!shouldShowResults) return [];
@@ -202,45 +207,46 @@ export default function Search() {
         let filteredCards = [...linkedEdhrecCards];
         
         // Apply filters to EDHREC results
-      if (activeFilters.types?.length) {
-        filteredCards = filteredCards.filter(card => 
-          activeFilters.types!.some(type => 
-            card.type_line.toLowerCase().includes(type.toLowerCase())
-          )
-        );
-      }
+        if (activeFilters.types?.length) {
+          filteredCards = filteredCards.filter(card => 
+            activeFilters.types!.some(type => 
+              card.type_line.toLowerCase().includes(type.toLowerCase())
+            )
+          );
+        }
 
-      if (activeFilters.colors?.length) {
-        filteredCards = filteredCards.filter(card => 
-          activeFilters.colors!.some(color => 
-            card.color_identity.includes(color)
-          )
-        );
-      }
+        if (activeFilters.colors?.length) {
+          filteredCards = filteredCards.filter(card => 
+            activeFilters.colors!.some(color => 
+              card.color_identity.includes(color)
+            )
+          );
+        }
 
-      if (activeFilters.rarities?.length) {
-        filteredCards = filteredCards.filter(card => 
-          activeFilters.rarities!.includes(card.rarity)
-        );
-      }
+        if (activeFilters.rarities?.length) {
+          filteredCards = filteredCards.filter(card => 
+            activeFilters.rarities!.includes(card.rarity)
+          );
+        }
 
-      if (activeFilters.minMv !== undefined) {
-        filteredCards = filteredCards.filter(card => card.cmc >= activeFilters.minMv!);
-      }
+        if (activeFilters.minMv !== undefined) {
+          filteredCards = filteredCards.filter(card => card.cmc >= activeFilters.minMv!);
+        }
 
-      if (activeFilters.maxMv !== undefined) {
-        filteredCards = filteredCards.filter(card => card.cmc <= activeFilters.maxMv!);
-      }
+        if (activeFilters.maxMv !== undefined) {
+          filteredCards = filteredCards.filter(card => card.cmc <= activeFilters.maxMv!);
+        }
 
-      if (activeFilters.oracleText) {
-        const searchText = activeFilters.oracleText.toLowerCase();
-        filteredCards = filteredCards.filter(card => 
-          card.oracle_text.toLowerCase().includes(searchText) ||
-          card.name.toLowerCase().includes(searchText)
-        );
-      }
+        if (activeFilters.oracleText) {
+          const searchText = activeFilters.oracleText.toLowerCase();
+          filteredCards = filteredCards.filter(card => 
+            card.oracle_text.toLowerCase().includes(searchText) ||
+            card.name.toLowerCase().includes(searchText)
+          );
+        }
 
-        return filteredCards;
+        // Return only the cards up to the current display count
+        return filteredCards.slice(0, edhrecDisplayCount);
       }
       
       // Return empty array while cards are being linked
@@ -255,7 +261,7 @@ export default function Search() {
     }
     
     return searchData;
-  }, [data, shouldShowResults, preloadSearchResults, showEdhrecResults, deck.commander, edhrecData, linkedEdhrecCards, activeFilters]);
+  }, [data, shouldShowResults, preloadSearchResults, showEdhrecResults, deck.commander, edhrecData, linkedEdhrecCards, activeFilters, edhrecDisplayCount]);
 
 
 
@@ -305,20 +311,32 @@ export default function Search() {
       showEdhrecResults,
       viewMode,
       currentPages: data?.pages?.length,
-      totalCards: allCards.length
+      totalCards: allCards.length,
+      edhrecDisplayCount,
+      totalEdhrecCards: linkedEdhrecCards.length
     });
-    if (hasNextPage && !isFetching && shouldShowResults && !showEdhrecResults) {
+
+    if (showEdhrecResults) {
+      // Handle EDHREC pagination
+      const totalAvailable = linkedEdhrecCards.length;
+      if (edhrecDisplayCount < totalAvailable) {
+        const newCount = Math.min(edhrecDisplayCount + EDHREC_PAGE_SIZE, totalAvailable);
+        console.log('✅ Loading more EDHREC cards:', { from: edhrecDisplayCount, to: newCount, total: totalAvailable });
+        setEdhrecDisplayCount(newCount);
+      } else {
+        console.log('❌ No more EDHREC cards to load:', { displayed: edhrecDisplayCount, total: totalAvailable });
+      }
+    } else if (hasNextPage && !isFetching && shouldShowResults) {
       console.log('✅ Fetching next page...');
       fetchNextPage();
     } else {
       console.log('❌ Not fetching next page because:', {
         hasNextPage: !hasNextPage ? 'no more pages' : 'has more',
         isFetching: isFetching ? 'already fetching' : 'not fetching',
-        shouldShowResults: !shouldShowResults ? 'should not show results' : 'should show',
-        showEdhrecResults: showEdhrecResults ? 'showing edhrec' : 'not edhrec'
+        shouldShowResults: !shouldShowResults ? 'should not show results' : 'should show'
       });
     }
-  }, [hasNextPage, isFetching, fetchNextPage, shouldShowResults, showEdhrecResults, viewMode, data, allCards.length]);
+  }, [hasNextPage, isFetching, fetchNextPage, shouldShowResults, showEdhrecResults, viewMode, data, allCards.length, edhrecDisplayCount, linkedEdhrecCards.length, EDHREC_PAGE_SIZE]);
 
   const handleRetry = () => {
     refetch();
@@ -643,7 +661,7 @@ export default function Search() {
             <CardGrid
               cards={allCards}
               isLoading={isFetchingNextPage}
-              hasMore={hasNextPage || false}
+              hasMore={showEdhrecResults ? edhrecDisplayCount < linkedEdhrecCards.length : (hasNextPage || false)}
               onLoadMore={handleLoadMore}
               onRetry={handleRetry}
               error={error?.message}
