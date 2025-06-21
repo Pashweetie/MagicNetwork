@@ -1,7 +1,7 @@
 import { db } from "./db";
-import { cardCache, searchCache, users, cardThemes, themeVotes, decks, userDecks } from "@shared/schema";
+import { cardCache, searchCache, users, cardThemes, themeVotes, decks, userDecks, cards } from "@shared/schema";
 import { Card, SearchFilters, SearchResponse, User, InsertUser, Deck, InsertDeck, UserDeck, InsertUserDeck, DeckEntry, CardTheme, InsertCardTheme, ThemeVote, InsertThemeVote } from "@shared/schema";
-import { eq, sql, and, desc, asc, inArray, or } from "drizzle-orm";
+import { eq, sql, and, desc, asc, inArray, or, ilike } from "drizzle-orm";
 import crypto from "crypto";
 import { scryfallService } from "./services/scryfall";
 import { cardMatchesFilters } from "./utils/card-filters";
@@ -49,6 +49,7 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   private readonly CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours for card cache
   private readonly SEARCH_CACHE_TTL = 60 * 60 * 1000; // 1 hour for search cache
+  private cardDatabaseService: any = null;
 
   private generateQueryHash(filters: SearchFilters, page: number): string {
     const queryString = JSON.stringify({ filters, page });
@@ -479,16 +480,16 @@ export class DatabaseStorage implements IStorage {
   async importDeckFromText(userId: string, deckText: string, format?: string): Promise<{ success: boolean, message: string, importedCards: number, failedCards: string[] }> {
     try {
       const lines = deckText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-      const importedCards: Array<{cardId: string, quantity: number}> = [];
       const failedCards: string[] = [];
       let commander: Card | null = null;
 
-      console.log(`Starting import of ${lines.length} lines`);
+      console.log(`Starting bulk import of ${lines.length} lines`);
 
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        
-        if (line.startsWith('#') || line.startsWith('//') || line.length === 0) {
+      // Parse all card names from the deck text
+      const cardEntries: Array<{name: string, quantity: number, isCommander: boolean}> = [];
+      
+      for (const line of lines) {
+        if (line.startsWith('#') || line.startsWith('//') || line.length === 0 || line.toLowerCase().includes('commander:') || line.toLowerCase().includes('main deck:')) {
           continue;
         }
 
@@ -500,46 +501,55 @@ export class DatabaseStorage implements IStorage {
 
         const quantity = parseInt(match[1]);
         let cardName = match[2].trim();
+        
+        // Remove set codes in parentheses
         cardName = cardName.replace(/\s*\([^)]+\)\s*$/, '');
+        
+        // Check if it's a commander
         const isCommander = cardName.includes('*') || cardName.toLowerCase().includes('commander');
         cardName = cardName.replace(/\*|\s*commander\s*/gi, '').trim();
 
-        console.log(`Processing ${i + 1}/${lines.length}: ${cardName}`);
+        cardEntries.push({ name: cardName, quantity, isCommander });
+      }
 
-        try {
-          // Use simpler search approach - just search by name
-          const searchResult = await this.searchCards({ query: cardName }, 1);
-          
-          if (searchResult.data && searchResult.data.length > 0) {
-            // Try to find exact match first
-            const exactMatch = searchResult.data.find((card: any) => 
-              card.name.toLowerCase() === cardName.toLowerCase()
-            );
-            
-            const card = exactMatch || searchResult.data[0];
-            importedCards.push({ cardId: card.id, quantity });
-            
-            if (isCommander) {
-              commander = card;
-            }
-            
-            console.log(`Found: ${card.name}`);
-          } else {
-            failedCards.push(cardName);
-            console.log(`Failed to find: ${cardName}`);
-          }
-        } catch (error) {
-          console.error(`Error searching for card "${cardName}":`, error);
-          failedCards.push(cardName);
+      console.log(`Parsed ${cardEntries.length} card entries, searching database...`);
+
+      // Bulk search all card names at once using the database
+      const cardNames = cardEntries.map(entry => entry.name);
+      const foundCards = await this.bulkFindCardsByNames(cardNames);
+      
+      // Create lookup map for found cards
+      const cardMap = new Map<string, Card>();
+      foundCards.forEach(card => {
+        cardMap.set(card.name.toLowerCase(), card);
+        // Also add variations for double-faced cards
+        if (card.name.includes(' // ')) {
+          const mainName = card.name.split(' // ')[0];
+          cardMap.set(mainName.toLowerCase(), card);
         }
+      });
 
-        // Add small delay to prevent overwhelming the API
-        if (i < lines.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 50));
+      // Match entries to found cards
+      const importedCards: Array<{cardId: string, quantity: number}> = [];
+      
+      for (const entry of cardEntries) {
+        const foundCard = cardMap.get(entry.name.toLowerCase());
+        
+        if (foundCard) {
+          importedCards.push({ cardId: foundCard.id, quantity: entry.quantity });
+          
+          if (entry.isCommander) {
+            commander = foundCard;
+          }
+          
+          console.log(`Found: ${foundCard.name}`);
+        } else {
+          failedCards.push(entry.name);
+          console.log(`Failed to find: ${entry.name}`);
         }
       }
 
-      console.log(`Import complete: ${importedCards.length} imported, ${failedCards.length} failed`);
+      console.log(`Bulk import complete: ${importedCards.length} imported, ${failedCards.length} failed`);
 
       if (importedCards.length === 0) {
         return {
@@ -576,6 +586,70 @@ export class DatabaseStorage implements IStorage {
         failedCards: []
       };
     }
+  }
+
+  private async bulkFindCardsByNames(cardNames: string[]): Promise<Card[]> {
+    try {
+      console.log(`Searching for ${cardNames.length} cards in local database...`);
+      
+      // Direct database query for efficiency - search for exact matches first, then fuzzy
+      const exactMatches = await db.select()
+        .from(cards)
+        .where(
+          inArray(cards.name, cardNames)
+        );
+
+      const foundNames = new Set(exactMatches.map(c => c.name));
+      const remainingNames = cardNames.filter(name => !foundNames.has(name));
+      
+      let fuzzyMatches: any[] = [];
+      if (remainingNames.length > 0) {
+        // For remaining cards, try fuzzy matching
+        fuzzyMatches = await db.select()
+          .from(cards)
+          .where(
+            or(
+              ...remainingNames.map(name => 
+                or(
+                  ilike(cards.name, `%${name}%`),
+                  ilike(cards.name, `${name} //%`), // For double-faced cards
+                  ilike(cards.name, `%// ${name}`)   // For reverse side matches
+                )
+              )
+            )
+          );
+      }
+
+      const allResults = [...exactMatches, ...fuzzyMatches];
+      console.log(`Found ${allResults.length} cards in local database`);
+      
+      return allResults.map(this.convertDbCardToCard);
+    } catch (error) {
+      console.error('Bulk card search error:', error);
+      return [];
+    }
+  }
+
+  private convertDbCardToCard(dbCard: any): Card {
+    return {
+      id: dbCard.id,
+      name: dbCard.name,
+      mana_cost: dbCard.manaCost,
+      cmc: dbCard.cmc,
+      type_line: dbCard.typeLine,
+      oracle_text: dbCard.oracleText,
+      colors: dbCard.colors,
+      color_identity: dbCard.colorIdentity,
+      power: dbCard.power,
+      toughness: dbCard.toughness,
+      rarity: dbCard.rarity,
+      set: dbCard.setCode,
+      set_name: dbCard.setName,
+      image_uris: dbCard.imageUris,
+      card_faces: dbCard.cardFaces,
+      prices: dbCard.prices,
+      legalities: dbCard.legalities,
+    };
   }
 }
 
