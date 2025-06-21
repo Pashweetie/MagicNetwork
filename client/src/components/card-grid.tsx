@@ -32,23 +32,42 @@ export function CardGrid({ cards, isLoading, hasMore, onLoadMore, onRetry, error
 
   // Intersection Observer for infinite scroll
   useEffect(() => {
-    if (!observerRef.current || !hasMore || isLoading || cards.length === 0) return;
+    if (!observerRef.current || !hasMore || cards.length === 0) {
+      console.log('Skipping observer setup:', {
+        hasRef: !!observerRef.current,
+        hasMore,
+        isLoading,
+        cardsLength: cards.length
+      });
+      return;
+    }
+
+    console.log('Setting up intersection observer for infinite scroll');
 
     const observer = new IntersectionObserver(
       (entries) => {
+        console.log('Intersection observer triggered:', {
+          isIntersecting: entries[0].isIntersecting,
+          hasMore,
+          isLoading
+        });
         if (entries[0].isIntersecting && hasMore && !isLoading) {
+          console.log('Calling onLoadMore()');
           onLoadMore();
         }
       },
       {
-        rootMargin: '300px',
+        rootMargin: '100px',
         threshold: 0.1,
       }
     );
 
     observer.observe(observerRef.current);
 
-    return () => observer.disconnect();
+    return () => {
+      console.log('Cleaning up intersection observer');
+      observer.disconnect();
+    };
   }, [hasMore, isLoading, onLoadMore, cards.length]);
 
   if (error) {
@@ -124,14 +143,17 @@ export function CardGrid({ cards, isLoading, hasMore, onLoadMore, onRetry, error
       {hasMore && (
         <div
           ref={observerRef}
-          className="flex justify-center py-8"
+          className="flex justify-center py-8 min-h-[50px] bg-red-500/10 border border-red-500/30"
+          style={{ backgroundColor: 'rgba(255, 0, 0, 0.1)' }}
         >
           {isLoading ? (
             <div className="flex items-center space-x-2 text-slate-400">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>Loading more cards...</span>
             </div>
-          ) : null}
+          ) : (
+            <div className="text-slate-500 text-sm">Scroll trigger zone</div>
+          )}
         </div>
       )}
 
