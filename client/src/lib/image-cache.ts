@@ -30,6 +30,7 @@ class ImageCacheManager {
   // Statistics
   private hits = 0;
   private misses = 0;
+  private bandwidthSaved = 0; // bytes saved from cache hits
 
   async initialize(): Promise<void> {
     if (this.db) return;
@@ -57,6 +58,10 @@ class ImageCacheManager {
     // Check memory cache first
     if (this.memoryCache.has(url)) {
       this.hits++;
+      // Log bandwidth saved (estimate average card image size)
+      const estimatedSize = 150 * 1024; // 150KB average
+      this.bandwidthSaved += estimatedSize;
+      console.log(`[Cache] Memory hit for ${url} - Bandwidth saved: ${this.formatBytes(estimatedSize)} (Total saved: ${this.formatBytes(this.bandwidthSaved)})`);
       return this.memoryCache.get(url)!;
     }
 
@@ -66,11 +71,14 @@ class ImageCacheManager {
       const blobUrl = URL.createObjectURL(cached.blob);
       this.addToMemoryCache(url, blobUrl);
       this.hits++;
+      this.bandwidthSaved += cached.size;
+      console.log(`[Cache] IndexedDB hit for ${url} - Bandwidth saved: ${this.formatBytes(cached.size)} (Total saved: ${this.formatBytes(this.bandwidthSaved)})`);
       return blobUrl;
     }
 
     // Cache miss
     this.misses++;
+    console.log(`[Cache] Miss for ${url} - Not in cache`);
     return null;
   }
 
@@ -101,6 +109,7 @@ class ImageCacheManager {
         throw new Error('Response is not an image');
       }
       
+      console.log(`[Cache] Downloaded ${url} - Size: ${this.formatBytes(blob.size)}`);
       const blobUrl = URL.createObjectURL(blob);
 
       // Store in IndexedDB (don't await to avoid blocking)
