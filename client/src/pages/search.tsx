@@ -651,6 +651,11 @@ export default function Search() {
                 onRetry={handleRetry}
                 error={error?.message}
               />
+              
+              {/* Debug info */}
+              <div className="text-xs text-slate-500 p-4 bg-slate-800 mt-4">
+                {`Debug: hasNextPage=${hasNextPage}, isFetching=${isFetching}, isFetchingNextPage=${isFetchingNextPage}, pages=${data?.pages?.length || 0}, totalCards=${allCards.length}`}
+              </div>
             )}
 
             {/* Initial loading indicator */}
