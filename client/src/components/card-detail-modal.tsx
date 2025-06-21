@@ -6,6 +6,7 @@ import { Lightbulb, GitMerge, Copy, AlertCircle, Plus, ThumbsUp, ThumbsDown } fr
 import { ThemeSuggestions } from "./theme-suggestions";
 import { ThemeBasedSynergies } from "./theme-based-synergies";
 import { SharedCardTile } from "./shared-card-tile";
+import { CachedImage } from "@/components/cached-image";
 import { Card } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { useDeck } from "@/hooks/use-deck";

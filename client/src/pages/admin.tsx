@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Database, Download, RefreshCw, CheckCircle, AlertCircle } from "lucide-react";
+import { Database, Download, RefreshCw, CheckCircle, AlertCircle, Image, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useImageCacheStats } from "@/hooks/use-cached-image";
 
 interface DownloadProgress {
   current: number;
@@ -360,6 +361,76 @@ export function AdminPage() {
             <strong>Note:</strong> Initial download may take 10-15 minutes depending on your connection.
             The database contains over 100,000 cards.
           </p>
+        </CardContent>
+      </Card>
+
+      {/* Image Cache Management */}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Image className="w-5 h-5 mr-2" />
+            Image Cache Management
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-slate-800 p-3 rounded-lg">
+              <div className="text-sm text-slate-400">Cached Images</div>
+              <div className="text-lg font-semibold text-white">{stats.totalImages}</div>
+            </div>
+            <div className="bg-slate-800 p-3 rounded-lg">
+              <div className="text-sm text-slate-400">Cache Size</div>
+              <div className="text-lg font-semibold text-white">{formatBytes(stats.totalSize)}</div>
+            </div>
+            <div className="bg-slate-800 p-3 rounded-lg">
+              <div className="text-sm text-slate-400">Hit Rate</div>
+              <div className="text-lg font-semibold text-green-400">{stats.hitRate.toFixed(1)}%</div>
+            </div>
+            <div className="bg-slate-800 p-3 rounded-lg">
+              <div className="text-sm text-slate-400">Miss Rate</div>
+              <div className="text-lg font-semibold text-red-400">{stats.missRate.toFixed(1)}%</div>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              onClick={refreshStats}
+              variant="outline"
+              size="sm"
+              className="flex items-center"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh Stats
+            </Button>
+            <Button
+              onClick={async () => {
+                await clearCache();
+                toast({
+                  title: "Cache cleared",
+                  description: "All cached images have been removed.",
+                });
+              }}
+              variant="destructive"
+              size="sm"
+              className="flex items-center"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Clear Cache
+            </Button>
+          </div>
+
+          <div className="text-sm text-muted-foreground space-y-2">
+            <p>
+              The image cache stores card images locally in your browser to reduce bandwidth usage 
+              and improve loading times.
+            </p>
+            <ul className="list-disc list-inside space-y-1 ml-4">
+              <li>Images are cached for 7 days before expiring</li>
+              <li>Maximum cache size is 500MB</li>
+              <li>Oldest images are automatically removed when cache is full</li>
+              <li>Cache persists between browser sessions</li>
+            </ul>
+          </div>
         </CardContent>
       </Card>
     </div>

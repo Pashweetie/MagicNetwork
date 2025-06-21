@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Minus, Crown } from "lucide-react";
 import { CardUtils, COLOR_MAPPING } from "@shared/utils/card-utils";
+import { CachedImage } from "@/components/cached-image";
 
 interface BaseCardTileProps {
   card: Card;
@@ -62,18 +63,12 @@ function SearchVariant({
     >
       <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700 hover:border-slate-500">
         <div className="aspect-[3/4] relative">
-          {cardImage ? (
-            <img
-              src={cardImage}
-              alt={card.name}
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-          ) : (
-            <div className="w-full h-full bg-slate-600 flex items-center justify-center">
-              <span className="text-slate-400 text-sm">No Image</span>
-            </div>
-          )}
+          <CachedImage
+            src={cardImage}
+            alt={card.name}
+            className="w-full h-full object-cover"
+            lazy={true}
+          />
           {/* Price overlay in bottom left corner */}
           {price && (
             <div className="absolute bottom-2 left-2 bg-black/60 text-green-400 text-xs px-1.5 py-0.5 rounded font-medium">
@@ -108,26 +103,12 @@ function DeckVariant({
         className="aspect-[2.5/3.5] bg-slate-700 rounded-lg overflow-hidden cursor-pointer transition-transform hover:scale-110 hover:z-20"
         onClick={() => onClick(card)}
       >
-        {cardImage ? (
-          <img
-            src={cardImage}
-            alt={card.name}
-            className="w-full h-full object-cover"
-            loading="lazy"
-            onError={(e) => {
-              const img = e.target as HTMLImageElement;
-              img.style.display = 'none';
-              const parent = img.parentElement;
-              if (parent) {
-                parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-slate-400 bg-slate-800"><span class="text-xs text-center p-2">${card.name}</span></div>`;
-              }
-            }}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-slate-400">
-            <span className="text-xs text-center p-2">{card.name}</span>
-          </div>
-        )}
+        <CachedImage
+          src={cardImage}
+          alt={card.name}
+          className="w-full h-full object-cover"
+          priority={true}
+        />
       </div>
 
       {/* Quantity Badge */}
