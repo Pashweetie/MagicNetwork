@@ -13,16 +13,23 @@ interface CardGridProps {
   onLoadMore: () => void;
   onRetry?: () => void;
   error?: string | null;
+  viewMode?: string;
+  deck?: any;
+  onCardClick?: (card: Card) => void;
 }
 
-export function CardGrid({ cards, isLoading, hasMore, onLoadMore, onRetry, error }: CardGridProps) {
+export function CardGrid({ cards, isLoading, hasMore, onLoadMore, onRetry, error, viewMode = "grid", deck, onCardClick }: CardGridProps) {
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const observerRef = useRef<HTMLDivElement>(null);
 
   const handleCardClick = (card: Card) => {
-    setSelectedCard(card);
-    setIsModalOpen(true);
+    if (onCardClick) {
+      onCardClick(card);
+    } else {
+      setSelectedCard(card);
+      setIsModalOpen(true);
+    }
   };
 
   const handleCloseModal = () => {
@@ -32,13 +39,30 @@ export function CardGrid({ cards, isLoading, hasMore, onLoadMore, onRetry, error
 
   // Intersection Observer for infinite scroll
   useEffect(() => {
+    console.log('📺 CardGrid intersection observer setup:', { 
+      hasObserverRef: !!observerRef.current, 
+      hasMore, 
+      isLoading,
+      cardsCount: cards.length 
+    });
+    
     if (!observerRef.current || !hasMore) {
+      console.log('❌ CardGrid observer not created:', { 
+        noRef: !observerRef.current, 
+        noMore: !hasMore 
+      });
       return;
     }
 
     const observer = new IntersectionObserver(
       (entries) => {
+        console.log('👁️ CardGrid intersection triggered:', { 
+          isIntersecting: entries[0].isIntersecting, 
+          hasMore, 
+          isLoading 
+        });
         if (entries[0].isIntersecting && hasMore && !isLoading) {
+          console.log('🚀 CardGrid calling onLoadMore...');
           onLoadMore();
         }
       },
@@ -51,7 +75,7 @@ export function CardGrid({ cards, isLoading, hasMore, onLoadMore, onRetry, error
     observer.observe(observerRef.current);
 
     return () => observer.disconnect();
-  }, [hasMore, isLoading, onLoadMore]);
+  }, [hasMore, isLoading, onLoadMore, cards.length]);
 
   if (error) {
     return (
@@ -93,12 +117,18 @@ export function CardGrid({ cards, isLoading, hasMore, onLoadMore, onRetry, error
   return (
     <>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-        {cards.filter(card => card && card.type_line && card.name).map((card) => (
+        {cards.filter(card => card && card.type_line && card.name).map((card, index) => (
           <SharedCardTile
-            key={card.id}
-            variant="search"
+            key={`${card.id}-${index}`}
+            variant={deck ? "deck" : "search"}
             card={card}
+            quantity={deck?.getCardQuantity(card.id)}
+            maxCopies={deck?.getMaxCopies(card)}
+            onAdd={deck ? () => deck.addCard(card) : undefined}
+            onRemove={deck ? () => deck.removeCard(card.id) : undefined}
             onClick={handleCardClick}
+            onSetCommander={deck?.format?.name === 'Commander' ? deck.setCommanderFromCard : undefined}
+            isCommander={deck?.commander?.id === card.id}
           />
         ))}
         

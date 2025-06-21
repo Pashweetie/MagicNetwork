@@ -298,10 +298,27 @@ export default function Search() {
   };
 
   const handleLoadMore = useCallback(() => {
+    console.log('🔄 handleLoadMore called:', { 
+      hasNextPage, 
+      isFetching, 
+      shouldShowResults, 
+      showEdhrecResults,
+      viewMode,
+      currentPages: data?.pages?.length,
+      totalCards: allCards.length
+    });
     if (hasNextPage && !isFetching && shouldShowResults && !showEdhrecResults) {
+      console.log('✅ Fetching next page...');
       fetchNextPage();
+    } else {
+      console.log('❌ Not fetching next page because:', {
+        hasNextPage: !hasNextPage ? 'no more pages' : 'has more',
+        isFetching: isFetching ? 'already fetching' : 'not fetching',
+        shouldShowResults: !shouldShowResults ? 'should not show results' : 'should show',
+        showEdhrecResults: showEdhrecResults ? 'showing edhrec' : 'not edhrec'
+      });
     }
-  }, [hasNextPage, isFetching, fetchNextPage, shouldShowResults, showEdhrecResults]);
+  }, [hasNextPage, isFetching, fetchNextPage, shouldShowResults, showEdhrecResults, viewMode, data, allCards.length]);
 
   const handleRetry = () => {
     refetch();
@@ -623,33 +640,17 @@ export default function Search() {
               </div>
             )}
             
-            {viewMode === "grid" ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-                {allCards.filter(card => card && card.type_line && card.name).map((card, index) => (
-                  <SharedCardTile
-                    key={`${card.id}-${index}`}
-                    variant="deck"
-                    card={card}
-                    quantity={deck.getCardQuantity(card.id)}
-                    maxCopies={deck.getMaxCopies(card)}
-                    onAdd={() => deck.addCard(card)}
-                    onRemove={() => deck.removeCard(card.id)}
-                    onClick={handleCardClick}
-                    onSetCommander={deck.format.name === 'Commander' ? deck.setCommanderFromCard : undefined}
-                    isCommander={deck.commander?.id === card.id}
-                  />
-                ))}
-              </div>
-            ) : (
-              <CardGrid
-                cards={allCards}
-                isLoading={isFetchingNextPage}
-                hasMore={hasNextPage || false}
-                onLoadMore={handleLoadMore}
-                onRetry={handleRetry}
-                error={error?.message}
-              />
-            )}
+            <CardGrid
+              cards={allCards}
+              isLoading={isFetchingNextPage}
+              hasMore={hasNextPage || false}
+              onLoadMore={handleLoadMore}
+              onRetry={handleRetry}
+              error={error?.message}
+              viewMode={viewMode}
+              deck={deck}
+              onCardClick={handleCardClick}
+            />
 
             {/* Initial loading indicator */}
             {isLoading && !allCards.length && (
