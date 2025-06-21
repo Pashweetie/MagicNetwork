@@ -34,12 +34,12 @@ export interface EdhrecRecommendations {
 }
 
 export class EdhrecService {
-  private readonly BASE_URL = 'https://api.edhrec.com/v1';
+  private readonly BASE_URL = 'https://edhrec.com';
   private cache = new Map<string, { data: EdhrecRecommendations; timestamp: number }>();
   private readonly CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
   private normalizeCommanderName(name: string): string {
-    // EDHREC expects commander names in lowercase with specific formatting
+    // EDHREC expects commander names in lowercase with specific formatting for URLs
     return name.toLowerCase()
       .replace(/[^\w\s-]/g, '') // Remove special characters except hyphens
       .replace(/\s+/g, '-') // Replace spaces with hyphens
@@ -47,22 +47,25 @@ export class EdhrecService {
       .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
   }
 
-  private async fetchFromEdhrec(url: string): Promise<any> {
+  private async fetchCommanderPage(commanderName: string): Promise<string> {
     try {
+      const normalizedName = this.normalizeCommanderName(commanderName);
+      const url = `${this.BASE_URL}/commanders/${normalizedName}`;
+      
       const response = await fetch(url, {
         headers: {
-          'User-Agent': 'MTG-Deck-Builder/1.0',
-          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; MTG-Deck-Builder/1.0)',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         },
       });
 
       if (!response.ok) {
-        throw new Error(`EDHREC API error: ${response.status} ${response.statusText}`);
+        throw new Error(`EDHREC page error: ${response.status} ${response.statusText}`);
       }
 
-      return await response.json();
+      return await response.text();
     } catch (error) {
-      console.error('Error fetching from EDHREC:', error);
+      console.error('Error fetching EDHREC page:', error);
       throw error;
     }
   }
@@ -78,29 +81,8 @@ export class EdhrecService {
     }
 
     try {
-      // Try different EDHREC endpoints
-      const endpoints = [
-        `/commanders/${commanderName}`,
-        `/recs/${commanderName}`,
-        `/cards/${commanderName}`
-      ];
-
-      let recommendations: EdhrecRecommendations | null = null;
-
-      for (const endpoint of endpoints) {
-        try {
-          const url = `${this.BASE_URL}${endpoint}`;
-          const data = await this.fetchFromEdhrec(url);
-          
-          if (data && (data.cards || data.recommendations)) {
-            recommendations = this.formatEdhrecData(data, commander);
-            break;
-          }
-        } catch (error) {
-          console.log(`Failed to fetch from ${endpoint}, trying next...`);
-          continue;
-        }
-      }
+      const pageContent = await this.fetchCommanderPage(commander.name);
+      const recommendations = this.parseEdhrecPage(pageContent, commander);
 
       if (recommendations) {
         // Cache the result
@@ -116,6 +98,120 @@ export class EdhrecService {
       console.error('Error getting EDHREC recommendations:', error);
       return null;
     }
+  }
+
+  private parseEdhrecPage(html: string, commander: Card): EdhrecRecommendations | null {
+    try {
+      // Look for JSON data embedded in the page (many sites embed data this way)
+      const jsonDataMatch = html.match(/window\.__NEXT_DATA__\s*=\s*({.*?})\s*<\/script>/s) ||
+                          html.match(/"props":\s*({.*?"pageProps".*?})/s) ||
+                          html.match(/data-initial-props="([^"]*)"/) ||
+                          html.match(/var\s+cardData\s*=\s*({.*?});/s);
+
+      if (jsonDataMatch) {
+        try {
+          const jsonStr = jsonDataMatch[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+          const data = JSON.parse(jsonStr);
+          
+          // Try to extract card recommendations from the parsed data
+          if (data.pageProps?.initialData?.recommendations) {
+            return this.formatEdhrecData(data.pageProps.initialData, commander);
+          }
+          
+          if (data.props?.pageProps?.recommendations) {
+            return this.formatEdhrecData(data.props.pageProps, commander);
+          }
+        } catch (parseError) {
+          console.log('Failed to parse embedded JSON data');
+        }
+      }
+
+      // Fallback: try to extract card names from HTML structure
+      const cardMatches = html.match(/data-card-name="([^"]+)"/g) || [];
+      const cardNames = cardMatches.map(match => 
+        match.replace('data-card-name="', '').replace('"', '')
+      );
+
+      if (cardNames.length > 0) {
+        return this.createRecommendationsFromNames(cardNames, commander);
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error parsing EDHREC page:', error);
+      return null;
+    }
+  }
+
+  private createRecommendationsFromNames(cardNames: string[], commander: Card): EdhrecRecommendations {
+    const cards = cardNames.map(name => ({
+      name,
+      url: `https://edhrec.com/cards/${encodeURIComponent(name.toLowerCase().replace(/\s+/g, '-'))}`,
+      num_decks: 1000, // Default placeholder
+      synergy: 50,     // Default placeholder
+      price: 0,        // Default placeholder
+      color_identity: [],
+      type_line: 'Unknown',
+      cmc: 0
+    }));
+
+    // Categorize cards by type (simple heuristic based on name patterns)
+    const creatures = cards.filter(c => this.isLikelyCreature(c.name));
+    const instants = cards.filter(c => this.isLikelyInstant(c.name));
+    const sorceries = cards.filter(c => this.isLikelySorcery(c.name));
+    const artifacts = cards.filter(c => this.isLikelyArtifact(c.name));
+    const enchantments = cards.filter(c => this.isLikelyEnchantment(c.name));
+    const lands = cards.filter(c => this.isLikelyLand(c.name));
+    const remaining = cards.filter(c => 
+      !creatures.includes(c) && !instants.includes(c) && !sorceries.includes(c) &&
+      !artifacts.includes(c) && !enchantments.includes(c) && !lands.includes(c)
+    );
+
+    return {
+      commander: commander.name,
+      total_decks: 5000,
+      updated_at: new Date().toISOString(),
+      cards: {
+        creatures: creatures.slice(0, 15),
+        instants: instants.slice(0, 10),
+        sorceries: sorceries.slice(0, 10),
+        artifacts: artifacts.slice(0, 10),
+        enchantments: enchantments.slice(0, 10),
+        planeswalkers: [],
+        lands: lands.slice(0, 10)
+      },
+      themes: []
+    };
+  }
+
+  private isLikelyCreature(name: string): boolean {
+    const lowerName = name.toLowerCase();
+    return /\b(creature|beast|dragon|angel|demon|spirit|elemental|wizard|warrior|knight|soldier)\b/.test(lowerName);
+  }
+
+  private isLikelyInstant(name: string): boolean {
+    const lowerName = name.toLowerCase();
+    return /\b(bolt|shock|path|counter|response|protection|pump)\b/.test(lowerName);
+  }
+
+  private isLikelySorcery(name: string): boolean {
+    const lowerName = name.toLowerCase();
+    return /\b(draw|tutor|search|wrath|board|clear|ramp)\b/.test(lowerName);
+  }
+
+  private isLikelyArtifact(name: string): boolean {
+    const lowerName = name.toLowerCase();
+    return /\b(mana|rock|equipment|sword|hammer|ring|crown|throne|vault|forge)\b/.test(lowerName);
+  }
+
+  private isLikelyEnchantment(name: string): boolean {
+    const lowerName = name.toLowerCase();
+    return /\b(aura|curse|blessing|bond|pact|oath|vow)\b/.test(lowerName);
+  }
+
+  private isLikelyLand(name: string): boolean {
+    const lowerName = name.toLowerCase();
+    return /\b(land|island|mountain|forest|plains|swamp|gate|shore|peak|grove)\b/.test(lowerName);
   }
 
   private formatEdhrecData(data: any, commander: Card): EdhrecRecommendations {
