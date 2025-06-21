@@ -38,7 +38,8 @@ export interface EdhrecRecommendations {
 export class EdhrecService {
   private readonly BASE_URL = 'https://json.edhrec.com/pages/commanders';
   private cache = new Map<string, { data: EdhrecRecommendations; timestamp: number }>();
-  private readonly CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+  private readonly CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days for better caching
+  private requestQueue: Map<string, Promise<any>> = new Map(); // Prevent duplicate requests
 
   private normalizeCommanderName(name: string): string {
     // EDHREC expects commander names in lowercase with no symbols and dashes instead of spaces
@@ -86,6 +87,38 @@ export class EdhrecService {
       return cached.data;
     }
 
+    // Check if request is already in progress to prevent duplicate API calls
+    if (this.requestQueue.has(cacheKey)) {
+      return await this.requestQueue.get(cacheKey);
+    }
+
+    try {
+      // Create a promise for this request to prevent duplicates
+      const requestPromise = this.fetchCommanderData(commander);
+      this.requestQueue.set(cacheKey, requestPromise);
+
+      const recommendations = await requestPromise;
+      
+      // Remove from queue and cache result
+      this.requestQueue.delete(cacheKey);
+      
+      if (recommendations) {
+        this.cache.set(cacheKey, {
+          data: recommendations,
+          timestamp: Date.now()
+        });
+        return recommendations;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error getting EDHREC recommendations:', error);
+      this.requestQueue.delete(cacheKey);
+      return null;
+    }
+  }
+
+  private async fetchCommanderData(commander: Card): Promise<EdhrecRecommendations | null> {
     try {
       // Since EDHREC blocks direct API access, we'll use a shell command approach
       const execAsync = promisify(exec);
@@ -111,20 +144,9 @@ export class EdhrecService {
         throw new Error('Invalid EDHREC response format');
       }
 
-      const recommendations = this.formatEdhrecData(edhrecData, commander);
-
-      if (recommendations) {
-        // Cache the result
-        this.cache.set(cacheKey, {
-          data: recommendations,
-          timestamp: Date.now()
-        });
-        return recommendations;
-      }
-
-      return null;
+      return this.formatEdhrecData(edhrecData, commander);
     } catch (error) {
-      console.error('Error getting EDHREC recommendations:', error);
+      console.error('Error fetching EDHREC data:', error);
       return null;
     }
   }
@@ -146,6 +168,28 @@ export class EdhrecService {
         cmc: card.cmc || card.mana_cost || card.converted_mana_cost || 0,
         oracle_text: card.oracle_text || card.text || card.oracle
       }));
+    };
+
+    const extractThemes = (data: any): Array<{name: string, url: string, num_decks: number, cards: EdhrecCard[]}> => {
+      const themes: Array<{name: string, url: string, num_decks: number, cards: EdhrecCard[]}> = [];
+      
+      // Look for theme sections in the data
+      const cardlists = data.container?.json_dict?.cardlists || data.cardlists || [];
+      
+      cardlists.forEach((section: any) => {
+        const sectionName = section.tag || section.header || '';
+        if (sectionName && !['creatures', 'instants', 'sorceries', 'artifacts', 'enchantments', 'planeswalkers', 'lands'].includes(sectionName.toLowerCase())) {
+          // This might be a theme section
+          themes.push({
+            name: sectionName,
+            url: `https://edhrec.com/themes/${encodeURIComponent(sectionName.toLowerCase().replace(/\s+/g, '-'))}`,
+            num_decks: section.num_decks || 0,
+            cards: formatCards(section.cardviews || section.cards || []).slice(0, 20) // Limit theme cards to 20
+          });
+        }
+      });
+      
+      return themes;
     };
 
     // Extract card recommendations from EDHREC JSON structure
