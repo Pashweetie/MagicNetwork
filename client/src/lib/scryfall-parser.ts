@@ -22,6 +22,18 @@ export class ScryfallParser {
       parts.push(typeQuery);
     }
 
+    // Subtypes
+    if (filters.subtypes?.length) {
+      const subtypeQuery = filters.subtypes.map(st => `st:${st.toLowerCase()}`).join(' ');
+      parts.push(subtypeQuery);
+    }
+
+    // Supertypes
+    if (filters.supertypes?.length) {
+      const supertypeQuery = filters.supertypes.map(sup => `sup:${sup.toLowerCase()}`).join(' ');
+      parts.push(supertypeQuery);
+    }
+
     // Rarities
     if (filters.rarities?.length) {
       const rarityQuery = filters.rarities.map(r => `r:${r.toLowerCase()}`).join(' ');
@@ -46,6 +58,143 @@ export class ScryfallParser {
       parts.push(`cmc>=${filters.minMv}`);
     } else if (filters.maxMv !== undefined) {
       parts.push(`cmc<=${filters.maxMv}`);
+    }
+
+    // Power/Toughness
+    if (filters.power !== undefined) {
+      parts.push(`pow:${filters.power}`);
+    } else {
+      if (filters.minPower !== undefined && filters.maxPower !== undefined) {
+        if (filters.minPower === filters.maxPower) {
+          parts.push(`pow:${filters.minPower}`);
+        } else {
+          parts.push(`pow>=${filters.minPower}`, `pow<=${filters.maxPower}`);
+        }
+      } else if (filters.minPower !== undefined) {
+        parts.push(`pow>=${filters.minPower}`);
+      } else if (filters.maxPower !== undefined) {
+        parts.push(`pow<=${filters.maxPower}`);
+      }
+    }
+
+    if (filters.toughness !== undefined) {
+      parts.push(`tou:${filters.toughness}`);
+    } else {
+      if (filters.minToughness !== undefined && filters.maxToughness !== undefined) {
+        if (filters.minToughness === filters.maxToughness) {
+          parts.push(`tou:${filters.minToughness}`);
+        } else {
+          parts.push(`tou>=${filters.minToughness}`, `tou<=${filters.maxToughness}`);
+        }
+      } else if (filters.minToughness !== undefined) {
+        parts.push(`tou>=${filters.minToughness}`);
+      } else if (filters.maxToughness !== undefined) {
+        parts.push(`tou<=${filters.maxToughness}`);
+      }
+    }
+
+    // Loyalty
+    if (filters.loyalty !== undefined) {
+      parts.push(`loy:${filters.loyalty}`);
+    } else {
+      if (filters.minLoyalty !== undefined && filters.maxLoyalty !== undefined) {
+        if (filters.minLoyalty === filters.maxLoyalty) {
+          parts.push(`loy:${filters.minLoyalty}`);
+        } else {
+          parts.push(`loy>=${filters.minLoyalty}`, `loy<=${filters.maxLoyalty}`);
+        }
+      } else if (filters.minLoyalty !== undefined) {
+        parts.push(`loy>=${filters.minLoyalty}`);
+      } else if (filters.maxLoyalty !== undefined) {
+        parts.push(`loy<=${filters.maxLoyalty}`);
+      }
+    }
+
+    // Year
+    if (filters.year !== undefined) {
+      parts.push(`year:${filters.year}`);
+    } else {
+      if (filters.minYear !== undefined && filters.maxYear !== undefined) {
+        parts.push(`year>=${filters.minYear}`, `year<=${filters.maxYear}`);
+      } else if (filters.minYear !== undefined) {
+        parts.push(`year>=${filters.minYear}`);
+      } else if (filters.maxYear !== undefined) {
+        parts.push(`year<=${filters.maxYear}`);
+      }
+    }
+
+    // Legal/Format
+    if (filters.legal) {
+      parts.push(`legal:${filters.legal}`);
+    }
+    if (filters.banned) {
+      parts.push(`banned:${filters.banned}`);
+    }
+    if (filters.restricted) {
+      parts.push(`restricted:${filters.restricted}`);
+    }
+
+    // Sets
+    if (filters.sets?.length) {
+      const setQuery = filters.sets.map(s => `s:${s}`).join(' ');
+      parts.push(setQuery);
+    }
+
+    // Block
+    if (filters.block) {
+      parts.push(`block:${filters.block}`);
+    }
+
+    // Layout and Frame
+    if (filters.layout) {
+      parts.push(`layout:${filters.layout}`);
+    }
+    if (filters.frame) {
+      parts.push(`frame:${filters.frame}`);
+    }
+    if (filters.frameEffects?.length) {
+      const feQuery = filters.frameEffects.map(fe => `fe:${fe}`).join(' ');
+      parts.push(feQuery);
+    }
+
+    // Watermark
+    if (filters.watermark) {
+      parts.push(`wm:${filters.watermark}`);
+    }
+
+    // Language
+    if (filters.language) {
+      parts.push(`lang:${filters.language}`);
+    }
+
+    // Game and Cube
+    if (filters.game) {
+      parts.push(`game:${filters.game}`);
+    }
+    if (filters.cube) {
+      parts.push(`cube:${filters.cube}`);
+    }
+
+    // Is/Not modifiers
+    if (filters.is?.length) {
+      const isQuery = filters.is.map(i => `is:${i}`).join(' ');
+      parts.push(isQuery);
+    }
+    if (filters.not?.length) {
+      const notQuery = filters.not.map(n => `not:${n}`).join(' ');
+      parts.push(notQuery);
+    }
+
+    // Keywords
+    if (filters.keywords?.length) {
+      const keywordQuery = filters.keywords.map(k => `k:${k}`).join(' ');
+      parts.push(keywordQuery);
+    }
+
+    // Produces
+    if (filters.produces?.length) {
+      const producesQuery = filters.produces.map(p => `produces:${p}`).join(' ');
+      parts.push(producesQuery);
     }
 
     // Set
@@ -231,6 +380,17 @@ export class ScryfallQueryParser {
       case 'types':
         ScryfallQueryParser.parseTypes(value, filters);
         break;
+      case 'st':
+      case 'subtype':
+      case 'subtypes':
+        ScryfallQueryParser.parseSubtypes(value, filters);
+        break;
+      case 'sup':
+      case 'super':
+      case 'supertype':
+      case 'supertypes':
+        ScryfallQueryParser.parseSupertypes(value, filters);
+        break;
       case 'r':
       case 'rarity':
         ScryfallQueryParser.parseRarities(value, filters);
@@ -238,6 +398,15 @@ export class ScryfallQueryParser {
       case 'f':
       case 'format':
         filters.format = value;
+        break;
+      case 'legal':
+        filters.legal = value;
+        break;
+      case 'banned':
+        filters.banned = value;
+        break;
+      case 'restricted':
+        filters.restricted = value;
         break;
       case 'mv':
       case 'manavalue':
@@ -250,7 +419,15 @@ export class ScryfallQueryParser {
         break;
       case 's':
       case 'set':
-        filters.set = value;
+        if (value.includes(',') || value.includes('|')) {
+          filters.sets = value.split(/[,|]/).map(s => s.trim());
+        } else {
+          filters.set = value;
+        }
+        break;
+      case 'block':
+      case 'b':
+        filters.block = value;
         break;
       case 'a':
       case 'artist':
@@ -258,15 +435,15 @@ export class ScryfallQueryParser {
         break;
       case 'pow':
       case 'power':
-        filters.power = value;
+        ScryfallQueryParser.parsePowerToughness(value, filters, 'power');
         break;
       case 'tou':
       case 'toughness':
-        filters.toughness = value;
+        ScryfallQueryParser.parsePowerToughness(value, filters, 'toughness');
         break;
       case 'loy':
       case 'loyalty':
-        filters.loyalty = value;
+        ScryfallQueryParser.parseLoyalty(value, filters);
         break;
       case 'usd':
       case 'price':
@@ -285,6 +462,40 @@ export class ScryfallQueryParser {
       case 'produces':
       case 'mana':
         ScryfallQueryParser.parseProduces(value, filters);
+        break;
+      case 'year':
+      case 'y':
+        ScryfallQueryParser.parseYear(value, filters);
+        break;
+      case 'layout':
+        filters.layout = value;
+        break;
+      case 'frame':
+        filters.frame = value;
+        break;
+      case 'frameeffects':
+      case 'fe':
+        ScryfallQueryParser.parseFrameEffects(value, filters);
+        break;
+      case 'watermark':
+      case 'wm':
+        filters.watermark = value;
+        break;
+      case 'lang':
+      case 'language':
+        filters.language = value;
+        break;
+      case 'game':
+        filters.game = value;
+        break;
+      case 'cube':
+        filters.cube = value;
+        break;
+      case 'is':
+        ScryfallQueryParser.parseIs(value, filters);
+        break;
+      case 'not':
+        ScryfallQueryParser.parseNot(value, filters);
         break;
     }
   }
