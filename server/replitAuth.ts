@@ -128,31 +128,54 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  const user = req.user as any;
-
-  if (!req.isAuthenticated() || !user.expires_at) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  if (now <= user.expires_at) {
-    return next();
-  }
-
-  const refreshToken = user.refresh_token;
-  if (!refreshToken) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
-  }
-
   try {
-    const config = await getOidcConfig();
-    const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
-    updateUserSession(user, tokenResponse);
+    // Check if user is already authenticated via Replit auth
+    if (req.isAuthenticated() && req.user) {
+      const user = req.user as any;
+      if (user.expires_at) {
+        const now = Math.floor(Date.now() / 1000);
+        if (now <= user.expires_at) {
+          return next();
+        }
+        // Try to refresh token if expired
+        const refreshToken = user.refresh_token;
+        if (refreshToken) {
+          try {
+            const config = await getOidcConfig();
+            const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
+            updateUserSession(user, tokenResponse);
+            return next();
+          } catch (error) {
+            // Fall through to auto-assign anonymous user
+          }
+        }
+      }
+    }
+
+    // Auto-assign anonymous user token for API protection
+    let userId = (req.session as any)?.autoUserId;
+    
+    if (!userId) {
+      // Generate a unique anonymous user ID
+      userId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      (req.session as any).autoUserId = userId;
+      
+      // Create anonymous user in database
+      await storage.createUser({
+        username: userId,
+        email: `${userId}@anonymous.local`,
+        isAdmin: false
+      });
+      
+      console.log(`🔑 Auto-assigned user token: ${userId}`);
+    }
+
+    // Attach anonymous user to request
+    (req as any).user = { claims: { sub: userId } };
     return next();
   } catch (error) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
+    console.error("Auto-authentication error:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
