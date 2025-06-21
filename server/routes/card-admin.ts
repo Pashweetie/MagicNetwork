@@ -61,7 +61,7 @@ export function registerCardAdminRoutes(app: Express) {
     try {
       const lastUpdate = await cardDatabaseService.getLastUpdateTime();
       const daysSinceUpdate = lastUpdate ? 
-        (Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24) : null;
+        (Date.now() - new Date(lastUpdate).getTime()) / (1000 * 60 * 60 * 24) : null;
       
       res.json({ 
         lastUpdate: lastUpdate?.toISOString() || null,

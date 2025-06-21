@@ -696,7 +696,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate recommendations for popular cards (admin endpoint)
-  app.post("/api/admin/generate-recommendations", async (req, res) => {
+  app.post("/api/admin/generate-recommendations", isAuthenticated, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 50;
       
