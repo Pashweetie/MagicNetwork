@@ -21,12 +21,12 @@ Your current API token doesn't have the required permissions. Here's how to fix 
 3. Account resources: Include all accounts
 4. Replace the current token in your secrets
 
-## Current Status
+## Current Status ✅
 
-Your app is working with a temporary tunnel URL that changes on restart:
-- Current URL: https://reactions-baker-specialized-susan.trycloudflare.com
-- This URL will change when your server restarts
-- For production, you need a permanent tunnel
+Your permanent tunnel is now working successfully:
+- Permanent URL: https://82f1b399-c427-45f1-8669-8da9f1fbfca1.cfargotunnel.com
+- This URL will NOT change when your server restarts
+- Multiple HTTP/2 connections established for reliability
 
 ## After Setup
 

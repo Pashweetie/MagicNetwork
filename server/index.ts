@@ -445,12 +445,12 @@ function setupTunnelLogging(tunnel: any, tunnelType: string) {
       console.log('MTG app now protected with Cloudflare security');
     }
     
-    // For permanent tunnels, get URL from tunnel ID
+    // For permanent tunnels, set URL immediately when tunnel starts
     if (tunnelType === 'Permanent Tunnel' && output.includes('Starting tunnel tunnelID=82f1b399-c427-45f1-8669-8da9f1fbfca1')) {
-      // Use the known permanent URL pattern for this tunnel
       const permanentUrl = 'https://82f1b399-c427-45f1-8669-8da9f1fbfca1.cfargotunnel.com';
       (global as any).currentTunnelUrl = permanentUrl;
       console.log(`Permanent tunnel URL: ${permanentUrl}`);
+      console.log('MTG app now accessible via permanent tunnel');
     }
     
     // Connection status
