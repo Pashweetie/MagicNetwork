@@ -86,6 +86,7 @@ export default function Search() {
     fetchNextPage,
     hasNextPage,
     isFetching,
+    isFetchingNextPage,
     isLoading,
     error,
     refetch,
@@ -619,7 +620,7 @@ export default function Search() {
             ) : (
               <CardGrid
                 cards={allCards}
-                isLoading={showEdhrecResults ? isEdhrecLoading : isFetching}
+                isLoading={showEdhrecResults ? isEdhrecLoading : isFetchingNextPage}
                 hasMore={showEdhrecResults ? false : (hasNextPage || false)}
                 onLoadMore={showEdhrecResults ? () => {} : handleLoadMore}
                 onRetry={handleRetry}
@@ -627,8 +628,8 @@ export default function Search() {
               />
             )}
 
-            {/* Loading indicator */}
-            {isFetching && (
+            {/* Initial loading indicator */}
+            {isLoading && !allCards.length && (
               <div className="flex justify-center py-8">
                 <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>
               </div>
