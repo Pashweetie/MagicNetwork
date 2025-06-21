@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card as UICard, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Grid, List, Package, Settings, X, Crown, ChevronUp, ChevronDown, Upload, Trash2, Zap } from "lucide-react";
+import { Grid, List, Package, Settings, X, Crown, ChevronUp, ChevronDown, Upload, Trash2 } from "lucide-react";
 import { useCardSearch } from "@/hooks/use-scryfall";
 import { useDeck, FORMATS } from "@/hooks/use-deck";
 import { useCardImagePreloader } from "@/hooks/use-image-preloader";
@@ -35,8 +35,7 @@ export default function Search() {
   const [manualFilters, setManualFilters] = useState<SearchFilters>({});
   const [useManualFilters, setUseManualFilters] = useState(false);
   const [isDeckFullscreenOpen, setIsDeckFullscreenOpen] = useState(false);
-  const [showEdhrecResults, setShowEdhrecResults] = useState(false);
-  const [linkedEdhrecCards, setLinkedEdhrecCards] = useState<Card[]>([]);
+
   
   const deck = useDeck();
   const { preloadSearchResults } = useCardImagePreloader();
@@ -92,66 +91,14 @@ export default function Search() {
     refetch,
   } = useCardSearch(activeFilters);
 
-  // Only show cards when there's an active search or showing EDHREC results
-  const shouldShowResults = searchQuery.trim() || useManualFilters || showEdhrecResults;
+  // Only show cards when there's an active search
+  const shouldShowResults = searchQuery.trim() || useManualFilters;
 
-  // Fetch EDHREC recommendations when enabled
-  const { data: edhrecData, isLoading: isEdhrecLoading, error: edhrecError } = useQuery({
-    queryKey: ['edhrec-recommendations', deck.commander?.id, showEdhrecResults],
-    queryFn: async () => {
-      if (!deck.commander || !showEdhrecResults) return null;
-      
-      const response = await fetch(`/api/edhrec/commander/${deck.commander.id}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch EDHREC recommendations');
-      }
-      return response.json();
-    },
-    enabled: showEdhrecResults && !!deck.commander
-  });
+
 
   // Flatten all pages of cards
   const allCards = useMemo(() => {
     if (!shouldShowResults) return [];
-    
-    if (showEdhrecResults && deck.commander) {
-      // Show linked EDHREC cards if available, otherwise show basic EDHREC data
-      if (linkedEdhrecCards.length > 0) {
-        return linkedEdhrecCards;
-      } else if (edhrecData && edhrecData.cards) {
-        // Show basic EDHREC cards as fallback
-        const allEdhrecCards = [
-          ...edhrecData.cards.creatures,
-          ...edhrecData.cards.instants,
-          ...edhrecData.cards.sorceries,
-          ...edhrecData.cards.artifacts,
-          ...edhrecData.cards.enchantments,
-          ...edhrecData.cards.planeswalkers,
-          ...edhrecData.cards.lands
-        ];
-        return allEdhrecCards.slice(0, 120).map((edhrecCard: any) => ({
-          id: edhrecCard.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-          name: edhrecCard.name,
-          mana_cost: '',
-          cmc: edhrecCard.cmc || 0,
-          type_line: edhrecCard.type_line || 'Unknown',
-          oracle_text: edhrecCard.oracle_text || '',
-          colors: [],
-          color_identity: edhrecCard.color_identity || [],
-          rarity: 'common' as const,
-          set: 'EDHREC',
-          set_name: 'EDHREC Recommendations',
-          prices: {
-            usd: edhrecCard.price ? edhrecCard.price.toString() : null
-          },
-          edhrec_rank: edhrecCard.num_decks,
-          edhrec_synergy: edhrecCard.synergy,
-          edhrec_url: edhrecCard.url,
-          is_edhrec_placeholder: true
-        }));
-      }
-      return [];
-    }
     
     const searchData = data?.pages.flatMap(page => page.data) || [];
     
@@ -161,88 +108,11 @@ export default function Search() {
     }
     
     return searchData;
-  }, [data, shouldShowResults, preloadSearchResults, showEdhrecResults, deck.commander, linkedEdhrecCards]);
+  }, [data, shouldShowResults, preloadSearchResults]);
 
-  // Link EDHREC cards with Scryfall data
-  useEffect(() => {
-    if (!showEdhrecResults || !edhrecData || !deck.commander) {
-      setLinkedEdhrecCards([]);
-      return;
-    }
 
-    const linkCards = async () => {
-      const allEdhrecCards = [
-        ...edhrecData.cards.creatures,
-        ...edhrecData.cards.instants,
-        ...edhrecData.cards.sorceries,
-        ...edhrecData.cards.artifacts,
-        ...edhrecData.cards.enchantments,
-        ...edhrecData.cards.planeswalkers,
-        ...edhrecData.cards.lands
-      ];
 
-      const linkedCards = [];
-      
-      // Process cards in smaller batches to avoid overwhelming the API
-      const maxCards = Math.min(allEdhrecCards.length, 120);
-      for (let i = 0; i < maxCards; i += 5) {
-        const batch = allEdhrecCards.slice(i, i + 5);
-        const batchResults = await Promise.all(
-          batch.map(async (edhrecCard: any) => {
-            try {
-              // Search for exact card match using the card name
-              const searchResponse = await fetch(`/api/cards/search?q=${encodeURIComponent(edhrecCard.name)}&page=1`);
-              if (searchResponse.ok) {
-                const searchResult = await searchResponse.json();
-                const exactMatch = searchResult.data.find((card: any) => 
-                  card.name.toLowerCase() === edhrecCard.name.toLowerCase()
-                );
-                
-                if (exactMatch) {
-                  return {
-                    ...exactMatch,
-                    edhrec_rank: edhrecCard.num_decks,
-                    edhrec_synergy: edhrecCard.synergy,
-                    edhrec_url: edhrecCard.url
-                  };
-                } else {
-                  // Try fuzzy matching as fallback
-                  const fuzzyMatch = searchResult.data.find((card: any) => 
-                    card.name.toLowerCase().includes(edhrecCard.name.toLowerCase()) ||
-                    edhrecCard.name.toLowerCase().includes(card.name.toLowerCase())
-                  );
-                  if (fuzzyMatch) {
-                    return {
-                      ...fuzzyMatch,
-                      edhrec_rank: edhrecCard.num_decks,
-                      edhrec_synergy: edhrecCard.synergy,
-                      edhrec_url: edhrecCard.url
-                    };
-                  }
-                }
-              }
-              return null;
-            } catch (error) {
-              return null;
-            }
-          })
-        );
-        
-        linkedCards.push(...batchResults.filter(Boolean));
-        
-        // Small delay between batches
-        if (i + 5 < maxCards) {
-          await new Promise(resolve => setTimeout(resolve, 50));
-        }
-      }
-
-      setLinkedEdhrecCards(linkedCards);
-    };
-
-    linkCards();
-  }, [showEdhrecResults, edhrecData, deck.commander]);
-
-  const totalCards = showEdhrecResults ? linkedEdhrecCards.length : (shouldShowResults ? (data?.pages[0]?.total_cards || 0) : 0);
+  const totalCards = shouldShowResults ? (data?.pages[0]?.total_cards || 0) : 0;
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
@@ -590,17 +460,7 @@ export default function Search() {
 
           {/* Card Grid with Deck Functionality */}
           <div className="p-6">
-            {showEdhrecResults && deck.commander && (
-              <div className="mb-4 p-4 bg-purple-900/20 border border-purple-500/30 rounded-lg">
-                <div className="flex items-center space-x-2 text-purple-300">
-                  <Zap className="w-4 h-4" />
-                  <span className="text-sm font-medium">Real EDHREC recommendations for {deck.commander.name}</span>
-                </div>
-                <p className="text-xs text-purple-400 mt-1">
-                  Showing authentic EDHREC data with synergy scores and deck inclusion rates
-                </p>
-              </div>
-            )}
+
             
             {viewMode === "grid" ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
@@ -622,9 +482,9 @@ export default function Search() {
             ) : (
               <CardGrid
                 cards={allCards}
-                isLoading={showEdhrecResults ? isEdhrecLoading : isFetchingNextPage}
-                hasMore={showEdhrecResults ? false : (hasNextPage || false)}
-                onLoadMore={showEdhrecResults ? () => {} : handleLoadMore}
+                isLoading={isFetchingNextPage}
+                hasMore={hasNextPage || false}
+                onLoadMore={handleLoadMore}
                 onRetry={handleRetry}
                 error={error?.message}
               />
