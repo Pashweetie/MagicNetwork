@@ -107,7 +107,7 @@ function VerticalStackedCards({
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   
   const CARD_HEIGHT = 300;
-  const CARD_SPACING = 25; // Minimal spacing between cards
+  const CARD_SPACING = 40; // Standard spacing between cards
   const HOVER_SHIFT = CARD_HEIGHT - CARD_SPACING; // How much to shift cards above when hovering
 
   return (
@@ -350,10 +350,20 @@ export function StackedDeckDisplay({
           name: category,
           cards,
           totalQuantity: cards.reduce((sum, entry) => sum + entry.quantity, 0),
-          isExpanded: true
+          isExpanded: expandedCategories.has(category)
         };
       });
-  }, [deckEntries, sortBy, categoryBy]);
+  }, [deckEntries, sortBy, categoryBy, expandedCategories]);
+
+  const toggleCategory = (categoryName: string) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(categoryName)) {
+      newExpanded.delete(categoryName);
+    } else {
+      newExpanded.add(categoryName);
+    }
+    setExpandedCategories(newExpanded);
+  };
 
   const canBeCommander = (card: Card) => {
     const typeLine = card.type_line?.toLowerCase() || '';
@@ -364,8 +374,8 @@ export function StackedDeckDisplay({
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-4 p-3 bg-slate-800 rounded-lg">
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-4 p-2 bg-slate-800 rounded-lg">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-sm text-slate-400">Sort by:</span>
@@ -403,21 +413,35 @@ export function StackedDeckDisplay({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-1">
         {categorizedCards.map((group) => (
-          <div key={group.name} className="bg-slate-800 rounded-lg border border-slate-700">
-            <div className="p-3 border-b border-slate-700">
-              <div className="flex items-center gap-3">
-                <div className="text-lg font-medium text-white">
-                  {group.name}
+          <Collapsible
+            key={group.name}
+            open={group.isExpanded}
+            onOpenChange={() => toggleCategory(group.name)}
+          >
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                className="w-full justify-between p-2 h-auto hover:bg-transparent"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="text-lg font-medium text-white">
+                    {group.name}
+                  </div>
+                  <Badge variant="secondary" className="bg-slate-700 text-slate-300 text-xs">
+                    {group.totalQuantity}
+                  </Badge>
                 </div>
-                <Badge variant="secondary" className="bg-slate-700 text-slate-300">
-                  {group.totalQuantity}
-                </Badge>
-              </div>
-            </div>
+                {group.isExpanded ? (
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
+                ) : (
+                  <ChevronUp className="h-4 w-4 text-slate-400" />
+                )}
+              </Button>
+            </CollapsibleTrigger>
             
-            <div className="p-2">
+            <CollapsibleContent>
               <VerticalStackedCards
                 cards={group.cards}
                 onAdd={onAdd}
@@ -428,8 +452,8 @@ export function StackedDeckDisplay({
                 canBeCommander={canBeCommander}
                 getMaxCopies={getMaxCopies}
               />
-            </div>
-          </div>
+            </CollapsibleContent>
+          </Collapsible>
         ))}
       </div>
     </div>

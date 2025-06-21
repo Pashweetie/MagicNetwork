@@ -424,7 +424,7 @@ export default function Search() {
           {/* Card Grid with Deck Functionality */}
           <div className="p-6">
             {viewMode === "grid" ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
                 {allCards.filter(card => card && card.type_line && card.name).map((card, index) => (
                   <SharedCardTile
                     key={`${card.id}-${index}`}

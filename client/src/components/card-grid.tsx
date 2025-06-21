@@ -90,7 +90,7 @@ export function CardGrid({ cards, isLoading, hasMore, onLoadMore, onRetry, error
 
   return (
     <>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
         {cards.filter(card => card && card.type_line && card.name).map((card) => (
           <SharedCardTile
             key={card.id}
