@@ -27,28 +27,18 @@ export function BandwidthOptimizer() {
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
   };
 
-  if (stats.totalImages === 0) return null;
+  // Log bandwidth stats to console instead of showing UI
+  useEffect(() => {
+    if (stats.totalImages > 0) {
+      console.log('📊 Bandwidth Stats:', {
+        bandwidthSaved: formatBandwidth(bandwidthSaved),
+        hitRate: `${stats.hitRate.toFixed(1)}%`,
+        totalImages: stats.totalImages,
+        imagesSaved: totalImagesSaved
+      });
+    }
+  }, [stats, bandwidthSaved, totalImagesSaved]);
 
-  return (
-    <div className="fixed bottom-4 right-4 bg-slate-800 border border-slate-600 rounded-lg p-3 shadow-lg z-50">
-      <div className="flex items-center space-x-2">
-        <TrendingDown className="w-4 h-4 text-green-400" />
-        <span className="text-sm text-slate-300">Bandwidth Saved:</span>
-        <Badge variant="outline" className="bg-green-900 text-green-400 border-green-600">
-          {formatBandwidth(bandwidthSaved)}
-        </Badge>
-      </div>
-      <div className="flex items-center space-x-2 mt-1">
-        <div className="flex items-center space-x-1">
-          <Wifi className="w-3 h-3 text-blue-400" />
-          <span className="text-xs text-slate-400">Hit Rate:</span>
-          <span className="text-xs text-white">{stats.hitRate.toFixed(1)}%</span>
-        </div>
-        <div className="text-xs text-slate-500">•</div>
-        <div className="text-xs text-slate-400">
-          {stats.totalImages} cached
-        </div>
-      </div>
-    </div>
-  );
+  // Hide the UI component completely
+  return null;
 }
