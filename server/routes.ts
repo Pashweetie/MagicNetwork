@@ -832,7 +832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Group themes by card and theme name, keeping only the highest confidence
-      const themeMap = new Map<string, { theme: string, confidence: number }>();
+      const themeMap = new Map<string, { cardId: string, theme: string, confidence: number }>();
       
       themes.forEach(theme => {
         const key = `${theme.card_id}-${theme.theme_name}`;
@@ -840,23 +840,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (!existing || theme.confidence > existing.confidence) {
           themeMap.set(key, {
+            cardId: theme.card_id,
             theme: theme.theme_name,
             confidence: theme.confidence
           });
         }
       });
 
-      // Convert back to the expected format
-      themes.forEach(theme => {
-        const key = `${theme.card_id}-${theme.theme_name}`;
-        const dedupedTheme = themeMap.get(key);
-        
-        if (dedupedTheme && themesByCard[theme.card_id]) {
-          // Only add if not already added (check by theme name)
-          const alreadyAdded = themesByCard[theme.card_id].some(t => t.theme === dedupedTheme.theme);
-          if (!alreadyAdded) {
-            themesByCard[theme.card_id].push(dedupedTheme);
-          }
+      // Convert the deduplicated themes back to the expected format
+      themeMap.forEach(dedupedTheme => {
+        if (themesByCard[dedupedTheme.cardId]) {
+          themesByCard[dedupedTheme.cardId].push({
+            theme: dedupedTheme.theme,
+            confidence: dedupedTheme.confidence
+          });
         }
       });
 
