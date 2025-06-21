@@ -116,7 +116,8 @@ function startCloudflareTunnel() {
     // Start the tunnel
     console.log('Starting Cloudflare tunnel...');
     const tunnel = spawn('cloudflared', ['tunnel', '--config', './cloudflare-tunnel.yml', 'run'], {
-      stdio: ['ignore', 'pipe', 'pipe']
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env }
     });
 
     tunnel.stdout.on('data', (data) => {
