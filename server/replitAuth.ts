@@ -158,12 +158,12 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     if (!userId) {
       // Check session as fallback
       userId = (req.session as any)?.autoUserId;
-    }
-    
-    if (!userId) {
-      // Generate a unique anonymous user ID
-      userId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      (req.session as any).autoUserId = userId;
+      
+      if (!userId) {
+        // Generate a unique anonymous user ID
+        userId = `demo-user`; // Use consistent demo user for testing
+        (req.session as any).autoUserId = userId;
+      }
     }
     
     // Ensure user exists in database
