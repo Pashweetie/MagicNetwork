@@ -92,14 +92,47 @@ export default function Search() {
     refetch,
   } = useCardSearch(activeFilters);
 
-  // Only show cards when there's an active search
-  const shouldShowResults = searchQuery.trim() || useManualFilters;
+  // Only show cards when there's an active search or showing EDHREC results
+  const shouldShowResults = searchQuery.trim() || useManualFilters || showEdhrecResults;
 
 
 
   // Flatten all pages of cards
   const allCards = useMemo(() => {
     if (!shouldShowResults) return [];
+    
+    if (showEdhrecResults && deck.commander && edhrecData) {
+      // Show EDHREC cards as search results
+      const allEdhrecCards = [
+        ...edhrecData.cards.creatures,
+        ...edhrecData.cards.instants,
+        ...edhrecData.cards.sorceries,
+        ...edhrecData.cards.artifacts,
+        ...edhrecData.cards.enchantments,
+        ...edhrecData.cards.planeswalkers,
+        ...edhrecData.cards.lands
+      ];
+      return allEdhrecCards.slice(0, 120).map((edhrecCard: any) => ({
+        id: edhrecCard.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+        name: edhrecCard.name,
+        mana_cost: '',
+        cmc: edhrecCard.cmc || 0,
+        type_line: edhrecCard.type_line || 'Unknown',
+        oracle_text: edhrecCard.oracle_text || '',
+        colors: [],
+        color_identity: edhrecCard.color_identity || [],
+        rarity: 'common' as const,
+        set: 'EDHREC',
+        set_name: 'EDHREC Recommendations',
+        prices: {
+          usd: edhrecCard.price ? edhrecCard.price.toString() : null
+        },
+        edhrec_rank: edhrecCard.num_decks,
+        edhrec_synergy: edhrecCard.synergy,
+        edhrec_url: edhrecCard.url,
+        is_edhrec_placeholder: true
+      }));
+    }
     
     const searchData = data?.pages.flatMap(page => page.data) || [];
     
@@ -109,11 +142,13 @@ export default function Search() {
     }
     
     return searchData;
-  }, [data, shouldShowResults, preloadSearchResults]);
+  }, [data, shouldShowResults, preloadSearchResults, showEdhrecResults, deck.commander, edhrecData]);
 
 
 
-  const totalCards = shouldShowResults ? (data?.pages[0]?.total_cards || 0) : 0;
+  const totalCards = showEdhrecResults && edhrecData ? 
+    Object.values(edhrecData.cards).flat().length : 
+    (shouldShowResults ? (data?.pages[0]?.total_cards || 0) : 0);
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
@@ -294,11 +329,33 @@ export default function Search() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-white">
-                  {isFetching ? 'Searching...' : `${totalCards.toLocaleString()} cards found`}
+                  {(isFetching || (showEdhrecResults && isEdhrecLoading)) ? 
+                    (showEdhrecResults ? 'Loading EDHREC recommendations...' : 'Searching...') : 
+                    showEdhrecResults ? 
+                      `Found ${totalCards} EDHREC recommendations` :
+                      `Found ${totalCards} cards`
+                  }
                 </h2>
-                <p className="text-sm text-slate-400">
-                  Showing results for: <span className="font-mono text-blue-400">{getDisplayQuery()}</span>
-                </p>
+                {!showEdhrecResults && (
+                  <p className="text-sm text-slate-400">
+                    Showing results for: <span className="font-mono text-blue-400">{getDisplayQuery()}</span>
+                  </p>
+                )}
+                {showEdhrecResults && deck.commander && (
+                  <p className="text-sm text-purple-400">
+                    EDHREC recommendations for <span className="font-medium">{deck.commander.name}</span>
+                  </p>
+                )}
+                {showEdhrecResults && !deck.commander && (
+                  <p className="text-yellow-400 text-sm">
+                    Select a commander to see EDHREC recommendations
+                  </p>
+                )}
+                {showEdhrecResults && edhrecError && (
+                  <p className="text-red-400 text-sm">
+                    Unable to load EDHREC data for this commander
+                  </p>
+                )}
               </div>
               <div className="flex items-center space-x-4">
                 <Select value={sortBy} onValueChange={setSortBy}>
@@ -441,19 +498,19 @@ export default function Search() {
             </div>
           )}
 
-          {/* EDHREC Recommendations */}
-          {showEdhrecResults && deck.commander && (
-            <div className="px-6 pb-4">
-              <EdhrecRecommendations 
-                commander={deck.commander} 
-                onAddCard={(card) => deck.addCard(card)}
-              />
-            </div>
-          )}
-
           {/* Card Grid with Deck Functionality */}
-          {!showEdhrecResults && (
-            <div className="p-6">
+          <div className="p-6">
+            {showEdhrecResults && deck.commander && allCards.length > 0 && (
+              <div className="mb-4 p-4 bg-purple-900/20 border border-purple-500/30 rounded-lg">
+                <div className="flex items-center space-x-2 text-purple-300">
+                  <span className="text-sm font-medium">EDHREC recommendations for {deck.commander.name}</span>
+                </div>
+                <p className="text-xs text-purple-400 mt-1">
+                  Showing authentic EDHREC data with synergy scores and deck inclusion rates
+                </p>
+              </div>
+            )}
+            
             {viewMode === "grid" ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
                 {allCards.filter(card => card && card.type_line && card.name).map((card, index) => (
