@@ -90,7 +90,22 @@ export default function Search() {
     isLoading,
     error,
     refetch,
-  } = useCardSearch(activeFilters);
+  } = useCardSearch(showEdhrecResults ? {} : activeFilters);
+
+  // Fetch EDHREC recommendations when enabled
+  const { data: edhrecData, isLoading: isEdhrecLoading, error: edhrecError } = useQuery({
+    queryKey: ['edhrec-recommendations', deck.commander?.id, showEdhrecResults],
+    queryFn: async () => {
+      if (!deck.commander || !showEdhrecResults) return null;
+      
+      const response = await fetch(`/api/edhrec/commander/${deck.commander.id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch EDHREC recommendations');
+      }
+      return response.json();
+    },
+    enabled: showEdhrecResults && !!deck.commander
+  });
 
   // Only show cards when there's an active search or showing EDHREC results
   const shouldShowResults = searchQuery.trim() || useManualFilters || showEdhrecResults;
@@ -102,7 +117,7 @@ export default function Search() {
     if (!shouldShowResults) return [];
     
     if (showEdhrecResults && deck.commander && edhrecData) {
-      // Show EDHREC cards as search results
+      // Convert all EDHREC cards to searchable format
       const allEdhrecCards = [
         ...edhrecData.cards.creatures,
         ...edhrecData.cards.instants,
@@ -112,7 +127,9 @@ export default function Search() {
         ...edhrecData.cards.planeswalkers,
         ...edhrecData.cards.lands
       ];
-      return allEdhrecCards.slice(0, 120).map((edhrecCard: any) => ({
+      
+      // Convert to searchable card format and apply active filters
+      let filteredCards = allEdhrecCards.map((edhrecCard: any) => ({
         id: edhrecCard.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
         name: edhrecCard.name,
         mana_cost: '',
@@ -132,6 +149,47 @@ export default function Search() {
         edhrec_url: edhrecCard.url,
         is_edhrec_placeholder: true
       }));
+
+      // Apply filters to EDHREC results
+      if (activeFilters.types?.length) {
+        filteredCards = filteredCards.filter(card => 
+          activeFilters.types!.some(type => 
+            card.type_line.toLowerCase().includes(type.toLowerCase())
+          )
+        );
+      }
+
+      if (activeFilters.colors?.length) {
+        filteredCards = filteredCards.filter(card => 
+          activeFilters.colors!.some(color => 
+            card.color_identity.includes(color)
+          )
+        );
+      }
+
+      if (activeFilters.rarities?.length) {
+        filteredCards = filteredCards.filter(card => 
+          activeFilters.rarities!.includes(card.rarity)
+        );
+      }
+
+      if (activeFilters.minMv !== undefined) {
+        filteredCards = filteredCards.filter(card => card.cmc >= activeFilters.minMv!);
+      }
+
+      if (activeFilters.maxMv !== undefined) {
+        filteredCards = filteredCards.filter(card => card.cmc <= activeFilters.maxMv!);
+      }
+
+      if (activeFilters.oracleText) {
+        const searchText = activeFilters.oracleText.toLowerCase();
+        filteredCards = filteredCards.filter(card => 
+          card.oracle_text.toLowerCase().includes(searchText) ||
+          card.name.toLowerCase().includes(searchText)
+        );
+      }
+
+      return filteredCards;
     }
     
     const searchData = data?.pages.flatMap(page => page.data) || [];
@@ -545,8 +603,7 @@ export default function Search() {
                 <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>
               </div>
             )}
-            </div>
-          )}
+          </div>
         </main>
       </div>
 
