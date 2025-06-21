@@ -102,16 +102,13 @@ function startCloudflareTunnel() {
       return;
     }
 
-    // Check if tunnel config has been updated from template
-    const config = readFileSync('./cloudflare-tunnel.yml', 'utf8');
-    if (config.includes('YOUR_TUNNEL_ID_HERE')) {
-      console.log('Cloudflare tunnel config not updated - edit cloudflare-tunnel.yml with your tunnel ID');
-      return;
-    }
+    // Check if we have the tunnel token (more reliable than config file method)
+    console.log('Using token-based tunnel authentication...');
 
-    // Start the tunnel
+    // Start the tunnel using token method (more reliable for Replit)
     console.log('Starting Cloudflare tunnel...');
-    const tunnel = spawn('cloudflared', ['tunnel', '--config', './cloudflare-tunnel.yml', 'run'], {
+    const tunnelToken = 'eyJhIjoiYWM0YWUzMTI4NmEwZmI0YmQ1N2ZhOTAwMzlmOGE2NDQiLCJ0IjoiODJmMWIzOTktYzQyNy00NWYxLTg2NjktOGRhOWYxZmJmY2ExIiwicyI6Ik9Ea3dPR1U0TmprdFpqVXlNeTAwTkRrMExXSmhNell0T1dGaE4yWmxaREV4TnpBeCJ9';
+    const tunnel = spawn('cloudflared', ['tunnel', '--token', tunnelToken, 'run'], {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env }
     });
