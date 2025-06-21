@@ -1,5 +1,8 @@
 import { Express, Request, Response } from "express";
 import { cardDatabaseService } from "../services/card-database-service";
+import { db } from "../db";
+import { cards, cardRulings } from "@shared/schema";
+import { sql } from "drizzle-orm";
 
 export function registerCardAdminRoutes(app: Express) {
   // Initialize card database

@@ -1,6 +1,6 @@
 import { db } from "../db";
-import { cards, cardSets, cardImages, cardPrices, cardLegalities } from "@shared/schema";
-import { Card, InsertCard, CardSet, InsertCardSet } from "@shared/schema";
+import { cards, cardSets, cardImages, cardPrices, cardLegalities, cardRulings } from "@shared/schema";
+import { Card, InsertCard, CardSet, InsertCardSet, InsertCardRuling } from "@shared/schema";
 import { eq, sql, and, or, ilike, inArray, desc, asc } from "drizzle-orm";
 import { SearchFilters, SearchResponse } from "@shared/schema";
 import { cardMatchesFilters } from "../utils/card-filters";
@@ -497,6 +497,116 @@ export class CardDatabaseService {
       clearInterval(this.updateCheckInterval);
       this.updateCheckInterval = null;
       console.log("Update schedule stopped");
+    }
+  }
+
+  async checkAndDownloadRulings(): Promise<void> {
+    if (this.isDownloadingRulings) {
+      console.log("Rulings download already in progress");
+      return;
+    }
+
+    try {
+      // Check if we have any rulings in the database
+      const rulingsCount = await db.select({ count: sql<number>`count(*)` }).from(cardRulings);
+      const currentRulingsCount = rulingsCount[0]?.count || 0;
+
+      if (currentRulingsCount > 1000) {
+        console.log(`Database already contains ${currentRulingsCount} rulings`);
+        return;
+      }
+
+      console.log("Downloading card rulings...");
+      this.isDownloadingRulings = true;
+
+      // Get rulings bulk data
+      const bulkResponse = await fetch(SCRYFALL_BULK_API);
+      const bulkData = await bulkResponse.json();
+      
+      const rulingsData = bulkData.data.find((item: BulkDataItem) => item.type === 'rulings');
+      if (!rulingsData) {
+        console.log("No rulings bulk data available");
+        return;
+      }
+
+      console.log(`Downloading ${Math.round((rulingsData.compressed_size || 0) / 1024 / 1024)}MB of rulings data...`);
+
+      // Download the rulings data
+      const rulingsResponse = await fetch(rulingsData.download_uri);
+      const rulingsArray = await rulingsResponse.json();
+
+      console.log(`Processing ${rulingsArray.length} rulings...`);
+
+      // Process rulings in batches
+      const batchSize = 1000;
+      let processed = 0;
+
+      for (let i = 0; i < rulingsArray.length; i += batchSize) {
+        const batch = rulingsArray.slice(i, i + batchSize);
+        const rulingsToInsert: InsertCardRuling[] = batch.map((ruling: any) => ({
+          oracleId: ruling.oracle_id,
+          publishedAt: ruling.published_at,
+          comment: ruling.comment,
+          source: ruling.source,
+        }));
+
+        await db.insert(cardRulings).values(rulingsToInsert).onConflictDoNothing();
+        processed += batch.length;
+
+        if (i % 5000 === 0) {
+          console.log(`Processed ${processed}/${rulingsArray.length} rulings`);
+        }
+      }
+
+      console.log(`Rulings download complete! Added ${rulingsArray.length} rulings.`);
+
+    } catch (error) {
+      console.error("Error downloading rulings:", error);
+    } finally {
+      this.isDownloadingRulings = false;
+    }
+  }
+
+  async getRulingsForCard(oracleId: string): Promise<any[]> {
+    if (!oracleId) return [];
+
+    try {
+      const rulings = await db.select()
+        .from(cardRulings)
+        .where(sql`oracle_id = ${oracleId}`)
+        .orderBy(sql`published_at DESC`);
+      
+      return rulings;
+    } catch (error) {
+      console.error("Error fetching rulings:", error);
+      return [];
+    }
+  }
+
+  async downloadMissingData(): Promise<void> {
+    console.log("Starting comprehensive data download...");
+    
+    // Check what bulk data types are available
+    const bulkResponse = await fetch(SCRYFALL_BULK_API);
+    const bulkData = await bulkResponse.json();
+    
+    console.log("Available Scryfall bulk data types:");
+    bulkData.data.forEach((item: BulkDataItem) => {
+      console.log(`- ${item.type}: ${item.name} (${Math.round((item.compressed_size || 0) / 1024 / 1024)}MB)`);
+    });
+    
+    // Download rulings if not already downloaded
+    await this.checkAndDownloadRulings();
+    
+    // Suggest downloading oracle_cards instead of default_cards for better data
+    const oracleCards = bulkData.data.find((item: BulkDataItem) => item.type === 'oracle_cards');
+    if (oracleCards) {
+      console.log(`\nRecommendation: Consider downloading oracle_cards instead of default_cards for:
+- Better data deduplication
+- More consistent Oracle IDs for rulings
+- Latest card text versions
+      
+To switch, modify the bulk data type in downloadAllCards() method.`);
     }
   }
 }
