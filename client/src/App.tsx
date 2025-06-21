@@ -1,4 +1,4 @@
-import { Switch, Route, useLocation, Link } from "wouter";
+import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -8,31 +8,8 @@ import Search from "@/pages/search";
 
 
 function Router() {
-  const [location] = useLocation();
-
   return (
     <div className="min-h-screen bg-background">
-      <nav className="border-b">
-        <div className="container mx-auto px-4 py-2">
-          <div className="flex items-center space-x-6">
-            <Link href="/" className="text-xl font-bold">
-              MTG Explorer
-            </Link>
-            <div className="flex space-x-4">
-              <Link
-                href="/"
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  location === '/' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
-                }`}
-              >
-                Search
-              </Link>
-
-            </div>
-          </div>
-        </div>
-      </nav>
-      
       <Switch>
         <Route path="/" component={Search} />
         <Route component={() => <div className="flex items-center justify-center min-h-screen">Page not found</div>} />
