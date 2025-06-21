@@ -14,10 +14,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card as UICard, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Grid, List, Package, Settings, X, Crown, ChevronUp, ChevronDown, Upload, Trash2 } from "lucide-react";
+import { Grid, List, Package, Settings, X, Crown, ChevronUp, ChevronDown, Upload, Trash2, Zap } from "lucide-react";
 import { useCardSearch } from "@/hooks/use-scryfall";
 import { useDeck, FORMATS } from "@/hooks/use-deck";
 import { useCardImagePreloader } from "@/hooks/use-image-preloader";
+import { useQuery } from "@tanstack/react-query";
 import { ScryfallQueryParser, ScryfallParser } from "@/lib/scryfall-parser";
 import { SearchFilters } from "@shared/schema";
 import { Link } from "wouter";
@@ -34,6 +35,7 @@ export default function Search() {
   const [manualFilters, setManualFilters] = useState<SearchFilters>({});
   const [useManualFilters, setUseManualFilters] = useState(false);
   const [isDeckFullscreenOpen, setIsDeckFullscreenOpen] = useState(false);
+  const [showEdhrecResults, setShowEdhrecResults] = useState(false);
   
   const deck = useDeck();
   const { preloadSearchResults } = useCardImagePreloader();
@@ -88,12 +90,33 @@ export default function Search() {
     refetch,
   } = useCardSearch(activeFilters);
 
-  // Only show cards when there's an active search
-  const shouldShowResults = searchQuery.trim() || useManualFilters;
+  // Only show cards when there's an active search or showing EDHREC results
+  const shouldShowResults = searchQuery.trim() || useManualFilters || showEdhrecResults;
+
+  // Fetch EDHREC-style recommendations when enabled
+  const { data: edhrecData, isLoading: isEdhrecLoading } = useQuery({
+    queryKey: ['edhrec-style-recommendations', deck.commander?.id, showEdhrecResults],
+    queryFn: async () => {
+      if (!deck.commander || !showEdhrecResults) return null;
+      
+      // Get recommendations using our existing API
+      const response = await fetch(`/api/cards/${deck.commander.id}/recommendations?type=synergy&limit=50`);
+      if (!response.ok) throw new Error('Failed to fetch recommendations');
+      
+      const recommendations = await response.json();
+      return recommendations.map((rec: any) => rec.card).filter(Boolean);
+    },
+    enabled: showEdhrecResults && !!deck.commander
+  });
 
   // Flatten all pages of cards
   const allCards = useMemo(() => {
     if (!shouldShowResults) return [];
+    
+    if (showEdhrecResults && deck.commander) {
+      // Show EDHREC-style recommendations instead of search results
+      return edhrecData || [];
+    }
     
     const searchData = data?.pages.flatMap(page => page.data) || [];
     
@@ -103,7 +126,7 @@ export default function Search() {
     }
     
     return searchData;
-  }, [data, shouldShowResults, preloadSearchResults]);
+  }, [data, shouldShowResults, preloadSearchResults, showEdhrecResults, deck.commander, edhrecData]);
 
   const totalCards = shouldShowResults ? (data?.pages[0]?.total_cards || 0) : 0;
 
@@ -244,6 +267,16 @@ export default function Search() {
                       onClick={() => deck.setCommander(null)}
                     >
                       <X className="w-3 h-3" />
+                    </Button>
+                    {/* EDHREC Toggle Button */}
+                    <Button
+                      size="sm"
+                      variant={showEdhrecResults ? "default" : "outline"}
+                      className={showEdhrecResults ? "bg-purple-600 hover:bg-purple-700" : "border-purple-500/50 text-purple-400 hover:bg-purple-900/20"}
+                      onClick={() => setShowEdhrecResults(!showEdhrecResults)}
+                    >
+                      <Zap className="w-3 h-3 mr-1" />
+                      EDHREC
                     </Button>
                   </div>
                 )}
@@ -418,13 +451,7 @@ export default function Search() {
                 </CardContent>
               </UICard>
               
-              {/* EDHREC Recommendations - only show when commander is selected */}
-              {deck.format.name === 'Commander' && deck.commander && (
-                <EdhrecRecommendations 
-                  commander={deck.commander} 
-                  onAddCard={deck.addCardByName}
-                />
-              )}
+
 
             </div>
           )}
