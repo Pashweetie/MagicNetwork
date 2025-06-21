@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { spawn } from "child_process";
+import { existsSync } from "fs";
 
 
 
@@ -70,6 +72,9 @@ app.use((req, res, next) => {
     }, () => {
       log(`serving on port ${port}`);
       
+      // Auto-start Cloudflare tunnel if configured
+      startCloudflareTunnel();
+      
       // AI recommendation service is ready for theme generation
     });
   } catch (error) {
@@ -77,3 +82,73 @@ app.use((req, res, next) => {
     process.exit(1);
   }
 })();
+
+// Auto-start Cloudflare tunnel if configured
+function startCloudflareTunnel() {
+  // Only auto-start if explicitly enabled via environment variable
+  if (!process.env.ENABLE_TUNNEL) {
+    console.log('Cloudflare tunnel auto-start disabled - set ENABLE_TUNNEL=true to enable');
+    return;
+  }
+
+  // Check if tunnel is configured
+  if (!existsSync('./cloudflare-tunnel.yml')) {
+    console.log('Cloudflare tunnel not configured - see cloudflare-setup.md for setup instructions');
+    return;
+  }
+
+  // Check if cloudflared is installed
+  const checkCloudflared = spawn('which', ['cloudflared']);
+  checkCloudflared.on('exit', (code) => {
+    if (code !== 0) {
+      console.log('cloudflared not installed - see cloudflare-setup.md for installation');
+      return;
+    }
+
+    // Check if tunnel config has been updated from template
+    const fs = require('fs');
+    const config = fs.readFileSync('./cloudflare-tunnel.yml', 'utf8');
+    if (config.includes('YOUR_TUNNEL_ID_HERE')) {
+      console.log('Cloudflare tunnel config not updated - edit cloudflare-tunnel.yml with your tunnel ID');
+      return;
+    }
+
+    // Start the tunnel
+    console.log('Starting Cloudflare tunnel...');
+    const tunnel = spawn('cloudflared', ['tunnel', '--config', './cloudflare-tunnel.yml', 'run'], {
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+
+    tunnel.stdout.on('data', (data) => {
+      const output = data.toString();
+      if (output.includes('https://')) {
+        console.log(`Cloudflare tunnel active: ${output.match(/https:\/\/[^\s]+/)?.[0]}`);
+      }
+    });
+
+    tunnel.stderr.on('data', (data) => {
+      const error = data.toString();
+      if (error.includes('ERR')) {
+        console.log(`Tunnel error: ${error}`);
+      }
+    });
+
+    tunnel.on('exit', (code) => {
+      if (code !== 0) {
+        console.log(`Cloudflare tunnel exited with code ${code}`);
+      }
+    });
+
+    // Cleanup tunnel on server shutdown
+    process.on('SIGINT', () => {
+      console.log('Stopping Cloudflare tunnel...');
+      tunnel.kill();
+      process.exit();
+    });
+
+    process.on('SIGTERM', () => {
+      tunnel.kill();
+      process.exit();
+    });
+  });
+}

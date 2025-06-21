@@ -14,9 +14,9 @@ if ! command -v cloudflared &> /dev/null; then
     echo "✅ cloudflared installed"
 fi
 
-# Start the Node.js server in background
-echo "🔄 Starting Node.js server..."
-npm run dev &
+# Start the Node.js server with tunnel enabled in background
+echo "🔄 Starting Node.js server with tunnel..."
+ENABLE_TUNNEL=true npm run dev &
 SERVER_PID=$!
 
 # Wait for server to start
@@ -30,9 +30,9 @@ if [ ! -f "cloudflare-tunnel.yml" ]; then
     exit 1
 fi
 
-# Start Cloudflare tunnel
-echo "🌐 Starting Cloudflare tunnel..."
-cloudflared tunnel --config cloudflare-tunnel.yml run
+# Wait for the server to auto-start the tunnel
+echo "🌐 Tunnel will auto-start with the server..."
+wait $SERVER_PID
 
 # Cleanup when script exits
 trap "kill $SERVER_PID" EXIT
