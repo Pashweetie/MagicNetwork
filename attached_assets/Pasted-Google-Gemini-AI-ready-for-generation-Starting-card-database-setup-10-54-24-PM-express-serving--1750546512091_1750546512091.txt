@@ -1,0 +1,33 @@
+Google Gemini AI ready for generation
+Starting card database setup...
+10:54:24 PM [express] serving on port 5000
+🌐 Checking Cloudflare tunnel configuration...
+📋 Tunnel ID found: 82f1b399-c427-45f1-8669-8da9f1fbfca1
+🚀 Starting named Cloudflare tunnel...
+✅ cloudflared found
+🔑 Using API token for tunnel authentication
+Tunnel output: 2025-06-21T22:54:24Z ERR Cannot determine default origin certificate path. No file cert.pem in [~/.cloudflared ~/.cloudflare-warp ~/cloudflare-warp /etc/cloudflared /usr/local/etc/cloudflared]. You need to specify the origin certificate path by specifying the origincert option in the configuration file, or set TUNNEL_ORIGIN_CERT environment variable originCertPath=
+tunnel credentials file not found
+❌ Tunnel exited with code 1
+Named tunnel with API token failed, falling back to quick tunnel...
+Cards tables already exist
+Initializing card database...
+Database already contains 95924 cards
+Last database update was 0.7 days ago
+Database is up to date (0.7 days old)
+Database already contains 72650 rulings
+Weekly update schedule started - checking daily for updates older than 7 days
+Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+⚡ Starting quick Cloudflare tunnel (temporary URL)...
+✅ cloudflared found
+Tunnel output: 2025-06-21T22:54:27Z INF Thank you for trying Cloudflare Tunnel. Doing so, without a Cloudflare account, is a quick way to experiment and try it out. However, be aware that these account-less Tunnels have no uptime guarantee. If you intend to use Tunnels in production you should use a pre-created named tunnel by following: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps
+2025-06-21T22:54:27Z INF Requesting new quick Tunnel on trycloudflare.com...
+Tunnel output: 2025-06-21T22:54:30Z INF +--------------------------------------------------------------------------------------------+
+2025-06-21T22:54:30Z INF |  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |
+2025-06-21T22:54:30Z INF |  https://germany-increased-teaching-ee.trycloudflare.com                                   |
+2025-06-21T22:54:30Z INF +--------------------------------------------------------------------------------------------+
+2025-06-21T22:54:30Z INF Cannot determine default configuration path. No file [config.yml config.yaml] in [~/.cloudflared ~/.cloudflare-warp ~/cloudflare-warp /etc/cloudflared /usr/local/etc/cloudflared]
+2025-06-21T22:54:30Z INF Version 2024.4.1
+2025-06-21T22:54:30Z INF GOOS: linux, GOVersion: go1.21.5-devel-cf, GoArch: amd64
