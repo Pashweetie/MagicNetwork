@@ -263,18 +263,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // For each theme, get example cards
       for (const theme of themes) {
-        const cardsWithConfidence = await aiRecommendationService.getCardsForTheme(
-          theme.theme_name, 
-          id, 
-          filterObj
-        );
-        
-        themeGroups.push({
-          theme: theme.theme_name,
-          description: `${theme.theme_name} strategy`,
-          confidence: theme.confidence,
-          cards: cardsWithConfidence
-        });
+        try {
+          const cardsWithConfidence = await aiRecommendationService.getCardsForTheme(
+            theme.theme_name, 
+            id, 
+            filterObj
+          );
+          
+          themeGroups.push({
+            theme: theme.theme_name,
+            description: `${theme.theme_name} strategy`,
+            confidence: theme.confidence,
+            cards: cardsWithConfidence
+          });
+        } catch (error) {
+          console.error(`Error getting cards for theme ${theme.theme_name}:`, error);
+          // Add theme group with empty cards instead of failing
+          themeGroups.push({
+            theme: theme.theme_name,
+            description: `${theme.theme_name} strategy`,
+            confidence: theme.confidence,
+            cards: []
+          });
+        }
       }
       
       res.json({ themeGroups, userVotes });

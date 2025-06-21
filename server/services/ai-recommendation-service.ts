@@ -214,22 +214,28 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
     const cardsWithConfidence: Array<{card: Card, confidence: number}> = [];
 
     for (const themeCard of themeCards) {
-      const cardData = await db
-        .select()
-        .from(cardCache)
-        .where(eq(cardCache.id, themeCard.card_id))
-        .limit(1);
+      try {
+        const cardData = await db
+          .select()
+          .from(cardCache)
+          .where(eq(cardCache.id, themeCard.card_id))
+          .limit(1);
 
-      if (cardData.length > 0) {
-        const card = cardData[0].cardData as Card;
-        
-        // Apply filters if provided
-        if (!filters || cardMatchesFilters(card, filters)) {
-          cardsWithConfidence.push({
-            card,
-            confidence: themeCard.confidence
-          });
+        if (cardData.length > 0) {
+          const card = cardData[0].cardData as Card;
+          
+          // Apply filters if provided
+          if (!filters || cardMatchesFilters(card, filters)) {
+            cardsWithConfidence.push({
+              card,
+              confidence: themeCard.confidence
+            });
+          }
         }
+      } catch (error) {
+        console.error(`Error fetching card ${themeCard.card_id}:`, error);
+        // Continue with other cards instead of failing completely
+        continue;
       }
     }
 

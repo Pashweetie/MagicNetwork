@@ -113,6 +113,7 @@ interface VerticalStackedCardsProps {
   commander?: Card | null;
   canBeCommander: (card: Card) => boolean;
   getMaxCopies: (card: Card) => number;
+  keyPrefix?: string;
 }
 
 function VerticalStackedCards({
@@ -123,7 +124,8 @@ function VerticalStackedCards({
   onSetCommander,
   commander,
   canBeCommander,
-  getMaxCopies
+  getMaxCopies,
+  keyPrefix
 }: VerticalStackedCardsProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   
@@ -156,7 +158,7 @@ function VerticalStackedCards({
 
           return (
             <StackedCard
-              key={entry.card.id}
+              key={keyPrefix ? `${keyPrefix}-${entry.card.id}` : entry.card.id}
               entry={entry}
               index={index}
               translateY={translateY}
@@ -534,6 +536,7 @@ export function StackedDeckDisplay({
               commander={commander}
               canBeCommander={canBeCommander}
               getMaxCopies={getMaxCopies}
+              keyPrefix={group.name}
             />
           </div>
         ))}
