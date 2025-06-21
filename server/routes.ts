@@ -865,11 +865,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cardNames = Array.from(cardNameToIds.keys());
 
       // Fetch themes by card name (works across all printings)
-      const themes = await db
-        .select()
-        .from(cardThemes)
-        .where(inArray(cardThemes.card_name, cardNames))
-        .orderBy(desc(cardThemes.confidence));
+      const { sql } = await import('drizzle-orm');
+      const cardNamesList = cardNames.map(name => `'${name.replace(/'/g, "''")}'`).join(',');
+      const themes = await db.execute(sql`
+        SELECT * FROM card_themes 
+        WHERE card_name IN (${sql.raw(cardNamesList)})
+        ORDER BY confidence DESC
+      `);
 
       // Group themes by card ID (not card name, for frontend compatibility)
       const themesByCard: { [cardId: string]: Array<{ theme: string, confidence: number }> } = {};
@@ -881,18 +883,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Group themes by card name and theme name, keeping only the highest confidence
       const themeMap = new Map<string, { cardName: string, theme: string, confidence: number }>();
       
-      themes.forEach(theme => {
-        const key = `${theme.card_name}-${theme.theme_name}`;
-        const existing = themeMap.get(key);
-        
-        if (!existing || theme.confidence > existing.confidence) {
-          themeMap.set(key, {
-            cardName: theme.card_name,
-            theme: theme.theme_name,
-            confidence: theme.confidence
-          });
-        }
-      });
+      if (themes.rows) {
+        themes.rows.forEach((theme: any) => {
+          const key = `${theme.card_name}-${theme.theme_name}`;
+          const existing = themeMap.get(key);
+          
+          if (!existing || theme.confidence > existing.confidence) {
+            themeMap.set(key, {
+              cardName: theme.card_name,
+              theme: theme.theme_name,
+              confidence: theme.confidence
+            });
+          }
+        });
+      }
 
       // Convert themes back to card ID format for frontend
       themeMap.forEach(dedupedTheme => {
