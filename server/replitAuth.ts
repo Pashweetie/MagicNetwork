@@ -129,6 +129,12 @@ export async function setupAuth(app: Express) {
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   try {
+    // Cloudflare Integration Notes:
+    // - CF-Connecting-IP header contains real user IP
+    // - CF-Ray header for request tracing
+    // - CF-Visitor header indicates HTTPS/HTTP
+    // - Rate limiting can be configured in Cloudflare dashboard
+    
     // Check if user is already authenticated via Replit auth
     if (req.isAuthenticated() && req.user) {
       const user = req.user as any;

@@ -1,4 +1,8 @@
 // Simple client-side user tracking for deck functionality
+// Cloudflare Integration Notes:
+// - User IDs stored in localStorage work seamlessly with Cloudflare
+// - Cloudflare caching won't affect user-specific requests due to headers
+// - For custom domain: update any hardcoded URLs to use new domain
 export class UserAuth {
   private static readonly USER_ID_KEY = 'mtg_user_id';
   
