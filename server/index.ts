@@ -28,7 +28,8 @@ app.use((req, res, next) => {
   
   // Block direct Replit access with proper redirect
   if (host.includes('replit.app') || host.includes('replit.dev') || host.includes('repl.co')) {
-    const officialUrl = process.env.CLOUDFLARE_TUNNEL_URL || 'https://germany-increased-teaching-ee.trycloudflare.com';
+    // Get current tunnel URL from global variable or fallback
+    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://silly-belt-tee-find.trycloudflare.com';
     
     // Return HTML redirect page for browser users
     if (req.get('accept')?.includes('text/html')) {
@@ -203,48 +204,103 @@ function startCloudflareTunnel() {
   startQuickTunnel();
 }
 
-function startNamedTunnel(tunnelId: string) {
+async function startNamedTunnel(tunnelId: string) {
   console.log('🚀 Starting named Cloudflare tunnel...');
   
-  // Check if cloudflared is installed
-  checkCloudflaredInstallation(() => {
+  checkCloudflaredInstallation(async () => {
     const apiToken = process.env.CLOUDFLARE_API_TOKEN;
     
     if (apiToken) {
-      console.log('🔑 Using API token for tunnel authentication');
-      // Use API token for authentication
-      const tunnel = spawn('cloudflared', [
-        'tunnel', 
-        '--url', 'http://localhost:5000',
-        'run', tunnelId
-      ], {
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env, CLOUDFLARE_API_TOKEN: apiToken }
-      });
-
-      setupTunnelLogging(tunnel, 'Named Tunnel with API Token');
+      console.log('🔑 Creating permanent tunnel with API token...');
       
-      tunnel.on('exit', (code) => {
-        if (code !== 0) {
-          console.log('Named tunnel with API token failed, falling back to quick tunnel...');
-          setTimeout(() => startQuickTunnel(), 2000);
+      try {
+        // Create a new named tunnel via API
+        const newTunnelId = await createPermanentTunnel(apiToken);
+        if (newTunnelId) {
+          console.log(`✅ Created permanent tunnel: ${newTunnelId}`);
+          startTunnelWithCredentials(newTunnelId, apiToken);
+          return;
         }
-      });
+      } catch (error) {
+        console.log('❌ Failed to create permanent tunnel, trying existing tunnel...');
+      }
+      
+      // Try the existing tunnel ID
+      startTunnelWithCredentials(tunnelId, apiToken);
     } else {
-      console.log('❌ No API token found, trying certificate-based authentication...');
-      // Fallback to certificate-based authentication
-      const tunnel = spawn('cloudflared', ['tunnel', '--url', 'http://localhost:5000', 'run', tunnelId], {
-        stdio: ['ignore', 'pipe', 'pipe']
-      });
+      console.log('❌ No API token found, falling back to quick tunnel...');
+      setTimeout(() => startQuickTunnel(), 2000);
+    }
+  });
+}
 
-      setupTunnelLogging(tunnel, 'Named Tunnel');
-      
-      tunnel.on('exit', (code) => {
-        if (code !== 0) {
-          console.log('Named tunnel failed, falling back to quick tunnel...');
-          setTimeout(() => startQuickTunnel(), 2000);
-        }
-      });
+async function createPermanentTunnel(apiToken: string): Promise<string | null> {
+  try {
+    // Get account ID
+    const accountResponse = await fetch('https://api.cloudflare.com/client/v4/accounts', {
+      headers: {
+        'Authorization': `Bearer ${apiToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const accountData = await accountResponse.json();
+    if (!accountData.success || !accountData.result?.[0]) {
+      throw new Error('Failed to get account information');
+    }
+
+    const accountId = accountData.result[0].id;
+    console.log(`📋 Account ID: ${accountId}`);
+
+    // Create tunnel
+    const tunnelResponse = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/cfd_tunnel`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: `mtg-app-${Date.now()}`,
+        tunnel_secret: Buffer.from(require('crypto').randomBytes(32)).toString('base64')
+      })
+    });
+
+    const tunnelData = await tunnelResponse.json();
+    if (!tunnelData.success) {
+      throw new Error(`API Error: ${tunnelData.errors?.[0]?.message || 'Unknown error'}`);
+    }
+
+    return tunnelData.result.id;
+  } catch (error) {
+    console.error('Failed to create tunnel via API:', error);
+    return null;
+  }
+}
+
+function startTunnelWithCredentials(tunnelId: string, apiToken: string) {
+  console.log(`🚀 Starting tunnel ${tunnelId} with API token...`);
+  
+  // Use token-based authentication without credentials file
+  const tunnel = spawn('cloudflared', [
+    'tunnel', 
+    '--url', 'http://localhost:5000',
+    '--protocol', 'http2',
+    'run', tunnelId
+  ], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: { 
+      ...process.env, 
+      CLOUDFLARE_API_TOKEN: apiToken,
+      TUNNEL_TOKEN: apiToken
+    }
+  });
+
+  setupTunnelLogging(tunnel, 'Permanent Tunnel');
+  
+  tunnel.on('exit', (code) => {
+    if (code !== 0) {
+      console.log('❌ Named tunnel failed, falling back to quick tunnel...');
+      setTimeout(() => startQuickTunnel(), 2000);
     }
   });
 }
@@ -324,6 +380,8 @@ function setupTunnelLogging(tunnel: any, tunnelType: string) {
     const urlMatch = output.match(/https:\/\/[a-zA-Z0-9-]+\.(?:trycloudflare\.com|cfargotunnel\.com)/);
     if (urlMatch && !tunnelUrl) {
       tunnelUrl = urlMatch[0];
+      // Store globally for redirect middleware
+      (global as any).currentTunnelUrl = tunnelUrl;
       console.log(`🌍 ${tunnelType} URL: ${tunnelUrl}`);
       console.log('🔒 MTG app now protected with Cloudflare security');
     }
