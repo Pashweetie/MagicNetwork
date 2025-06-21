@@ -42,6 +42,8 @@ export interface IStorage {
   // Deck import functionality
   importDeckFromText(userId: string, deckText: string, format?: string): Promise<{ success: boolean, message: string, importedCards: number, failedCards: string[] }>;
 
+  // EDHREC card linking
+  linkEdhrecCards(edhrecCards: Array<{name: string, num_decks: number, synergy: number, url: string}>): Promise<Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -433,6 +435,44 @@ export class DatabaseStorage implements IStorage {
         .values({ userId, ...deckData })
         .returning();
       return created;
+    }
+  }
+
+  async linkEdhrecCards(edhrecCards: Array<{name: string, num_decks: number, synergy: number, url: string}>): Promise<Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>> {
+    try {
+      const cardNames = edhrecCards.map(card => card.name.toLowerCase());
+      
+      // Single query to get all matching cards from database
+      const dbCards = await scryfallService.searchCards({
+        query: cardNames.map(name => `!"${name}"`).join(' OR ')
+      }, 1, 1000); // Get up to 1000 results in one query
+      
+      const linkedCards: Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}> = [];
+      
+      // Create a map for fast lookups
+      const dbCardMap = new Map<string, Card>();
+      dbCards.data.forEach(card => {
+        dbCardMap.set(card.name.toLowerCase(), card);
+      });
+      
+      // Link EDHREC cards with database cards
+      edhrecCards.forEach(edhrecCard => {
+        const dbCard = dbCardMap.get(edhrecCard.name.toLowerCase());
+        if (dbCard) {
+          linkedCards.push({
+            ...dbCard,
+            edhrec_rank: edhrecCard.num_decks,
+            edhrec_synergy: edhrecCard.synergy,
+            edhrec_url: edhrecCard.url
+          });
+        }
+      });
+      
+      console.log(`✅ Linked ${linkedCards.length} out of ${edhrecCards.length} EDHREC cards via database join`);
+      return linkedCards;
+    } catch (error) {
+      console.error('Error linking EDHREC cards:', error);
+      return [];
     }
   }
 

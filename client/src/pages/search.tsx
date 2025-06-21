@@ -99,108 +99,27 @@ export default function Search() {
     enabled: showEdhrecResults && !!deck.commander
   });
 
-  // State for EDHREC linking process
-  const [isLinkingEdhrecCards, setIsLinkingEdhrecCards] = useState(false);
-
-  // Link EDHREC cards with Scryfall data
+  // EDHREC cards are now already linked in the backend, so we just extract them directly
   useEffect(() => {
     if (!showEdhrecResults || !edhrecData || !deck.commander) {
       setLinkedEdhrecCards([]);
       setEdhrecDisplayCount(EDHREC_PAGE_SIZE);
-      setIsLinkingEdhrecCards(false);
       return;
     }
 
-    const linkCards = async () => {
-      setIsLinkingEdhrecCards(true);
-      
-      const allEdhrecCards = [
-        ...edhrecData.cards.creatures,
-        ...edhrecData.cards.instants,
-        ...edhrecData.cards.sorceries,
-        ...edhrecData.cards.artifacts,
-        ...edhrecData.cards.enchantments,
-        ...edhrecData.cards.planeswalkers,
-        ...edhrecData.cards.lands
-      ];
+    // Cards are already linked by the backend - just flatten them
+    const allLinkedCards = [
+      ...edhrecData.cards.creatures,
+      ...edhrecData.cards.instants,
+      ...edhrecData.cards.sorceries,
+      ...edhrecData.cards.artifacts,
+      ...edhrecData.cards.enchantments,
+      ...edhrecData.cards.planeswalkers,
+      ...edhrecData.cards.lands
+    ];
 
-      console.log(`🔗 Linking ${allEdhrecCards.length} EDHREC cards with local database...`);
-
-      const linkedCards = [];
-      
-      // Process cards in smaller batches to avoid overwhelming the API
-      const maxCards = Math.min(allEdhrecCards.length, 300); // Increased limit
-      const batchSize = 10; // Increased batch size for efficiency
-      
-      for (let i = 0; i < maxCards; i += batchSize) {
-        const batch = allEdhrecCards.slice(i, i + batchSize);
-        const batchResults = await Promise.all(
-          batch.map(async (edhrecCard: any) => {
-            try {
-              // Use exact name search with quotes for better matching
-              const exactQuery = `!"${edhrecCard.name}"`;
-              const searchResponse = await fetch(`/api/cards/search?q=${encodeURIComponent(exactQuery)}&page=1`);
-              
-              if (searchResponse.ok) {
-                const searchResult = await searchResponse.json();
-                const exactMatch = searchResult.data.find((card: any) => 
-                  card.name.toLowerCase() === edhrecCard.name.toLowerCase()
-                );
-                
-                if (exactMatch) {
-                  return {
-                    ...exactMatch,
-                    edhrec_rank: edhrecCard.num_decks,
-                    edhrec_synergy: edhrecCard.synergy,
-                    edhrec_url: edhrecCard.url
-                  };
-                }
-              }
-
-              // Fallback: try simple name search
-              const fallbackResponse = await fetch(`/api/cards/search?q=${encodeURIComponent(edhrecCard.name)}&page=1`);
-              if (fallbackResponse.ok) {
-                const fallbackResult = await fallbackResponse.json();
-                const fuzzyMatch = fallbackResult.data.find((card: any) => 
-                  card.name.toLowerCase() === edhrecCard.name.toLowerCase()
-                );
-                
-                if (fuzzyMatch) {
-                  return {
-                    ...fuzzyMatch,
-                    edhrec_rank: edhrecCard.num_decks,
-                    edhrec_synergy: edhrecCard.synergy,
-                    edhrec_url: edhrecCard.url
-                  };
-                }
-              }
-              
-              return null;
-            } catch (error) {
-              console.error('Error linking EDHREC card:', edhrecCard.name, error);
-              return null;
-            }
-          })
-        );
-        
-        const validCards = batchResults.filter(Boolean);
-        linkedCards.push(...validCards);
-        
-        // Update progress
-        console.log(`🔗 Linked ${linkedCards.length} cards so far (${Math.round((i + batchSize) / maxCards * 100)}%)`);
-        
-        // Small delay between batches to prevent overwhelming the server
-        if (i + batchSize < maxCards) {
-          await new Promise(resolve => setTimeout(resolve, 25));
-        }
-      }
-
-      console.log(`✅ Successfully linked ${linkedCards.length} out of ${allEdhrecCards.length} EDHREC cards`);
-      setLinkedEdhrecCards(linkedCards);
-      setIsLinkingEdhrecCards(false);
-    };
-
-    linkCards();
+    console.log(`✅ Using ${allLinkedCards.length} pre-linked EDHREC cards from backend`);
+    setLinkedEdhrecCards(allLinkedCards);
   }, [showEdhrecResults, edhrecData, deck.commander]);
 
   // Show cards by default, or when there's an active search or showing EDHREC results
@@ -662,15 +581,15 @@ export default function Search() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2 text-purple-300">
                     <span className="text-sm font-medium">EDHREC recommendations for {deck.commander.name}</span>
-                    {isLinkingEdhrecCards && (
+                    {isEdhrecLoading && (
                       <div className="flex items-center space-x-2 text-purple-400">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400"></div>
-                        <span className="text-xs">Linking cards...</span>
+                        <span className="text-xs">Loading...</span>
                       </div>
                     )}
                   </div>
                   <div className="text-xs text-purple-400">
-                    {linkedEdhrecCards.length} cards linked
+                    {linkedEdhrecCards.length} cards available
                   </div>
                 </div>
                 <p className="text-xs text-purple-400 mt-1">
@@ -686,7 +605,7 @@ export default function Search() {
             
             <CardGrid
               cards={allCards}
-              isLoading={showEdhrecResults ? (isEdhrecLoading || isLinkingEdhrecCards) : (isLoading || isFetchingNextPage)}
+              isLoading={showEdhrecResults ? isEdhrecLoading : (isLoading || isFetchingNextPage)}
               hasMore={showEdhrecResults ? edhrecDisplayCount < linkedEdhrecCards.length : (hasNextPage || false)}
               onLoadMore={handleLoadMore}
               onRetry={handleRetry}

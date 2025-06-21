@@ -1,6 +1,7 @@
 import { Card } from '@shared/schema';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { storage } from '../storage';
 
 export interface EdhrecCard {
   name: string;
@@ -19,19 +20,19 @@ export interface EdhrecRecommendations {
   total_decks: number;
   updated_at: string;
   cards: {
-    creatures: EdhrecCard[];
-    instants: EdhrecCard[];
-    sorceries: EdhrecCard[];
-    artifacts: EdhrecCard[];
-    enchantments: EdhrecCard[];
-    planeswalkers: EdhrecCard[];
-    lands: EdhrecCard[];
+    creatures: Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>;
+    instants: Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>;
+    sorceries: Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>;
+    artifacts: Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>;
+    enchantments: Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>;
+    planeswalkers: Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>;
+    lands: Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>;
   };
   themes: Array<{
     name: string;
     url: string;
     num_decks: number;
-    cards: EdhrecCard[];
+    cards: Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>;
   }>;
 }
 
@@ -169,7 +170,7 @@ export class EdhrecService {
         throw new Error('Invalid EDHREC response format');
       }
 
-      return this.formatEdhrecData(edhrecData, commander);
+      return await this.formatEdhrecData(edhrecData, commander);
     } catch (error) {
       console.error('Error fetching EDHREC data:', error);
       return null;
@@ -178,48 +179,46 @@ export class EdhrecService {
 
 
 
-  private formatEdhrecData(data: any, commander: Card): EdhrecRecommendations {
-    const formatCards = (cards: any[]): EdhrecCard[] => {
+  private async formatEdhrecData(data: any, commander: Card): Promise<EdhrecRecommendations> {
+    const formatCards = (cards: any[]): Array<{name: string, num_decks: number, synergy: number, url: string}> => {
       if (!Array.isArray(cards)) return [];
       
       return cards.map(card => ({
         name: card.name || card.card_name || '',
         url: card.url || `https://edhrec.com/cards/${encodeURIComponent((card.name || card.card_name || '').toLowerCase().replace(/\s+/g, '-'))}`,
         num_decks: card.num_decks || card.decks || card.percentage || 0,
-        synergy: card.synergy || card.score || card.synergy_score || 0,
-        price: card.price || card.usd || card.price_usd || 0,
-        color_identity: card.color_identity || [],
-        type_line: card.type_line || card.type || card.type_raw || '',
-        cmc: card.cmc || card.mana_cost || card.converted_mana_cost || 0,
-        oracle_text: card.oracle_text || card.text || card.oracle
+        synergy: card.synergy || card.score || card.synergy_score || 0
       }));
     };
 
-    const extractThemes = (data: any): Array<{name: string, url: string, num_decks: number, cards: EdhrecCard[]}> => {
-      const themes: Array<{name: string, url: string, num_decks: number, cards: EdhrecCard[]}> = [];
+    const extractThemes = async (data: any): Promise<Array<{name: string, url: string, num_decks: number, cards: Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>}>> => {
+      const themes: Array<{name: string, url: string, num_decks: number, cards: Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>}> = [];
       
       // Look for theme sections in the data
       const cardlists = data.container?.json_dict?.cardlists || data.cardlists || [];
       
-      cardlists.forEach((section: any) => {
+      for (const section of cardlists) {
         const sectionName = section.tag || section.header || '';
         if (sectionName && !['creatures', 'instants', 'sorceries', 'artifacts', 'enchantments', 'planeswalkers', 'lands'].includes(sectionName.toLowerCase())) {
           // This might be a theme section
+          const themeCards = formatCards(section.cardviews || section.cards || []).slice(0, 20);
+          const linkedThemeCards = await storage.linkEdhrecCards(themeCards);
+          
           themes.push({
             name: sectionName,
             url: `https://edhrec.com/themes/${encodeURIComponent(sectionName.toLowerCase().replace(/\s+/g, '-'))}`,
             num_decks: section.num_decks || 0,
-            cards: formatCards(section.cardviews || section.cards || []).slice(0, 20) // Limit theme cards to 20
+            cards: linkedThemeCards
           });
         }
-      });
+      }
       
       return themes;
     };
 
     // Extract card recommendations from EDHREC JSON structure
     const cardSections = data.container?.json_dict?.cardlists || data.cardlists || [];
-    const cardsByType: { [key: string]: EdhrecCard[] } = {
+    const cardsByType: { [key: string]: Array<{name: string, num_decks: number, synergy: number, url: string}> } = {
       creatures: [],
       instants: [],
       sorceries: [],
@@ -235,33 +234,74 @@ export class EdhrecService {
       const sectionCards = formatCards(section.cardviews || section.cards || []);
 
       if (sectionName.includes('creature')) {
-        cardsByType.creatures.push(...sectionCards); // No limit - use all available
+        cardsByType.creatures.push(...sectionCards);
       } else if (sectionName.includes('instant')) {
-        cardsByType.instants.push(...sectionCards); // No limit - use all available
+        cardsByType.instants.push(...sectionCards);
       } else if (sectionName.includes('sorcery')) {
-        cardsByType.sorceries.push(...sectionCards); // No limit - use all available
+        cardsByType.sorceries.push(...sectionCards);
       } else if (sectionName.includes('artifact')) {
-        cardsByType.artifacts.push(...sectionCards); // No limit - use all available
+        cardsByType.artifacts.push(...sectionCards);
       } else if (sectionName.includes('enchantment')) {
-        cardsByType.enchantments.push(...sectionCards); // No limit - use all available
+        cardsByType.enchantments.push(...sectionCards);
       } else if (sectionName.includes('planeswalker')) {
-        cardsByType.planeswalkers.push(...sectionCards); // No limit - use all available
+        cardsByType.planeswalkers.push(...sectionCards);
       } else if (sectionName.includes('land')) {
-        cardsByType.lands.push(...sectionCards); // No limit - use all available
-      } else {
-        // These might be theme sections - add to creatures
-        cardsByType.creatures.push(...sectionCards.slice(0, 20)); // Keep some limit for theme sections
+        cardsByType.lands.push(...sectionCards);
+      }
+    });
+
+    // Link all cards with database using efficient batch operation
+    const allEdhrecCards = [
+      ...cardsByType.creatures,
+      ...cardsByType.instants,
+      ...cardsByType.sorceries,
+      ...cardsByType.artifacts,
+      ...cardsByType.enchantments,
+      ...cardsByType.planeswalkers,
+      ...cardsByType.lands
+    ];
+    
+    console.log(`🔗 Linking ${allEdhrecCards.length} EDHREC cards via database join...`);
+    const linkedCards = await storage.linkEdhrecCards(allEdhrecCards);
+    
+    // Organize linked cards back into categories
+    const linkedCardsByType = {
+      creatures: [] as Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>,
+      instants: [] as Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>,
+      sorceries: [] as Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>,
+      artifacts: [] as Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>,
+      enchantments: [] as Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>,
+      planeswalkers: [] as Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>,
+      lands: [] as Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>
+    };
+    
+    linkedCards.forEach(card => {
+      const typeLine = card.type_line.toLowerCase();
+      if (typeLine.includes('creature')) {
+        linkedCardsByType.creatures.push(card);
+      } else if (typeLine.includes('instant')) {
+        linkedCardsByType.instants.push(card);
+      } else if (typeLine.includes('sorcery')) {
+        linkedCardsByType.sorceries.push(card);
+      } else if (typeLine.includes('artifact')) {
+        linkedCardsByType.artifacts.push(card);
+      } else if (typeLine.includes('enchantment')) {
+        linkedCardsByType.enchantments.push(card);
+      } else if (typeLine.includes('planeswalker')) {
+        linkedCardsByType.planeswalkers.push(card);
+      } else if (typeLine.includes('land')) {
+        linkedCardsByType.lands.push(card);
       }
     });
 
     // Extract themes from the data
-    const themes = extractThemes(data);
+    const themes = await extractThemes(data);
     
     return {
       commander: commander.name,
       total_decks: data.container?.json_dict?.num_decks || data.num_decks || 0,
       updated_at: new Date().toISOString(),
-      cards: cardsByType,
+      cards: linkedCardsByType,
       themes: themes
     };
   }
