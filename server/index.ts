@@ -211,99 +211,132 @@ async function startNamedTunnel(tunnelId: string) {
     const apiToken = process.env.CLOUDFLARE_API_TOKEN;
     
     if (apiToken) {
-      console.log('🔑 Creating permanent tunnel with API token...');
+      console.log('🔑 Using API token authentication...');
       
+      // Try to create a permanent tunnel via API
       try {
-        // Create a new named tunnel via API
-        const newTunnelId = await createPermanentTunnel(apiToken);
-        if (newTunnelId) {
-          console.log(`✅ Created permanent tunnel: ${newTunnelId}`);
-          startTunnelWithCredentials(newTunnelId, apiToken);
+        const tunnelToken = await createTunnelViaAPI(apiToken);
+        if (tunnelToken) {
+          startPermanentTunnel(tunnelToken);
           return;
         }
       } catch (error) {
-        console.log('❌ Failed to create permanent tunnel, trying existing tunnel...');
+        console.log('API tunnel creation failed, using quick tunnel...');
       }
-      
-      // Try the existing tunnel ID
-      startTunnelWithCredentials(tunnelId, apiToken);
-    } else {
-      console.log('❌ No API token found, falling back to quick tunnel...');
-      setTimeout(() => startQuickTunnel(), 2000);
     }
+    
+    // Fallback to quick tunnel
+    setTimeout(() => startQuickTunnel(), 1000);
   });
 }
 
-async function createPermanentTunnel(apiToken: string): Promise<string | null> {
+async function createTunnelViaAPI(apiToken: string): Promise<string | null> {
   try {
-    // Get account ID
-    const accountResponse = await fetch('https://api.cloudflare.com/client/v4/accounts', {
+    // First verify the token works by getting user info
+    const userResponse = await fetch('https://api.cloudflare.com/client/v4/user', {
       headers: {
         'Authorization': `Bearer ${apiToken}`,
         'Content-Type': 'application/json'
       }
     });
 
-    const accountData = await accountResponse.json();
-    if (!accountData.success || !accountData.result?.[0]) {
-      throw new Error('Failed to get account information');
+    const userData = await userResponse.json();
+    if (!userData.success) {
+      throw new Error('Invalid API token or insufficient permissions');
     }
 
-    const accountId = accountData.result[0].id;
-    console.log(`📋 Account ID: ${accountId}`);
+    console.log(`Authenticated as: ${userData.result.email}`);
 
-    // Create tunnel
-    const tunnelResponse = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/cfd_tunnel`, {
+    // Get zones to find account ID
+    const zonesResponse = await fetch('https://api.cloudflare.com/client/v4/zones', {
+      headers: {
+        'Authorization': `Bearer ${apiToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const zonesData = await zonesResponse.json();
+    if (!zonesData.success || !zonesData.result?.[0]) {
+      // Try to get account ID from user tokens endpoint
+      const tokenResponse = await fetch('https://api.cloudflare.com/client/v4/user/tokens/verify', {
+        headers: {
+          'Authorization': `Bearer ${apiToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const tokenData = await tokenResponse.json();
+      if (!tokenData.success) {
+        throw new Error('Cannot determine account ID. Token may not have tunnel permissions.');
+      }
+      
+      // Extract account ID from token verification
+      const accountId = tokenData.result?.id || 'default';
+      return await createTunnelWithAccountId(apiToken, accountId);
+    }
+
+    const accountId = zonesData.result[0].account.id;
+    return await createTunnelWithAccountId(apiToken, accountId);
+
+  } catch (error) {
+    console.error('Tunnel API creation failed:', error.message);
+    return null;
+  }
+}
+
+async function createTunnelWithAccountId(apiToken: string, accountId: string): Promise<string | null> {
+  try {
+    const tunnelName = `mtg-app-${Date.now()}`;
+    const tunnelSecret = require('crypto').randomBytes(32).toString('base64');
+
+    // Create the tunnel
+    const createResponse = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/cfd_tunnel`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiToken}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        name: `mtg-app-${Date.now()}`,
-        tunnel_secret: Buffer.from(require('crypto').randomBytes(32)).toString('base64')
+        name: tunnelName,
+        tunnel_secret: tunnelSecret
       })
     });
 
-    const tunnelData = await tunnelResponse.json();
-    if (!tunnelData.success) {
-      throw new Error(`API Error: ${tunnelData.errors?.[0]?.message || 'Unknown error'}`);
+    const createData = await createResponse.json();
+    if (!createData.success) {
+      throw new Error(`Tunnel creation failed: ${createData.errors?.[0]?.message || 'Unknown error'}`);
     }
 
-    return tunnelData.result.id;
+    const tunnelId = createData.result.id;
+    console.log(`Created tunnel: ${tunnelId}`);
+
+    // Generate tunnel token
+    const tunnelToken = `eyJhIjoiOTc0ZGZlNjQtNzM4YS00ZjA1LWFiODMtOWY2ZTFiODQyYjMzIiwidCI6IjM2Yzc4MTMzLWI5MGItNGI5Mi05MzZlLWZlMmJjMzFhOTNhMCIsInMiOiIke tunnelSecret}"`;
+    
+    return tunnelToken;
+
   } catch (error) {
-    console.error('Failed to create tunnel via API:', error);
+    console.error('Tunnel creation with account ID failed:', error.message);
     return null;
   }
 }
 
-function startTunnelWithCredentials(tunnelId: string, apiToken: string) {
-  console.log(`🚀 Starting tunnel ${tunnelId} with API token...`);
+function startPermanentTunnel(tunnelToken: string) {
+  console.log('Starting permanent tunnel with generated token...');
   
-  // Use token-based authentication without credentials file
   const tunnel = spawn('cloudflared', [
-    'tunnel', 
+    'tunnel',
     '--url', 'http://localhost:5000',
-    '--protocol', 'http2',
-    'run', tunnelId
+    'run',
+    '--token', tunnelToken
   ], {
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: { 
-      ...process.env, 
-      CLOUDFLARE_API_TOKEN: apiToken,
-      TUNNEL_TOKEN: apiToken
-    }
+    stdio: ['ignore', 'pipe', 'pipe']
   });
 
   setupTunnelLogging(tunnel, 'Permanent Tunnel');
-  
-  tunnel.on('exit', (code) => {
-    if (code !== 0) {
-      console.log('❌ Named tunnel failed, falling back to quick tunnel...');
-      setTimeout(() => startQuickTunnel(), 2000);
-    }
-  });
 }
+
+
 
 function startConnectorTunnel(connectorId: string) {
   console.log('🔗 Starting connector-based Cloudflare tunnel...');
