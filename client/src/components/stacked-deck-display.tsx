@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card as UICard, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp, Plus, Minus, Crown } from "lucide-react";
+import { Plus, Minus, Crown } from "lucide-react";
 import { CachedImage } from "@/components/cached-image";
 
 type SortOption = 'name' | 'name_desc' | 'mana_value' | 'price' | 'type';
@@ -107,7 +106,7 @@ function VerticalStackedCards({
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   
   const CARD_HEIGHT = 300;
-  const CARD_SPACING = 40; // Reduced spacing so titles are more visible
+  const CARD_SPACING = 25; // Minimal spacing between cards
   const HOVER_SHIFT = CARD_HEIGHT - CARD_SPACING; // How much to shift cards above when hovering
 
   return (
@@ -311,7 +310,7 @@ export function StackedDeckDisplay({
 }: StackedDeckDisplayProps) {
   const [sortBy, setSortBy] = useState<SortOption>('type');
   const [categoryBy, setCategoryBy] = useState<CategoryOption>('type');
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Creatures', 'Lands', 'Instants', 'Sorceries', 'Enchantments', 'Artifacts', 'Planeswalkers', 'Other', 'Battles']));
+
 
   const categorizedCards = useMemo((): CategoryGroup[] => {
     if (categoryBy === 'none') {
@@ -349,20 +348,10 @@ export function StackedDeckDisplay({
           name: category,
           cards,
           totalQuantity: cards.reduce((sum, entry) => sum + entry.quantity, 0),
-          isExpanded: expandedCategories.has(category)
+          isExpanded: true
         };
       });
-  }, [deckEntries, sortBy, categoryBy, expandedCategories]);
-
-  const toggleCategory = (categoryName: string) => {
-    const newExpanded = new Set(expandedCategories);
-    if (newExpanded.has(categoryName)) {
-      newExpanded.delete(categoryName);
-    } else {
-      newExpanded.add(categoryName);
-    }
-    setExpandedCategories(newExpanded);
-  };
+  }, [deckEntries, sortBy, categoryBy]);
 
   const canBeCommander = (card: Card) => {
     const typeLine = card.type_line?.toLowerCase() || '';
