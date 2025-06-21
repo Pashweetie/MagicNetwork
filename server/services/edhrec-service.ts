@@ -40,7 +40,10 @@ export class EdhrecService {
 
   private normalizeCommanderName(name: string): string {
     // EDHREC expects commander names in lowercase with no symbols and dashes instead of spaces
-    return name.toLowerCase()
+    // Handle double-faced cards by taking the first part
+    const mainName = name.split(' // ')[0];
+    
+    return mainName.toLowerCase()
       .replace(/[^\w\s]/g, '') // Remove all symbols
       .replace(/\s+/g, '-') // Replace spaces with dashes
       .replace(/-+/g, '-') // Replace multiple dashes with single
@@ -54,8 +57,9 @@ export class EdhrecService {
       
       const response = await fetch(url, {
         headers: {
-          'User-Agent': 'MTG-Deck-Builder/1.0',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
           'Accept': 'application/json',
+          'Referer': 'https://edhrec.com/',
         },
       });
 
@@ -81,7 +85,23 @@ export class EdhrecService {
     }
 
     try {
-      const edhrecData = await this.fetchEdhrecData(commander.name);
+      // Since EDHREC blocks direct API access, we'll use a shell command approach
+      const { exec } = require('child_process');
+      const { promisify } = require('util');
+      const execAsync = promisify(exec);
+
+      const normalizedName = this.normalizeCommanderName(commander.name);
+      const url = `${this.BASE_URL}/${normalizedName}.json`;
+      
+      const curlCommand = `curl -s -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -H "Referer: https://edhrec.com/" "${url}"`;
+      
+      const { stdout, stderr } = await execAsync(curlCommand);
+      
+      if (stderr) {
+        throw new Error(`Curl error: ${stderr}`);
+      }
+
+      const edhrecData = JSON.parse(stdout);
       const recommendations = this.formatEdhrecData(edhrecData, commander);
 
       if (recommendations) {
