@@ -24,7 +24,7 @@ const MTG_COLORS = [
   { code: 'G', name: 'Green', gradient: 'linear-gradient(135deg, #00733e 0%, #198754 100%)', textColor: 'text-white' },
 ];
 
-const CARD_TYPES = ['Creature', 'Instant', 'Sorcery', 'Enchantment', 'Artifact', 'Planeswalker', 'Land', 'Battle', 'Tribal'];
+const CARD_TYPES = ['Creature', 'Instant', 'Sorcery', 'Enchantment', 'Artifact', 'Planeswalker', 'Land', 'Battle', 'Tribal', 'Snow', 'Basic', 'Legendary'];
 const RARITIES = ['common', 'uncommon', 'rare', 'mythic'];
 const FORMATS = ['standard', 'modern', 'legacy', 'vintage', 'commander', 'pioneer', 'pauper', 'historic', 'alchemy'];
 const POPULAR_KEYWORDS = ['Flying', 'Trample', 'Lifelink', 'Deathtouch', 'First Strike', 'Double Strike', 'Vigilance', 'Haste', 'Reach', 'Hexproof', 'Ward', 'Flash', 'Menace'];

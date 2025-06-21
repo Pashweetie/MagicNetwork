@@ -133,6 +133,7 @@ export function EdhrecRecommendations({ commander, onAddCard }: EdhrecRecommenda
         initialCounts[key] = ITEMS_PER_PAGE;
       });
       setDisplayCounts(initialCounts);
+      // Log EDHREC data for debugging
     }
   }, [recommendations]);
 
@@ -242,7 +243,7 @@ export function EdhrecRecommendations({ commander, onAddCard }: EdhrecRecommenda
             return (
               <TabsContent key={category.key} value={category.key}>
                 <div 
-                  className="h-96 overflow-y-auto border border-slate-600 rounded-lg"
+                  className="h-96 overflow-y-auto border-2 border-blue-500/30 rounded-lg bg-slate-900/50 p-2"
                   onScroll={(e) => handleScroll(e, category.key)}
                 >
                   <div className="space-y-2 pr-4">
@@ -255,10 +256,10 @@ export function EdhrecRecommendations({ commander, onAddCard }: EdhrecRecommenda
                     ))}
                     
                     {hasMore && (
-                      <div className="text-center py-4">
-                        <div className="flex items-center justify-center space-x-2 text-slate-400">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span className="text-sm">Showing {displayCount} of {category.cards.length} cards</span>
+                      <div className="text-center py-4 bg-slate-800 border border-slate-600 rounded-lg mx-2">
+                        <div className="flex items-center justify-center space-x-2 text-slate-300">
+                          <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                          <span className="text-sm font-medium">Showing {displayCount} of {category.cards.length} cards - Scroll for more</span>
                         </div>
                       </div>
                     )}
