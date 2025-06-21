@@ -35,6 +35,7 @@ export default function Search() {
   const [manualFilters, setManualFilters] = useState<SearchFilters>({});
   const [useManualFilters, setUseManualFilters] = useState(false);
   const [isDeckFullscreenOpen, setIsDeckFullscreenOpen] = useState(false);
+  const [showEdhrecResults, setShowEdhrecResults] = useState(false);
 
   
   const deck = useDeck();
@@ -253,7 +254,15 @@ export default function Search() {
                     >
                       <X className="w-3 h-3" />
                     </Button>
-
+                    <Button
+                      size="sm"
+                      variant={showEdhrecResults ? "default" : "outline"}
+                      className={showEdhrecResults ? "bg-purple-600 hover:bg-purple-700" : "border-purple-500/50 text-purple-400 hover:bg-purple-900/20"}
+                      onClick={() => setShowEdhrecResults(!showEdhrecResults)}
+                      disabled={!deck.commander}
+                    >
+                      EDHREC
+                    </Button>
                   </div>
                 )}
               </div>
@@ -432,10 +441,19 @@ export default function Search() {
             </div>
           )}
 
-          {/* Card Grid with Deck Functionality */}
-          <div className="p-6">
+          {/* EDHREC Recommendations */}
+          {showEdhrecResults && deck.commander && (
+            <div className="px-6 pb-4">
+              <EdhrecRecommendations 
+                commander={deck.commander} 
+                onAddCard={(card) => deck.addCard(card)}
+              />
+            </div>
+          )}
 
-            
+          {/* Card Grid with Deck Functionality */}
+          {!showEdhrecResults && (
+            <div className="p-6">
             {viewMode === "grid" ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
                 {allCards.filter(card => card && card.type_line && card.name).map((card, index) => (
@@ -470,7 +488,8 @@ export default function Search() {
                 <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>
               </div>
             )}
-          </div>
+            </div>
+          )}
         </main>
       </div>
 
