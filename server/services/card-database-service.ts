@@ -369,7 +369,8 @@ export class CardDatabaseService {
         return;
       }
 
-      const daysSinceUpdate = (Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24);
+      const lastUpdateTime = lastUpdate instanceof Date ? lastUpdate : new Date(lastUpdate);
+      const daysSinceUpdate = (Date.now() - lastUpdateTime.getTime()) / (1000 * 60 * 60 * 24);
       console.log(`Last database update was ${daysSinceUpdate.toFixed(1)} days ago`);
 
       if (daysSinceUpdate >= 7) {
