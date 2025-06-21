@@ -411,6 +411,8 @@ export type CardPrice = typeof cardPrices.$inferSelect;
 export type InsertCardPrice = z.infer<typeof insertCardPriceSchema>;
 export type CardLegality = typeof cardLegalities.$inferSelect;
 export type InsertCardLegality = z.infer<typeof insertCardLegalitySchema>;
+export type CardRuling = typeof cardRulings.$inferSelect;
+export type InsertCardRuling = z.infer<typeof insertCardRulingSchema>;
 
 // Legacy cache types
 export type CardCacheEntry = typeof cardCache.$inferSelect;

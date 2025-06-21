@@ -7,10 +7,19 @@ import { cardMatchesFilters } from "../utils/card-filters";
 
 const SCRYFALL_BULK_API = "https://api.scryfall.com/bulk-data";
 
+interface BulkDataItem {
+  type: 'oracle_cards' | 'unique_artwork' | 'default_cards' | 'all_cards' | 'rulings';
+  name: string;
+  description: string;
+  download_uri: string;
+  compressed_size?: number;
+}
+
 export class CardDatabaseService {
   private isDownloading = false;
   private downloadProgress = { current: 0, total: 0, status: 'idle' };
   private updateCheckInterval: NodeJS.Timeout | null = null;
+  private isDownloadingRulings = false;
 
   async initializeDatabase(): Promise<void> {
     console.log("Initializing card database...");
@@ -26,6 +35,9 @@ export class CardDatabaseService {
       // Check if we need to update
       await this.checkForUpdates();
     }
+    
+    // Check and download rulings
+    await this.checkAndDownloadRulings();
     
     // Start weekly update schedule
     this.startUpdateSchedule();
@@ -60,27 +72,31 @@ export class CardDatabaseService {
       const bulkResponse = await fetch(SCRYFALL_BULK_API);
       const bulkData = await bulkResponse.json();
       
-      // Find the default cards bulk data
-      const defaultCards = bulkData.data.find((item: any) => item.type === 'default_cards');
-      if (!defaultCards) {
-        throw new Error("Could not find default cards bulk data");
+      // Find the oracle cards bulk data (better than default_cards for completeness)
+      let cardsData = bulkData.data.find((item: BulkDataItem) => item.type === 'oracle_cards');
+      if (!cardsData) {
+        // Fallback to default_cards if oracle_cards not available
+        cardsData = bulkData.data.find((item: BulkDataItem) => item.type === 'default_cards');
+      }
+      if (!cardsData) {
+        throw new Error("Could not find suitable cards bulk data");
       }
 
-      console.log(`Downloading ${Math.round(defaultCards.compressed_size / 1024 / 1024)}MB of card data...`);
+      console.log(`Downloading ${Math.round((cardsData.compressed_size || 0) / 1024 / 1024)}MB of card data...`);
       
       // Download the bulk card data
-      const cardsResponse = await fetch(defaultCards.download_uri);
-      const cardsData = await cardsResponse.json();
+      const cardsResponse = await fetch(cardsData.download_uri);
+      const cardsArray = await cardsResponse.json();
 
-      this.downloadProgress.total = cardsData.length;
-      console.log(`Processing ${cardsData.length} cards (${currentCount} already in database)...`);
+      this.downloadProgress.total = cardsArray.length;
+      console.log(`Processing ${cardsArray.length} cards (${currentCount} already in database)...`);
 
       // Process cards in smaller batches to be more efficient
       const batchSize = 500;
       let processedNew = 0;
       
-      for (let i = 0; i < cardsData.length; i += batchSize) {
-        const batch = cardsData.slice(i, i + batchSize);
+      for (let i = 0; i < cardsArray.length; i += batchSize) {
+        const batch = cardsArray.slice(i, i + batchSize);
         const newCardsInBatch = await this.processBatch(batch);
         processedNew += newCardsInBatch;
         this.downloadProgress.current = i + batch.length;
@@ -147,35 +163,69 @@ export class CardDatabaseService {
         return isNaN(parsed) ? null : parsed;
       };
 
-      // Convert Scryfall card to our format with proper type handling
+      // Convert Scryfall card to our enhanced format
       const card: InsertCard = {
         id: cardData.id,
+        oracleId: cardData.oracle_id || null,
         name: cardData.name,
+        printedName: cardData.printed_name || null,
         manaCost: cardData.mana_cost || null,
         cmc: Math.floor(cardData.cmc || 0),
         typeLine: cardData.type_line || 'Unknown',
+        printedTypeLine: cardData.printed_type_line || null,
         oracleText: cardData.oracle_text || null,
+        printedText: cardData.printed_text || null,
+        flavorText: cardData.flavor_text || null,
         colors: cardData.colors || [],
         colorIdentity: cardData.color_identity || [],
+        colorIndicator: cardData.color_indicator || null,
         power: cardData.power || null,
         toughness: cardData.toughness || null,
         loyalty: cardData.loyalty || null,
+        defense: cardData.defense || null,
+        handModifier: cardData.hand_modifier || null,
+        lifeModifier: cardData.life_modifier || null,
         rarity: cardData.rarity,
         setCode: cardData.set,
         setName: cardData.set_name,
+        setId: cardData.set_id || null,
         collectorNumber: cardData.collector_number,
         releasedAt: cardData.released_at,
         artist: cardData.artist || null,
+        artistIds: cardData.artist_ids || null,
+        illustrationId: cardData.illustration_id || null,
         borderColor: cardData.border_color || 'black',
+        frame: cardData.frame || '2015',
+        frameEffects: cardData.frame_effects || null,
+        securityStamp: cardData.security_stamp || null,
+        watermark: cardData.watermark || null,
         layout: cardData.layout || 'normal',
+        highresImage: cardData.highres_image || false,
+        gameFormat: cardData.games?.includes('arena') ? 'arena' : cardData.games?.includes('mtgo') ? 'mtgo' : 'paper',
+        lang: cardData.lang || 'en',
+        mtgoId: parseIntSafe(cardData.mtgo_id),
+        mtgoFoilId: parseIntSafe(cardData.mtgo_foil_id),
+        arenaId: parseIntSafe(cardData.arena_id),
+        tcgplayerId: parseIntSafe(cardData.tcgplayer_id),
+        cardmarketId: parseIntSafe(cardData.cardmarket_id),
         keywords: cardData.keywords || [],
         producedMana: cardData.produced_mana || [],
+        allParts: cardData.all_parts || null,
         cardFaces: cardData.card_faces || null,
         imageUris: cardData.image_uris || null,
         prices: cardData.prices || null,
         legalities: cardData.legalities || null,
         edhrecRank: parseIntSafe(cardData.edhrec_rank),
         pennyRank: parseIntSafe(cardData.penny_rank),
+        preview: cardData.preview || null,
+        reprint: cardData.reprint || false,
+        digital: cardData.digital || false,
+        booster: cardData.booster !== false, // Default to true unless explicitly false
+        storySpotlight: cardData.story_spotlight || false,
+        promo: cardData.promo || false,
+        promoTypes: cardData.promo_types || null,
+        variation: cardData.variation || false,
+        variationOf: cardData.variation_of || null,
       };
 
       cardsToInsert.push(card);
