@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '@shared/schema';
 import { Button } from '@/components/ui/button';
@@ -109,7 +109,9 @@ function EdhrecCardDisplay({
 
 export function EdhrecRecommendations({ commander, onAddCard }: EdhrecRecommendationsProps) {
   const [selectedTab, setSelectedTab] = useState('creatures');
-  const [showAll, setShowAll] = useState<{[key: string]: boolean}>({});
+  const [displayCounts, setDisplayCounts] = useState<{[key: string]: number}>({});
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const ITEMS_PER_PAGE = 20;
 
   const { data: recommendations, isLoading, error } = useQuery({
     queryKey: ['edhrec-recommendations', commander.id],
@@ -122,6 +124,36 @@ export function EdhrecRecommendations({ commander, onAddCard }: EdhrecRecommenda
     },
     enabled: !!commander.id
   });
+
+  // Initialize display counts for each category
+  useEffect(() => {
+    if (recommendations) {
+      const initialCounts: {[key: string]: number} = {};
+      Object.keys(recommendations.cards).forEach(key => {
+        initialCounts[key] = ITEMS_PER_PAGE;
+      });
+      setDisplayCounts(initialCounts);
+    }
+  }, [recommendations]);
+
+  // Infinite scroll handler
+  const handleScroll = (event: React.UIEvent<HTMLDivElement>, categoryKey: string) => {
+    const target = event.currentTarget;
+    const { scrollTop, scrollHeight, clientHeight } = target;
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 100;
+
+    if (isNearBottom && recommendations) {
+      const currentCount = displayCounts[categoryKey] || ITEMS_PER_PAGE;
+      const totalCards = recommendations.cards[categoryKey as keyof typeof recommendations.cards]?.length || 0;
+      
+      if (currentCount < totalCards) {
+        setDisplayCounts(prev => ({
+          ...prev,
+          [categoryKey]: Math.min(currentCount + ITEMS_PER_PAGE, totalCards)
+        }));
+      }
+    }
+  };
 
   if (isLoading) {
     return (
@@ -200,13 +232,16 @@ export function EdhrecRecommendations({ commander, onAddCard }: EdhrecRecommenda
           </TabsList>
           
           {cardCategories.map(category => {
-            const isExpanded = showAll[category.key];
-            const displayCards = isExpanded ? category.cards : category.cards.slice(0, 20);
-            const hasMore = category.cards.length > 20;
+            const displayCount = displayCounts[category.key] || ITEMS_PER_PAGE;
+            const displayCards = category.cards.slice(0, displayCount);
+            const hasMore = displayCount < category.cards.length;
             
             return (
               <TabsContent key={category.key} value={category.key}>
-                <ScrollArea className="h-96">
+                <div 
+                  className="h-96 overflow-y-auto"
+                  onScroll={(e) => handleScroll(e, category.key)}
+                >
                   <div className="space-y-2 pr-4">
                     {displayCards.map((card, index) => (
                       <EdhrecCardDisplay
@@ -218,19 +253,10 @@ export function EdhrecRecommendations({ commander, onAddCard }: EdhrecRecommenda
                     
                     {hasMore && (
                       <div className="text-center py-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowAll(prev => ({
-                            ...prev,
-                            [category.key]: !isExpanded
-                          }))}
-                        >
-                          {isExpanded 
-                            ? `Show Less (showing ${displayCards.length})` 
-                            : `Show All ${category.cards.length} Cards`
-                          }
-                        </Button>
+                        <div className="flex items-center justify-center space-x-2 text-slate-400">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="text-sm">Loading more cards...</span>
+                        </div>
                       </div>
                     )}
                     
@@ -240,7 +266,7 @@ export function EdhrecRecommendations({ commander, onAddCard }: EdhrecRecommenda
                       </div>
                     )}
                   </div>
-                </ScrollArea>
+                </div>
               </TabsContent>
             );
           })}
