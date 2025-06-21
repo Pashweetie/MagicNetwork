@@ -109,6 +109,7 @@ function EdhrecCardDisplay({
 
 export function EdhrecRecommendations({ commander, onAddCard }: EdhrecRecommendationsProps) {
   const [selectedTab, setSelectedTab] = useState('creatures');
+  const [showAll, setShowAll] = useState<{[key: string]: boolean}>({});
 
   const { data: recommendations, isLoading, error } = useQuery({
     queryKey: ['edhrec-recommendations', commander.id],
@@ -198,26 +199,51 @@ export function EdhrecRecommendations({ commander, onAddCard }: EdhrecRecommenda
             ))}
           </TabsList>
           
-          {cardCategories.map(category => (
-            <TabsContent key={category.key} value={category.key}>
-              <ScrollArea className="h-96">
-                <div className="space-y-2 pr-4">
-                  {category.cards.slice(0, 20).map((card, index) => (
-                    <EdhrecCardDisplay
-                      key={`${card.name}-${index}`}
-                      card={card}
-                      onAddCard={onAddCard}
-                    />
-                  ))}
-                  {category.cards.length === 0 && (
-                    <div className="text-center py-8 text-slate-400">
-                      No {category.label.toLowerCase()} recommendations available
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </TabsContent>
-          ))}
+          {cardCategories.map(category => {
+            const isExpanded = showAll[category.key];
+            const displayCards = isExpanded ? category.cards : category.cards.slice(0, 20);
+            const hasMore = category.cards.length > 20;
+            
+            return (
+              <TabsContent key={category.key} value={category.key}>
+                <ScrollArea className="h-96">
+                  <div className="space-y-2 pr-4">
+                    {displayCards.map((card, index) => (
+                      <EdhrecCardDisplay
+                        key={`${card.name}-${index}`}
+                        card={card}
+                        onAddCard={onAddCard}
+                      />
+                    ))}
+                    
+                    {hasMore && (
+                      <div className="text-center py-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowAll(prev => ({
+                            ...prev,
+                            [category.key]: !isExpanded
+                          }))}
+                        >
+                          {isExpanded 
+                            ? `Show Less (showing ${displayCards.length})` 
+                            : `Show All ${category.cards.length} Cards`
+                          }
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {category.cards.length === 0 && (
+                      <div className="text-center py-8 text-slate-400">
+                        No {category.label.toLowerCase()} recommendations available
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+            );
+          })}
         </Tabs>
 
         {recommendations.themes.length > 0 && (
