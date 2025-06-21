@@ -390,7 +390,6 @@ export default function Search() {
                         onSetCommander={deck.format.name === 'Commander' ? deck.setCommanderFromCard : undefined}
                         commander={deck.commander}
                         getMaxCopies={deck.getMaxCopies}
-                        viewMode={deckViewMode === "stacked" ? "grid" : "list"}
                       />
                     </div>
                   )}
