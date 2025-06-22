@@ -10,12 +10,17 @@ const app = express();
 // Domain redirect middleware - redirect Replit domain to custom domain
 app.use((req, res, next) => {
   const host = req.get('host');
-  const protocol = req.get('x-forwarded-proto') || req.protocol;
+  const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
   
-  // Check if request is coming from Replit domain
-  if (host && host.includes('.replit.app')) {
+  // Debug logging
+  if (req.url === '/' || req.url.startsWith('/api')) {
+    log(`Request: ${protocol}://${host}${req.originalUrl}`);
+  }
+  
+  // Check if request is coming from Replit domain (including specific replit domains)
+  if (host && (host.includes('.replit.app') || host.includes('pashweetie.replit.app'))) {
     const redirectUrl = `https://magic-intelligence.org${req.originalUrl}`;
-    log(`Redirecting ${protocol}://${host}${req.originalUrl} -> ${redirectUrl}`);
+    log(`🔄 REDIRECTING: ${protocol}://${host}${req.originalUrl} -> ${redirectUrl}`);
     return res.redirect(301, redirectUrl);
   }
   
