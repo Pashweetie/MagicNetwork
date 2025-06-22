@@ -29,7 +29,7 @@ app.use((req, res, next) => {
   // Block direct Replit access with proper redirect
   if (host.includes('replit.app') || host.includes('replit.dev') || host.includes('repl.co')) {
     // Get current tunnel URL from global variable or fallback to current active tunnel
-    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://summaries-initially-dec-meanwhile.trycloudflare.com';
+    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://gentle-changelog-independence-chef.trycloudflare.com';
     
     // Return HTML redirect page for browser users
     if (req.get('accept')?.includes('text/html')) {
@@ -409,7 +409,7 @@ function setupTunnelLogging(tunnel: any, tunnelType: string) {
         tunnelUrl = urlMatch[0];
         // Store globally for redirect middleware
         (global as any).currentTunnelUrl = tunnelUrl;
-        console.log(`🔄 Updated tunnel URL: ${tunnelUrl}`);
+        console.log(`Updated tunnel URL: ${tunnelUrl}`);
         console.log('MTG app now protected with Cloudflare security');
       }
     }
