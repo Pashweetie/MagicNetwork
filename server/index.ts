@@ -1,8 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { spawn } from "child_process";
-import { existsSync, readFileSync } from "fs";
+// Optimized for Replit deployment - no tunnels needed
+import { securityHeaders, rateLimiter } from "./middleware/security";
 
 
 
@@ -121,30 +121,10 @@ app.use((req, res, next) => {
   }
 })();
 
-// Deployment configuration - no tunnels needed for Replit
-// Use built-in rate limiting and security headers
-app.use('/api', (req, res, next) => {
-  // Set security headers
-  res.set({
-    'X-Content-Type-Options': 'nosniff',
-    'X-Frame-Options': 'DENY',
-    'X-XSS-Protection': '1; mode=block',
-    'Referrer-Policy': 'strict-origin-when-cross-origin'
-  });
-  
-  next();
-});
+// Apply security headers to all routes
+app.use(securityHeaders);
 
-// Remove the permanent tunnel function since it's not working
-// Keep only the simple tunnel that works
-
-
-
-
-
-
-
-
-
-
+// Rate limiting for API routes
+app.use('/api', rateLimiter(100, 60000)); // 100 requests per minute per IP
+app.use('/api/cards/search', rateLimiter(50, 60000)); // Stricter limit for search
 
