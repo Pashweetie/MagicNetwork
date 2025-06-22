@@ -10,70 +10,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Block direct Replit access - force Cloudflare tunnel usage
-app.use((req, res, next) => {
-  const host = req.get('host') || '';
-  const cfConnectingIp = req.get('cf-connecting-ip');
-  const cfRay = req.get('cf-ray');
-  
-  // Allow localhost for development
-  if (host.includes('localhost') || host.includes('127.0.0.1')) {
-    return next();
-  }
-  
-  // Allow if coming through Cloudflare (has CF headers)
-  if (cfConnectingIp || cfRay) {
-    return next();
-  }
-  
-  // Block direct Replit access with proper redirect
-  if (host.includes('replit.app') || host.includes('replit.dev') || host.includes('repl.co')) {
-    // Get current tunnel URL from global variable or fallback to current active tunnel
-    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://following-fifteen-absent-status.trycloudflare.com';
-    
-    // Return HTML redirect page for browser users
-    if (req.get('accept')?.includes('text/html')) {
-      return res.status(403).send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Access Restricted - MTG Card Search</title>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
-            .container { max-width: 500px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-            h1 { color: #d73502; margin-bottom: 20px; }
-            p { color: #666; line-height: 1.6; margin-bottom: 30px; }
-            .btn { background: #0070f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; }
-            .btn:hover { background: #0051a2; }
-          </style>
-          <script>
-            setTimeout(() => window.location.href = '${officialUrl}', 5000);
-          </script>
-        </head>
-        <body>
-          <div class="container">
-            <h1>🛡️ Secure Access Required</h1>
-            <p>This MTG Card Search application uses Cloudflare protection for security and performance. Direct access is not allowed.</p>
-            <p>Redirecting you to the secure URL in 5 seconds...</p>
-            <a href="${officialUrl}" class="btn">Go to Official URL</a>
-          </div>
-        </body>
-        </html>
-      `);
-    }
-    
-    // JSON response for API requests
-    return res.status(403).json({
-      error: 'Direct access not allowed',
-      message: 'Please use the official URL to access this application',
-      redirect: officialUrl
-    });
-  }
-  
-  next();
-});
+// Allow all access - no tunnel restrictions
 
 // Enhanced caching headers for Cloudflare optimization
 app.use((req, res, next) => {
