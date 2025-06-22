@@ -4,9 +4,13 @@ import { setupVite, serveStatic, log } from "./vite";
 // Optimized for Replit deployment - no tunnels needed
 import { securityHeaders, rateLimiter } from "./middleware/security";
 
-
-
 const app = express();
+
+// Apply security middleware first
+app.use(securityHeaders);
+app.use('/api', rateLimiter(100, 60000)); // 100 requests per minute per IP
+app.use('/api/cards/search', rateLimiter(50, 60000)); // Stricter limit for search
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -120,11 +124,3 @@ app.use((req, res, next) => {
     process.exit(1);
   }
 })();
-
-// Apply security headers to all routes
-app.use(securityHeaders);
-
-// Rate limiting for API routes
-app.use('/api', rateLimiter(100, 60000)); // 100 requests per minute per IP
-app.use('/api/cards/search', rateLimiter(50, 60000)); // Stricter limit for search
-
