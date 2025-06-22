@@ -29,7 +29,7 @@ app.use((req, res, next) => {
   // Block direct Replit access with proper redirect
   if (host.includes('replit.app') || host.includes('replit.dev') || host.includes('repl.co')) {
     // Get current tunnel URL from global variable or fallback
-    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://tunnel-loading.trycloudflare.com';
+    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://summaries-initially-dec-meanwhile.trycloudflare.com';
     
     // Return HTML redirect page for browser users
     if (req.get('accept')?.includes('text/html')) {
