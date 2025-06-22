@@ -3,11 +3,13 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 // Optimized for Replit deployment - no tunnels needed
 import { securityHeaders, rateLimiter } from "./middleware/security";
+import { cloudflareOptimized } from "./middleware/cloudflare-headers";
 
 const app = express();
 
 // Apply security middleware first
 app.use(securityHeaders);
+app.use(cloudflareOptimized); // Optimize responses for Cloudflare caching
 app.use('/api', rateLimiter(100, 60000)); // 100 requests per minute per IP
 app.use('/api/cards/search', rateLimiter(50, 60000)); // Stricter limit for search
 
