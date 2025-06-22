@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getUserId } from "./user-id";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -12,12 +13,10 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const { UserAuth } = await import('./auth');
-  
   const res = await fetch(url, {
     method,
     headers: {
-      ...UserAuth.getAuthHeaders(),
+      "x-user-id": getUserId(),
       ...(data ? { "Content-Type": "application/json" } : {}),
     },
     body: data ? JSON.stringify(data) : undefined,
@@ -34,10 +33,10 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const { UserAuth } = await import('./auth');
-    
     const res = await fetch(queryKey[0] as string, {
-      headers: UserAuth.getAuthHeaders(),
+      headers: {
+        "x-user-id": getUserId(),
+      },
       credentials: "include",
     });
 
