@@ -158,7 +158,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
       }
     }
 
-    // Check for client-provided user ID in headers
+    // Check for client-provided user ID in headers (from localStorage)
     let userId = req.headers['x-user-id'] as string;
     
     if (!userId) {
@@ -167,7 +167,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
       
       if (!userId) {
         // Generate a unique anonymous user ID
-        userId = `demo-user`; // Use consistent demo user for testing
+        userId = `anon_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
         (req.session as any).autoUserId = userId;
       }
     }
