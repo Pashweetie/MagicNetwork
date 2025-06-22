@@ -7,7 +7,22 @@ import { cloudflareOptimized } from "./middleware/cloudflare-headers";
 
 const app = express();
 
-// Apply security middleware first
+// Domain redirect middleware - redirect Replit domain to custom domain
+app.use((req, res, next) => {
+  const host = req.get('host');
+  const protocol = req.get('x-forwarded-proto') || req.protocol;
+  
+  // Check if request is coming from Replit domain
+  if (host && host.includes('.replit.app')) {
+    const redirectUrl = `https://magic-intelligence.org${req.originalUrl}`;
+    log(`Redirecting ${protocol}://${host}${req.originalUrl} -> ${redirectUrl}`);
+    return res.redirect(301, redirectUrl);
+  }
+  
+  next();
+});
+
+// Apply security middleware
 app.use(securityHeaders);
 app.use(cloudflareOptimized); // Optimize responses for Cloudflare caching
 app.use('/api', rateLimiter(100, 60000)); // 100 requests per minute per IP
