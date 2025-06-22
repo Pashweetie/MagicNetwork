@@ -32,18 +32,23 @@ export async function setupAuth(app: Express) {
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   try {
-    // Check for client-provided user ID in headers (from localStorage)
+    // Primary: Check for client-provided user ID in headers (from localStorage)
     let userId = req.headers['x-user-id'] as string;
     
     if (!userId) {
-      // Check session as fallback
+      // Fallback: Check session for existing anonymous user
       userId = (req.session as any)?.autoUserId;
       
       if (!userId) {
-        // Generate a unique anonymous user ID
+        // Last resort: Generate a unique anonymous user ID
         userId = `anon_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
         (req.session as any).autoUserId = userId;
+        console.log(`🆔 Generated new anonymous user: ${userId}`);
+      } else {
+        console.log(`🔄 Using session user: ${userId}`);
       }
+    } else {
+      console.log(`📱 Using localStorage user: ${userId}`);
     }
     
     // Ensure user exists in database
@@ -54,7 +59,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
         username: userId,
         email: `${userId}@anonymous.local`
       });
-      console.log(`🔑 Created new user: ${userId}`);
+      console.log(`🔑 Created new user in database: ${userId}`);
     }
 
     // Attach user to request

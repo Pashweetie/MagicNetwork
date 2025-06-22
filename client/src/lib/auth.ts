@@ -1,35 +1,16 @@
-// Simple client-side user tracking for deck functionality
-// Cloudflare Integration Notes:
-// - User IDs stored in localStorage work seamlessly with Cloudflare
-// - Cloudflare caching won't affect user-specific requests due to headers
-// - For custom domain: update any hardcoded URLs to use new domain
+// This file is deprecated - user identification moved to user-id.ts
+// Keeping for backward compatibility
+
+import { getUserId } from './user-id';
+
 export class UserAuth {
-  private static readonly USER_ID_KEY = 'mtg_user_id';
-  
   static getUserId(): string {
-    let userId = localStorage.getItem(this.USER_ID_KEY);
-    
-    if (!userId) {
-      // Generate new user ID if none exists
-      userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      localStorage.setItem(this.USER_ID_KEY, userId);
-    }
-    
-    return userId;
+    return getUserId();
   }
   
-  static setUserId(userId: string): void {
-    localStorage.setItem(this.USER_ID_KEY, userId);
-  }
-  
-  static clearUserId(): void {
-    localStorage.removeItem(this.USER_ID_KEY);
-  }
-  
-  // Add user ID to request headers
   static getAuthHeaders(): HeadersInit {
     return {
-      'X-User-ID': this.getUserId(),
+      'X-User-ID': getUserId(),
       'Content-Type': 'application/json'
     };
   }
