@@ -29,10 +29,7 @@ app.use((req, res, next) => {
   // Block direct Replit access with proper redirect
   if (host.includes('replit.app') || host.includes('replit.dev') || host.includes('repl.co')) {
     // Get current tunnel URL from global variable or fallback to current active tunnel
-    // For named tunnels, we should have a predictable URL pattern
-    const tunnelId = process.env.CLOUDFLARE_TUNNEL_ID;
-    const namedTunnelUrl = tunnelId ? `https://${tunnelId}.cfargotunnel.com` : null;
-    const officialUrl = (global as any).currentTunnelUrl || namedTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://explore-counts-screen-mono.trycloudflare.com';
+    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://tunnel-loading.trycloudflare.com';
     
     // Return HTML redirect page for browser users
     if (req.get('accept')?.includes('text/html')) {
@@ -183,32 +180,12 @@ app.use((req, res, next) => {
 
 // Auto-start Cloudflare tunnel if configured
 function startCloudflareTunnel() {
-  const tunnelToken = process.env.CLOUDFLARE_TUNNEL_TOKEN;
-  if (tunnelToken) {
-    console.log('Starting named tunnel with permanent URL...');
-    startPermanentTunnel(tunnelToken);
-  } else {
-    console.log('Starting simple tunnel for immediate public access...');
-    startSimpleTunnel();
-  }
+  console.log('Starting simple tunnel for immediate public access...');
+  startSimpleTunnel();
 }
 
-function startPermanentTunnel(tunnelToken: string) {
-  console.log('🔗 Starting permanent Cloudflare tunnel...');
-  
-  checkCloudflaredInstallation(() => {
-    const tunnel = spawn('cloudflared', [
-      'tunnel', 
-      '--url', 'http://localhost:5000',
-      'run',
-      '--token', tunnelToken
-    ], {
-      stdio: ['ignore', 'pipe', 'pipe']
-    });
-
-    setupTunnelLogging(tunnel, 'Permanent Tunnel');
-  });
-}
+// Remove the permanent tunnel function since it's not working
+// Keep only the simple tunnel that works
 
 async function startNamedTunnel(tunnelId: string) {
   console.log('Starting named Cloudflare tunnel...');
@@ -429,11 +406,12 @@ function setupTunnelLogging(tunnel: any, tunnelType: string) {
     const output = data.toString();
     console.log(`Tunnel output: ${output.trim()}`);
     
-    // Extract tunnel URL with multiple patterns
+    // Extract tunnel URL with improved patterns for the exact log format
     const urlPatterns = [
-      /https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/,
-      /https:\/\/[a-zA-Z0-9-]+\.cfargotunnel\.com/,
-      /Visit it at.*?(https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com)/
+      /\|\s+(https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com)\s+\|/,  // Format: |  https://url  |
+      /https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/,               // Direct URL match
+      /Visit it at.*?(https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com)/,
+      /https:\/\/[a-zA-Z0-9-]+\.cfargotunnel\.com/
     ];
     
     for (const pattern of urlPatterns) {
@@ -445,6 +423,9 @@ function setupTunnelLogging(tunnel: any, tunnelType: string) {
           (global as any).currentTunnelUrl = tunnelUrl;
           console.log(`Updated tunnel URL: ${tunnelUrl}`);
           console.log('MTG app now protected with Cloudflare security');
+          
+          // Log for debugging redirect issues
+          console.log(`Global tunnel URL set for redirects: ${(global as any).currentTunnelUrl}`);
         }
         break;
       }
