@@ -29,7 +29,7 @@ app.use((req, res, next) => {
   // Block direct Replit access with proper redirect
   if (host.includes('replit.app') || host.includes('replit.dev') || host.includes('repl.co')) {
     // Get current tunnel URL from global variable or fallback to current active tunnel
-    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://gentle-changelog-independence-chef.trycloudflare.com';
+    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://explore-counts-screen-mono.trycloudflare.com';
     
     // Return HTML redirect page for browser users
     if (req.get('accept')?.includes('text/html')) {
@@ -401,16 +401,26 @@ function setupTunnelLogging(tunnel: any, tunnelType: string) {
   
   tunnel.stdout.on('data', (data: Buffer) => {
     const output = data.toString();
+    console.log(`Tunnel output: ${output.trim()}`);
     
-    // Extract tunnel URL and connection status - improved detection
-    const urlMatch = output.match(/https:\/\/[a-zA-Z0-9-]+\.(?:trycloudflare\.com|cfargotunnel\.com)/);
-    if (urlMatch) {
-      if (!tunnelUrl || tunnelUrl !== urlMatch[0]) {
-        tunnelUrl = urlMatch[0];
-        // Store globally for redirect middleware
-        (global as any).currentTunnelUrl = tunnelUrl;
-        console.log(`Updated tunnel URL: ${tunnelUrl}`);
-        console.log('MTG app now protected with Cloudflare security');
+    // Extract tunnel URL with multiple patterns
+    const urlPatterns = [
+      /https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/,
+      /https:\/\/[a-zA-Z0-9-]+\.cfargotunnel\.com/,
+      /Visit it at.*?(https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com)/
+    ];
+    
+    for (const pattern of urlPatterns) {
+      const match = output.match(pattern);
+      if (match) {
+        const foundUrl = match[1] || match[0];
+        if (!tunnelUrl || tunnelUrl !== foundUrl) {
+          tunnelUrl = foundUrl;
+          (global as any).currentTunnelUrl = tunnelUrl;
+          console.log(`Updated tunnel URL: ${tunnelUrl}`);
+          console.log('MTG app now protected with Cloudflare security');
+        }
+        break;
       }
     }
     
