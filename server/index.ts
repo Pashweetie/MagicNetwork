@@ -29,7 +29,10 @@ app.use((req, res, next) => {
   // Block direct Replit access with proper redirect
   if (host.includes('replit.app') || host.includes('replit.dev') || host.includes('repl.co')) {
     // Get current tunnel URL from global variable or fallback to current active tunnel
-    const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://explore-counts-screen-mono.trycloudflare.com';
+    // For named tunnels, we should have a predictable URL pattern
+    const tunnelId = process.env.CLOUDFLARE_TUNNEL_ID;
+    const namedTunnelUrl = tunnelId ? `https://${tunnelId}.cfargotunnel.com` : null;
+    const officialUrl = (global as any).currentTunnelUrl || namedTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://explore-counts-screen-mono.trycloudflare.com';
     
     // Return HTML redirect page for browser users
     if (req.get('accept')?.includes('text/html')) {
@@ -180,8 +183,31 @@ app.use((req, res, next) => {
 
 // Auto-start Cloudflare tunnel if configured
 function startCloudflareTunnel() {
-  console.log('Starting simple tunnel for immediate public access...');
-  startSimpleTunnel();
+  const tunnelToken = process.env.CLOUDFLARE_TUNNEL_TOKEN;
+  if (tunnelToken) {
+    console.log('Starting named tunnel with permanent URL...');
+    startPermanentTunnel(tunnelToken);
+  } else {
+    console.log('Starting simple tunnel for immediate public access...');
+    startSimpleTunnel();
+  }
+}
+
+function startPermanentTunnel(tunnelToken: string) {
+  console.log('🔗 Starting permanent Cloudflare tunnel...');
+  
+  checkCloudflaredInstallation(() => {
+    const tunnel = spawn('cloudflared', [
+      'tunnel', 
+      '--url', 'http://localhost:5000',
+      'run',
+      '--token', tunnelToken
+    ], {
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+
+    setupTunnelLogging(tunnel, 'Permanent Tunnel');
+  });
 }
 
 async function startNamedTunnel(tunnelId: string) {
