@@ -40,8 +40,11 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
       userId = (req.session as any)?.autoUserId;
       
       if (!userId) {
-        // Last resort: Generate a unique anonymous user ID
-        userId = `anon_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+        // Last resort: Generate a unique anonymous user ID with more entropy
+        const timestamp = Date.now();
+        const randomPart = Math.random().toString(36).substring(2, 15);
+        const extraEntropy = Math.random().toString(36).substring(2, 8);
+        userId = `anon_${timestamp}_${randomPart}_${extraEntropy}`;
         (req.session as any).autoUserId = userId;
         console.log(`🆔 Generated new anonymous user: ${userId}`);
       } else {
