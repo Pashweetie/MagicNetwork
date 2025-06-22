@@ -441,33 +441,89 @@ export class DatabaseStorage implements IStorage {
 
   async linkEdhrecCards(edhrecCards: Array<{name: string, num_decks: number, synergy: number, url: string}>): Promise<Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>> {
     try {
-      const cardNames = edhrecCards.map(card => card.name.toLowerCase());
-      
-      // Single query to get all matching cards from database
-      const dbCards = await scryfallService.searchCards({
-        query: cardNames.map(name => `!"${name}"`).join(' OR ')
-      });
-      
+      if (!edhrecCards || edhrecCards.length === 0) {
+        return [];
+      }
+
       const linkedCards: Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}> = [];
       
-      // Create a map for fast lookups
-      const dbCardMap = new Map<string, Card>();
-      dbCards.data.forEach(card => {
-        dbCardMap.set(card.name.toLowerCase(), card);
-      });
+      // Use direct database queries instead of scryfallService
+      console.log(`🔗 Linking ${edhrecCards.length} EDHREC cards via database join...`);
       
-      // Link EDHREC cards with database cards
-      edhrecCards.forEach(edhrecCard => {
-        const dbCard = dbCardMap.get(edhrecCard.name.toLowerCase());
-        if (dbCard) {
-          linkedCards.push({
-            ...dbCard,
-            edhrec_rank: edhrecCard.num_decks,
-            edhrec_synergy: edhrecCard.synergy,
-            edhrec_url: edhrecCard.url
-          });
+      // Check if local database is available first
+      let hasLocalCards = false;
+      try {
+        const testResult = await db.execute(sql`SELECT COUNT(*) as count FROM cards LIMIT 1`);
+        hasLocalCards = testResult.rows && testResult.rows.length > 0;
+      } catch (error) {
+        console.log('Local database not ready, using Scryfall');
+      }
+      
+      if (hasLocalCards) {
+        // Use local database for faster lookups
+        for (const edhrecCard of edhrecCards) {
+          try {
+            const result = await db.execute(sql`
+              SELECT id, name, mana_cost, cmc, type_line, oracle_text, colors, 
+                     color_identity, power, toughness, rarity, set_code, set_name,
+                     image_uris, card_faces, prices, legalities
+              FROM cards 
+              WHERE LOWER(name) = ${edhrecCard.name.toLowerCase()}
+              LIMIT 1
+            `);
+            
+            if (result.rows && result.rows.length > 0) {
+              const dbCard = this.convertRawDbCardToCard(result.rows[0]);
+              linkedCards.push({
+                ...dbCard,
+                edhrec_rank: edhrecCard.num_decks,
+                edhrec_synergy: edhrecCard.synergy,
+                edhrec_url: edhrecCard.url
+              });
+            }
+          } catch (error) {
+            console.error(`Error linking card "${edhrecCard.name}":`, error);
+          }
         }
-      });
+      } else {
+        // Fall back to Scryfall API if local database isn't populated
+        for (const edhrecCard of edhrecCards) {
+          try {
+            const response = await fetch(`https://api.scryfall.com/cards/named?exact=${encodeURIComponent(edhrecCard.name)}`);
+            if (response.ok) {
+              const scryfallCard = await response.json();
+              const card: Card = {
+                id: scryfallCard.id,
+                name: scryfallCard.name,
+                mana_cost: scryfallCard.mana_cost || null,
+                cmc: scryfallCard.cmc || 0,
+                type_line: scryfallCard.type_line || '',
+                oracle_text: scryfallCard.oracle_text || null,
+                colors: scryfallCard.colors || [],
+                color_identity: scryfallCard.color_identity || [],
+                power: scryfallCard.power || null,
+                toughness: scryfallCard.toughness || null,
+                rarity: scryfallCard.rarity || 'common',
+                set: scryfallCard.set || '',
+                set_name: scryfallCard.set_name || '',
+                image_uris: scryfallCard.image_uris || null,
+                card_faces: scryfallCard.card_faces || null,
+                prices: scryfallCard.prices || null,
+                legalities: scryfallCard.legalities || null,
+              };
+              
+              linkedCards.push({
+                ...card,
+                edhrec_rank: edhrecCard.num_decks,
+                edhrec_synergy: edhrecCard.synergy,
+                edhrec_url: edhrecCard.url
+              });
+            }
+          } catch (error) {
+            // Skip cards that can't be found
+          }
+        }
+      }
       
       console.log(`✅ Linked ${linkedCards.length} out of ${edhrecCards.length} EDHREC cards via database join`);
       return linkedCards;

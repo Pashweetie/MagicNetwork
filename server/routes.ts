@@ -864,19 +864,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const cardNames = Array.from(cardNameToIds.keys());
 
-      // Fetch themes by card name (works across all printings)
+      // Fetch themes by card ID (more reliable than card names)
       let themes: any[] = [];
       
-      if (cardNames.length > 0) {
-        for (const cardName of cardNames) {
-          const cardThemesForName = await db
-            .select()
-            .from(cardThemes)
-            .where(eq(cardThemes.card_name, cardName))
-            .orderBy(desc(cardThemes.confidence));
-          
-          themes.push(...cardThemesForName);
-        }
+      if (cardIds.length > 0) {
+        const cardThemesForIds = await db
+          .select()
+          .from(cardThemes)
+          .where(inArray(cardThemes.card_id, cardIds))
+          .orderBy(desc(cardThemes.confidence));
+        
+        themes.push(...cardThemesForIds);
       }
 
       // Group themes by card ID (not card name, for frontend compatibility)
@@ -886,33 +884,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         themesByCard[cardId] = [];
       });
 
-      // Group themes by card name and theme name, keeping only the highest confidence
-      const themeMap = new Map<string, { cardName: string, theme: string, confidence: number }>();
+      // Group themes by card ID and theme name, keeping only the highest confidence
+      const themeMap = new Map<string, { cardId: string, theme: string, confidence: number }>();
       
       themes.forEach((theme: any) => {
-        const key = `${theme.card_name}-${theme.theme_name}`;
+        const key = `${theme.card_id}-${theme.theme_name}`;
         const existing = themeMap.get(key);
         
         if (!existing || theme.confidence > existing.confidence) {
           themeMap.set(key, {
-            cardName: theme.card_name,
+            cardId: theme.card_id,
             theme: theme.theme_name,
             confidence: theme.confidence
           });
         }
       });
 
-      // Convert themes back to card ID format for frontend
+      // Add themes directly to result object
       themeMap.forEach(dedupedTheme => {
-        const cardIdsForName = cardNameToIds.get(dedupedTheme.cardName) || [];
-        cardIdsForName.forEach(cardId => {
-          if (themesByCard[cardId]) {
-            themesByCard[cardId].push({
-              theme: dedupedTheme.theme,
-              confidence: dedupedTheme.confidence
-            });
-          }
-        });
+        if (themesByCard[dedupedTheme.cardId]) {
+          themesByCard[dedupedTheme.cardId].push({
+            theme: dedupedTheme.theme,
+            confidence: dedupedTheme.confidence
+          });
+        }
       });
 
       res.json(themesByCard);

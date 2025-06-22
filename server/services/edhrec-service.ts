@@ -146,28 +146,57 @@ export class EdhrecService {
 
   private async fetchCommanderData(commander: Card): Promise<EdhrecRecommendations | null> {
     try {
-      // Since EDHREC blocks direct API access, we'll use a shell command approach
-      const execAsync = promisify(exec);
-
       const normalizedName = this.normalizeCommanderName(commander.name);
       const url = `${this.BASE_URL}/${normalizedName}.json`;
       
-      const curlCommand = `curl -s -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -H "Referer: https://edhrec.com/" "${url}"`;
+      console.log(`Fetching EDHREC data for: ${commander.name} (${normalizedName})`);
       
-      const { stdout, stderr } = await execAsync(curlCommand);
-      
-      if (stderr && stderr.trim()) {
-        throw new Error(`Curl error: ${stderr}`);
-      }
+      // Try direct fetch first
+      let edhrecData;
+      try {
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json',
+            'Referer': 'https://edhrec.com/',
+            'Cache-Control': 'no-cache'
+          },
+          signal: AbortSignal.timeout(30000) // 30 second timeout
+        });
 
-      if (!stdout || stdout.trim() === '') {
-        throw new Error('Empty response from EDHREC');
-      }
+        if (response.ok) {
+          edhrecData = await response.json();
+        } else {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+      } catch (fetchError) {
+        console.log('Direct fetch failed, trying curl fallback:', fetchError);
+        
+        // Fallback to curl if direct fetch fails
+        const execAsync = promisify(exec);
+        const curlCommand = `timeout 30 curl -s -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -H "Referer: https://edhrec.com/" "${url}"`;
+        
+        try {
+          const { stdout, stderr } = await execAsync(curlCommand);
+          
+          if (stderr && stderr.trim()) {
+            throw new Error(`Curl error: ${stderr}`);
+          }
 
-      const edhrecData = JSON.parse(stdout);
+          if (!stdout || stdout.trim() === '') {
+            throw new Error('Empty response from EDHREC');
+          }
+
+          edhrecData = JSON.parse(stdout);
+        } catch (curlError) {
+          console.error('Both fetch and curl failed:', curlError);
+          return null;
+        }
+      }
       
       if (!edhrecData || !edhrecData.container || !edhrecData.container.json_dict) {
-        throw new Error('Invalid EDHREC response format');
+        console.error('Invalid EDHREC response format:', Object.keys(edhrecData || {}));
+        return null;
       }
 
       return await this.formatEdhrecData(edhrecData, commander);
