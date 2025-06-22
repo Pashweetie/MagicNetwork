@@ -103,9 +103,15 @@ app.use((req, res, next) => {
       reusePort: true,
     }, () => {
       log(`serving on port ${port}`);
+      log(`🚀 Server running on port ${port}`);
+      log(`📱 Local: http://localhost:${port}`);
       
-      // Auto-start Cloudflare tunnel if configured
-      startCloudflareTunnel();
+      // Replit deployment info
+      if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
+        const replitUrl = `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.replit.app`;
+        log(`🌐 Replit URL: ${replitUrl}`);
+        log(`✅ App ready for deployment with built-in security`);
+      }
       
       // AI recommendation service is ready for theme generation
     });
