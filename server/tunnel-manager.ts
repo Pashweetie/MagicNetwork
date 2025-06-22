@@ -89,11 +89,15 @@ export class TunnelManager {
 
     this.tunnelProcess.stdout.on('data', (data: Buffer) => {
       const output = data.toString();
+      console.log('Tunnel output:', output.trim());
       
-      // Extract tunnel URL
+      // Extract tunnel URL - improved regex and logging
       const urlMatch = output.match(/https:\/\/[a-zA-Z0-9-]+\.(?:trycloudflare\.com|cfargotunnel\.com)/);
-      if (urlMatch && !this.currentUrl) {
-        this.setCurrentUrl(urlMatch[0]);
+      if (urlMatch) {
+        console.log(`🔍 Found tunnel URL: ${urlMatch[0]}`);
+        if (!this.currentUrl || this.currentUrl !== urlMatch[0]) {
+          this.setCurrentUrl(urlMatch[0]);
+        }
       }
     });
 

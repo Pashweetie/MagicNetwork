@@ -28,7 +28,7 @@ app.use((req, res, next) => {
   
   // Block direct Replit access with proper redirect
   if (host.includes('replit.app') || host.includes('replit.dev') || host.includes('repl.co')) {
-    // Get current tunnel URL from global variable or fallback
+    // Get current tunnel URL from global variable or fallback to current active tunnel
     const officialUrl = (global as any).currentTunnelUrl || process.env.CLOUDFLARE_TUNNEL_URL || 'https://summaries-initially-dec-meanwhile.trycloudflare.com';
     
     // Return HTML redirect page for browser users
@@ -402,14 +402,16 @@ function setupTunnelLogging(tunnel: any, tunnelType: string) {
   tunnel.stdout.on('data', (data: Buffer) => {
     const output = data.toString();
     
-    // Extract tunnel URL and connection status
+    // Extract tunnel URL and connection status - improved detection
     const urlMatch = output.match(/https:\/\/[a-zA-Z0-9-]+\.(?:trycloudflare\.com|cfargotunnel\.com)/);
-    if (urlMatch && !tunnelUrl) {
-      tunnelUrl = urlMatch[0];
-      // Store globally for redirect middleware
-      (global as any).currentTunnelUrl = tunnelUrl;
-      console.log(`Tunnel URL: ${tunnelUrl}`);
-      console.log('MTG app now protected with Cloudflare security');
+    if (urlMatch) {
+      if (!tunnelUrl || tunnelUrl !== urlMatch[0]) {
+        tunnelUrl = urlMatch[0];
+        // Store globally for redirect middleware
+        (global as any).currentTunnelUrl = tunnelUrl;
+        console.log(`🔄 Updated tunnel URL: ${tunnelUrl}`);
+        console.log('MTG app now protected with Cloudflare security');
+      }
     }
     
     // Remove the hardcoded URL assumption - let the tunnel provide its own URL
