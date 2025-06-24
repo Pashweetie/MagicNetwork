@@ -32,14 +32,21 @@ export class AIRecommendationService {
       return;
     }
 
-    // Check if themes already exist
+    // Get oracle_id from the card data
+    const oracleId = (card as any).oracle_id || (card as any).oracleId;
+    if (!oracleId) {
+      console.log(`No oracle_id found for card: ${card.name}`);
+      return;
+    }
+
+    // Check if themes already exist for this oracle_id
     const existingThemes = await db
       .select()
       .from(cardThemes)
-      .where(eq(cardThemes.card_id, card.id));
+      .where(eq(cardThemes.oracleId, oracleId));
 
     if (existingThemes.length > 0) {
-      console.log(`Themes already exist for card: ${card.name}`);
+      console.log(`Themes already exist for oracle_id: ${oracleId} (${card.name})`);
       return;
     }
 
@@ -79,14 +86,14 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
       const response = await AIUtils.generateWithAI(this.textGenerator, this.provider, prompt);
       
       if (response) {
-        await this.parseAndStoreThemes(card.id, card.name, response);
+        await this.parseAndStoreThemes(oracleId, card.name, response);
       }
     } catch (error) {
       console.error('AI theme generation failed:', error);
     }
   }
 
-  private async parseAndStoreThemes(cardId: string, cardName: string, response: string): Promise<void> {
+  private async parseAndStoreThemes(oracleId: string, cardName: string, response: string): Promise<void> {
     const lines = response.split('\n').filter(line => line.includes(':'));
     
     for (const line of lines) {
@@ -98,9 +105,9 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
         if (confidence >= 25 && confidence <= 100) {
           try {
             await db.insert(cardThemes).values({
-              card_id: cardId,
-              card_name: cardName,
-              theme_name: themeName.trim(),
+              oracleId: oracleId,
+              cardName: cardName,
+              themeName: themeName.trim(),
               confidence: confidence,
             }).onConflictDoNothing();
           } catch (error) {

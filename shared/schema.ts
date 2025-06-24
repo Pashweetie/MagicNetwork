@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { pgTable, text, integer, boolean, timestamp, jsonb, index, real } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, boolean, timestamp, jsonb, index, real, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 
 export const cardSchema = z.object({
@@ -119,7 +119,7 @@ export const users = pgTable('users', {
 // Full card database tables
 export const cards = pgTable('cards', {
   id: text('id').primaryKey(), // Scryfall card ID
-  oracleId: text('oracle_id'), // Oracle ID for rulings
+  oracleId: text('oracle_id').notNull(), // Oracle ID for rulings - groups functionally identical cards
   name: text('name').notNull(),
   printedName: text('printed_name'), // Name as printed on card
   manaCost: text('mana_cost'),
@@ -182,6 +182,7 @@ export const cards = pgTable('cards', {
   lastUpdated: timestamp('last_updated').defaultNow().notNull(),
 }, (table) => ({
   nameIdx: index('cards_name_idx').on(table.name),
+  oracleIdx: index('cards_oracle_idx').on(table.oracleId),
   cmcIdx: index('cards_cmc_idx').on(table.cmc),
   typeIdx: index('cards_type_idx').on(table.typeLine),
   colorsIdx: index('cards_colors_idx').on(table.colors),
@@ -277,15 +278,15 @@ export const searchCache = pgTable('search_cache', {
 // Simplified card themes storage for AI-generated themes
 export const cardThemes = pgTable('card_themes', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
-  oracle_id: text('oracle_id').notNull(), // Use oracle_id instead of card_id
-  card_name: text('card_name').notNull(), // Keep for reference
-  theme_name: text('theme_name').notNull(),
+  oracleId: text('oracle_id').notNull(), // Use oracle_id instead of card_id
+  cardName: text('card_name').notNull(), // Keep for reference
+  themeName: text('theme_name').notNull(),
   confidence: integer('confidence').notNull(), // 1-100 scale
-  created_at: timestamp('created_at').defaultNow(),
+  createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({
-  oracleThemeIdx: index('card_themes_oracle_idx').on(table.oracle_id),
-  themeIdx: index('card_themes_theme_idx').on(table.theme_name),
-  uniqueOracleTheme: unique('unique_oracle_theme').on(table.oracle_id, table.theme_name),
+  oracleThemeIdx: index('card_themes_oracle_idx').on(table.oracleId),
+  themeIdx: index('card_themes_theme_idx').on(table.themeName),
+  uniqueOracleTheme: unique('unique_oracle_theme').on(table.oracleId, table.themeName),
 }));
 
 // Theme voting table for user feedback
