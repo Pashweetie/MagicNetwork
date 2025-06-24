@@ -149,6 +149,25 @@ export function FilterSidebar({ isOpen, filters, onFiltersChange, onClose }: Fil
             </div>
           )}
 
+          {/* Deck Filter */}
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-slate-300 mb-3">Deck Options</h3>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="excludeFromDeck"
+                checked={filters.excludeFromDeck || false}
+                onCheckedChange={(checked) => 
+                  onFiltersChange({ ...filters, excludeFromDeck: checked as boolean })
+                }
+              />
+              <Label htmlFor="excludeFromDeck" className="text-sm text-slate-300">
+                Hide cards already in deck
+              </Label>
+            </div>
+          </div>
+
+          <Separator className="bg-slate-700" />
+
           {/* Color Filter */}
           <div className="mb-6">
             <h3 className="text-sm font-medium text-slate-300 mb-3">Colors</h3>

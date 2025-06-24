@@ -93,6 +93,7 @@ export const searchFiltersSchema = z.object({
   cube: z.string().optional(),
   is: z.array(z.string()).optional(),
   not: z.array(z.string()).optional(),
+  excludeFromDeck: z.boolean().optional(),
 });
 
 export const searchResponseSchema = z.object({
