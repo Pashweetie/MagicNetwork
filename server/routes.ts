@@ -12,6 +12,7 @@ import { registerEdhrecRoutes } from "./routes/edhrec";
 import { cardDatabaseService } from "./services/card-database-service";
 import { intelligentCache, edgeCache, CACHE_CONFIGS, invalidateCache } from "./middleware/edge-cache";
 import { cloudflareWorkers, geoOptimization, cardSearchCache, CloudflareKV } from "./middleware/cloudflare-integration";
+import { requireUserId } from "./utils/auth-helpers";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize Cloudflare integration if credentials are available
@@ -250,25 +251,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Track user interaction endpoint
-  app.post("/api/interactions", isAuthenticated, async (req, res) => {
-    try {
-      const { cardId, interactionType, metadata } = req.body;
-      const userId = 1; // Default user for now
-      
-      await storage.recordUserInteraction({
-        userId,
-        cardId,
-        interactionType,
-        metadata
-      });
-      
-      res.json({ success: true });
-    } catch (error) {
-      console.error('Interaction tracking error:', error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
 
   // Context-aware suggestions endpoint
   app.get("/api/suggestions/contextual", isAuthenticated, async (req, res) => {
@@ -294,7 +276,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const { filters } = req.query;
-      const userId = 1; // Default user for now
+      const userId = requireUserId(req, res);
+      if (!userId) return;
       
       let filterObj = null;
       if (filters && typeof filters === 'string') {
@@ -367,7 +350,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { cardId } = req.params;
       const { themeName, vote } = req.body;
-      const userId = 1; // Default user for now
+      const userId = requireUserId(req, res);
+      if (!userId) return;
 
       // Check if user already voted on this theme
       const existingVote = await db
@@ -481,7 +465,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { recommendationId } = req.params;
       const { vote } = req.body;
-      const userId = 1;
+      const userId = requireUserId(req, res);
+      if (!userId) return;
 
       const { db } = await import('./db');
       const { cardRecommendations } = await import('@shared/schema');
@@ -557,7 +542,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { cardId } = req.params;
       const { theme, categoryName } = req.body;
-      const userId = 1;
+      const userId = requireUserId(req, res);
+      if (!userId) return;
 
       const { db } = await import('./db');
       const { sql } = await import('drizzle-orm');
@@ -593,7 +579,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { cardId } = req.params;
       const { themeName, vote, sourceCardId } = req.body;
-      const userId = 1;
+      const userId = requireUserId(req, res);
+      if (!userId) return;
 
       const { db } = await import('./db');
       const { sql } = await import('drizzle-orm');
@@ -781,7 +768,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Deck persistence endpoints
   app.get("/api/decks", isAuthenticated, async (req, res) => {
     try {
-      const userId = 1; // Would come from auth
+      const userId = requireUserId(req, res);
+      if (!userId) return;
       const decks = await storage.getUserDecks(userId);
       res.json(decks);
     } catch (error) {
@@ -792,7 +780,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/decks", isAuthenticated, async (req, res) => {
     try {
-      const userId = 1; // Would come from auth
+      const userId = requireUserId(req, res);
+      if (!userId) return;
       const deck = await storage.createDeck({
         ...req.body,
         userId
@@ -806,7 +795,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/decks/:id", isAuthenticated, async (req, res) => {
     try {
-      const userId = 1; // Would come from auth
+      const userId = requireUserId(req, res);
+      if (!userId) return;
       const deck = await storage.getDeck(parseInt(req.params.id), userId);
       if (!deck) {
         return res.status(404).json({ message: "Deck not found" });
@@ -820,7 +810,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/decks/:id", isAuthenticated, async (req, res) => {
     try {
-      const userId = 1; // Would come from auth
+      const userId = requireUserId(req, res);
+      if (!userId) return;
       const deck = await storage.updateDeck(parseInt(req.params.id), userId, req.body);
       if (!deck) {
         return res.status(404).json({ message: "Deck not found" });
@@ -834,7 +825,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/decks/:id", isAuthenticated, async (req, res) => {
     try {
-      const userId = 1; // Would come from auth
+      const userId = requireUserId(req, res);
+      if (!userId) return;
       const success = await storage.deleteDeck(parseInt(req.params.id), userId);
       if (!success) {
         return res.status(404).json({ message: "Deck not found" });

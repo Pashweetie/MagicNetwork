@@ -1,7 +1,32 @@
 import session from "express-session";
-import type { Express, RequestHandler } from "express";
+import type { Express, RequestHandler, Request } from "express";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
+
+// Extend Express Request type to include user
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        claims?: {
+          sub: string;
+        };
+        id?: string;
+        username?: string;
+        email?: string;
+      };
+    }
+  }
+}
+
+// Type for authenticated requests
+export interface AuthenticatedRequest extends Request {
+  user: {
+    claims: {
+      sub: string;
+    };
+  };
+}
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week

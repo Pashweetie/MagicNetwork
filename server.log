@@ -1,0 +1,14 @@
+📁 Loading environment variables from .env file
+✅ Using DATABASE_URL from environment
+Starting card database setup...
+Google Gemini AI ready for generation
+2:13:53 PM [express] serving on port 5000
+2:13:53 PM [express] 🚀 Server running on port 5000
+2:13:53 PM [express] 📱 Local: http://localhost:5000
+Cards tables already exist
+Initializing card database...
+Database already contains 95924 cards
+Last database update was 3.3 days ago
+Database is up to date (3.3 days old)
+Database already contains 72650 rulings
+Weekly update schedule started - checking daily for updates older than 7 days

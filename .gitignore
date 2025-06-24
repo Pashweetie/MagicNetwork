@@ -4,3 +4,7 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Environment files (keep example.env in repo)
+.env
+local-env.sh
