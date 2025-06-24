@@ -861,6 +861,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get cards for a specific theme endpoint
+  app.get('/api/cards/themes/:themeName/cards', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { themeName } = req.params;
+      const { sourceCardId, filters } = req.query;
+      
+      if (!sourceCardId) {
+        return res.status(400).json({ error: 'sourceCardId is required' });
+      }
+      
+      let parsedFilters = null;
+      if (filters && typeof filters === 'string') {
+        try {
+          parsedFilters = JSON.parse(filters);
+        } catch (e) {
+          console.warn('Invalid filters JSON:', filters);
+        }
+      }
+      
+      const cardsWithConfidence = await aiRecommendationService.getCardsForTheme(
+        decodeURIComponent(themeName),
+        sourceCardId as string,
+        parsedFilters
+      );
+      
+      res.json(cardsWithConfidence);
+    } catch (error) {
+      console.error('Theme cards error:', error);
+      res.status(500).json({ error: 'Failed to fetch theme cards' });
+    }
+  });
+
   // Get themes for multiple cards (bulk endpoint for deck categorization)
   app.post('/api/cards/bulk-themes', isAuthenticated, edgeCache(CACHE_CONFIGS.CARD_THEMES), async (req: Request, res: Response) => {
     try {
