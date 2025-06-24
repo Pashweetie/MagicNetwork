@@ -232,6 +232,7 @@ export class EdhrecService {
           // This might be a theme section
           const themeCards = formatCards(section.cardviews || section.cards || []).slice(0, 20);
           const linkedThemeCards = await storage.linkEdhrecCards(themeCards);
+          // Note: Theme cards will be filtered by commander color identity in the main function
           
           themes.push({
             name: sectionName,
@@ -293,7 +294,16 @@ export class EdhrecService {
     console.log(`🔗 Linking ${allEdhrecCards.length} EDHREC cards via database join...`);
     const linkedCards = await storage.linkEdhrecCards(allEdhrecCards);
     
-    // Organize linked cards back into categories
+    // Filter cards by commander color identity
+    const { CommanderUtils } = await import('@shared/utils/commander-utils');
+    const legalCards = CommanderUtils.filterLegalCards(
+      linkedCards.map(card => ({ card })), 
+      commander
+    ).map(item => item.card);
+    
+    console.log(`✅ Filtered to ${legalCards.length} legal cards out of ${linkedCards.length} total cards for commander ${commander.name}`);
+    
+    // Organize legal cards back into categories
     const linkedCardsByType = {
       creatures: [] as Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>,
       instants: [] as Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>,
@@ -304,7 +314,7 @@ export class EdhrecService {
       lands: [] as Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>
     };
     
-    linkedCards.forEach(card => {
+    legalCards.forEach(card => {
       const typeLine = card.type_line.toLowerCase();
       if (typeLine.includes('creature')) {
         linkedCardsByType.creatures.push(card);
@@ -323,8 +333,15 @@ export class EdhrecService {
       }
     });
 
-    // Extract themes from the data
-    const themes = await extractThemes(data);
+    // Extract themes from the data and filter by commander color identity
+    const rawThemes = await extractThemes(data);
+    const themes = rawThemes.map(theme => ({
+      ...theme,
+      cards: CommanderUtils.filterLegalCards(
+        theme.cards.map(card => ({ card })), 
+        commander
+      ).map(item => item.card)
+    }));
     
     return {
       commander: commander.name,
