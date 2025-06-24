@@ -55,7 +55,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
   // Search cards endpoint - protected
-  app.get("/api/cards/search", isAuthenticated, async (req, res) => {
+  app.get("/api/cards/search", isAuthenticated, edgeCache(CACHE_CONFIGS.CARD_SEARCH), async (req, res) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       
