@@ -150,7 +150,25 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
 
   // Find synergy recommendations for a card
   async findSynergyRecommendations(cardId: string, filters?: any): Promise<Array<{card: Card, synergyScore: number}>> {
-    // Get source card themes
+    // Get source card oracle_id
+    const sourceCardData = await db
+      .select()
+      .from(cardCache)
+      .where(eq(cardCache.id, cardId))
+      .limit(1);
+
+    if (sourceCardData.length === 0) {
+      return [];
+    }
+
+    const sourceCard = sourceCardData[0].cardData;
+    const sourceOracleId = (sourceCard as any).oracle_id;
+    
+    if (!sourceOracleId) {
+      return [];
+    }
+
+    // Get source card themes using card_id (until we migrate)
     const sourceThemes = await db
       .select()
       .from(cardThemes)
@@ -173,7 +191,8 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
     // Get unique card IDs
     const uniqueCardIds = [...new Set(candidateCards.map(c => c.card_id))];
     
-    const synergyResults: Array<{card: Card, synergyScore: number}> = [];
+    // Group cards by oracle_id to avoid duplicates
+    const oracleIdToCard = new Map<string, {card: Card, synergyScore: number}>();
 
     // Calculate synergy for each candidate card
     for (const candidateCardId of uniqueCardIds) {
@@ -198,17 +217,25 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
 
         if (cardData.length > 0) {
           const card = cardData[0].cardData as Card;
+          const cardOracleId = (card as any).oracle_id;
+          
+          // Skip if we don't have oracle_id
+          if (!cardOracleId) continue;
           
           // Apply filters if provided
           if (!filters || cardMatchesFilters(card, filters)) {
-            synergyResults.push({ card, synergyScore });
+            // Only keep the highest synergy score per oracle_id
+            const existing = oracleIdToCard.get(cardOracleId);
+            if (!existing || synergyScore > existing.synergyScore) {
+              oracleIdToCard.set(cardOracleId, { card, synergyScore });
+            }
           }
         }
       }
     }
 
-    // Sort by synergy score (highest first) and limit to 20
-    return synergyResults
+    // Convert map to array and sort by synergy score
+    return Array.from(oracleIdToCard.values())
       .sort((a, b) => b.synergyScore - a.synergyScore)
       .slice(0, 20);
   }
