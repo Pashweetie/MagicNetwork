@@ -102,7 +102,7 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
               card_name: cardName,
               theme_name: themeName.trim(),
               confidence: confidence,
-            });
+            }).onConflictDoNothing();
           } catch (error) {
             console.error('Failed to store theme:', error);
           }
