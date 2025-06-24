@@ -122,8 +122,8 @@ export default function Search() {
     setLinkedEdhrecCards(allLinkedCards);
   }, [showEdhrecResults, edhrecData, deck.commander]);
 
-  // Show cards by default, or when there's an active search or showing EDHREC results
-  const shouldShowResults = searchQuery !== "" || Object.keys(activeFilters).length > 0 || showEdhrecResults; // Only show when there is an active search or EDHREC results enabled
+  // Only show cards when user has actively searched or enabled EDHREC results
+  const shouldShowResults = searchQuery.trim() !== "" || showEdhrecResults;
 
 
 
@@ -626,9 +626,9 @@ export default function Search() {
                 <div className="text-slate-400 mb-4">
                   <span className="text-6xl">🔍</span>
                 </div>
-                <h3 className="text-lg font-semibold text-slate-300 mb-2">No cards found</h3>
+                <h3 className="text-lg font-semibold text-slate-300 mb-2">Ready to search</h3>
                 <p className="text-slate-400 max-w-md">
-                  Enter a search query or use the filters to find cards.
+                  Enter a search query to find Magic: The Gathering cards, or select a commander and use EDHREC recommendations.
                 </p>
               </div>
             )}
