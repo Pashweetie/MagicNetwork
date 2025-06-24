@@ -25,6 +25,13 @@ export class AIRecommendationService {
 
   // Generate themes for a card using predefined list + AI
   async generateCardThemes(card: Card): Promise<void> {
+    // Skip theme generation for basic lands
+    const { CardUtils } = await import('@shared/utils/card-utils');
+    if (CardUtils.isBasicLand(card)) {
+      console.log(`Skipping theme generation for basic land: ${card.name}`);
+      return;
+    }
+
     // Check if themes already exist
     const existingThemes = await db
       .select()

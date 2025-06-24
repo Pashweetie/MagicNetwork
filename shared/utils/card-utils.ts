@@ -48,6 +48,11 @@ Mana Cost: ${card.mana_cost || 'None'}
 Oracle Text: ${card.oracle_text || 'No text'}
 Power/Toughness: ${card.power && card.toughness ? `${card.power}/${card.toughness}` : 'N/A'}`;
   }
+
+  static isBasicLand(card: Card): boolean {
+    const typeLine = card.type_line?.toLowerCase() || '';
+    return typeLine.includes('basic') && typeLine.includes('land');
+  }
 }
 
 // Color mapping constants

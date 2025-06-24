@@ -311,7 +311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Card not found" });
       }
 
-      // Generate themes if they don't exist
+      // Generate themes if they don't exist (skips basic lands automatically)
       await aiRecommendationService.generateCardThemes(card);
       
       // Get card's themes
