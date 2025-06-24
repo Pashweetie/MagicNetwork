@@ -77,10 +77,10 @@ const getTopTheme = (cardThemes: Array<{ theme: string, confidence: number }>): 
   return topThemes[Math.floor(Math.random() * topThemes.length)]?.theme || 'No Theme';
 };
 
-const getThemesAbove50 = (cardThemes: Array<{ theme: string, confidence: number }>): string[] => {
+const getThemesAbove75 = (cardThemes: Array<{ theme: string, confidence: number }>): string[] => {
   if (!cardThemes || cardThemes.length === 0) return ['No Theme'];
   
-  const validThemes = cardThemes.filter(t => t.confidence >= 50).map(t => t.theme);
+  const validThemes = cardThemes.filter(t => t.confidence >= 75).map(t => t.theme);
   
   return validThemes.length > 0 ? validThemes : ['No Theme'];
 };
@@ -436,7 +436,7 @@ export function StackedDeckDisplay({
       
       deckEntries.forEach(entry => {
         const themes = cardThemes?.[entry.card.id] || [];
-        const validThemes = getThemesAbove50(themes);
+        const validThemes = getThemesAbove75(themes);
         
         validThemes.forEach(theme => {
           if (!groups.has(theme)) {
@@ -533,7 +533,7 @@ export function StackedDeckDisplay({
                 <SelectItem value="type">Card Type</SelectItem>
                 <SelectItem value="mana_value">Mana Value</SelectItem>
                 <SelectItem value="top_theme">Top Theme</SelectItem>
-                <SelectItem value="all_themes">All Themes (50%+)</SelectItem>
+                <SelectItem value="all_themes">All Themes (75%+)</SelectItem>
                 <SelectItem value="none">No Grouping</SelectItem>
               </SelectContent>
             </Select>

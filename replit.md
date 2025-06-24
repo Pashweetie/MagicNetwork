@@ -4,6 +4,7 @@
 Magic: The Gathering deck building and card search application with advanced theme analysis and recommendation systems. Built with React frontend, Express backend, PostgreSQL database, and integrated AI-powered card theme generation.
 
 ## Recent Changes
+- **2025-01-22**: Updated theme filtering to show only themes with 75% or higher confidence in dropdown sorting
 - **2025-01-22**: Removed unnecessary theme generation during deck import to eliminate performance overhead and log spam
 - **2025-01-22**: Implemented comprehensive edge caching system with Cloudflare integration for improved global performance
 - **2025-01-22**: Added intelligent cache invalidation strategies and geographic optimization
