@@ -4,8 +4,10 @@
 Magic: The Gathering deck building and card search application with advanced theme analysis and recommendation systems. Built with React frontend, Express backend, PostgreSQL database, and integrated AI-powered card theme generation.
 
 ## Recent Changes
-- **2025-01-24**: Fixed duplicate theme entries in database by adding unique constraint and cleaning up existing duplicates
-- **2025-01-24**: Updated theme insertion logic to prevent future duplicates using onConflictDoNothing()
+- **2025-01-24**: Successfully fixed duplicate card display in themes and synergies using oracle_id-based deduplication
+- **2025-01-24**: Resolved SQL syntax errors in theme system by correcting schema references
+- **2025-01-24**: Implemented oracle_id grouping logic to show only one card per functional identity in recommendations
+- **2025-01-24**: Fixed theme loading issues and verified all theme endpoints are working correctly
 - **2025-01-22**: Added search filter to hide cards already in deck to avoid duplicates and focus on new additions
 - **2025-01-22**: Fixed EDHREC commander filtering to only return cards legal in the commander's color identity
 - **2025-01-22**: Excluded basic lands from theme generation to prevent irrelevant theme assignments
