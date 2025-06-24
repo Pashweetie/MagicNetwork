@@ -38,7 +38,7 @@ export default function Search() {
   const [showEdhrecResults, setShowEdhrecResults] = useState(false);
   const [linkedEdhrecCards, setLinkedEdhrecCards] = useState<Card[]>([]);
 
-  
+
   const deck = useDeck();
   const { preloadSearchResults } = useCardImagePreloader();
 
@@ -53,7 +53,7 @@ export default function Search() {
 
     // Apply format filtering directly to filters object instead of query string
     const finalFilters = { ...baseFilters };
-    
+
     // Add format-specific filters (only for non-casual formats)
     if (deck.format.name !== 'Casual') {
       finalFilters.format = deck.format.name.toLowerCase();
@@ -62,14 +62,14 @@ export default function Search() {
     // Apply commander color identity filtering only if commander is selected
     if (deck.format.name === 'Commander' && deck.commander) {
       const commanderColors = deck.commander.color_identity || [];
-      
+
       if (commanderColors.length > 0) {
         finalFilters.colorIdentity = commanderColors;
       } else {
         finalFilters.colorIdentity = []; // colorless only if commander is colorless
       }
     }
-    
+
     return finalFilters;
   }, [searchQuery, manualFilters, useManualFilters, deck.format.name, deck.commander]);
 
@@ -89,7 +89,7 @@ export default function Search() {
     queryKey: ['edhrec-recommendations', deck.commander?.id, showEdhrecResults],
     queryFn: async () => {
       if (!deck.commander || !showEdhrecResults) return null;
-      
+
       const response = await fetch(`/api/edhrec/commander/${deck.commander.id}`);
       if (!response.ok) {
         throw new Error('Failed to fetch EDHREC recommendations');
@@ -123,7 +123,7 @@ export default function Search() {
   }, [showEdhrecResults, edhrecData, deck.commander]);
 
   // Show cards by default, or when there's an active search or showing EDHREC results
-  const shouldShowResults = true; // Always show results to display all cards by default
+  const shouldShowResults = searchQuery !== "" || Object.keys(activeFilters).length > 0 || showEdhrecResults; // Only show when there is an active search or EDHREC results enabled
 
 
 
@@ -134,11 +134,11 @@ export default function Search() {
   // Flatten all pages of cards
   const allCards = useMemo(() => {
     if (!shouldShowResults) return [];
-    
+
     if (showEdhrecResults && deck.commander && edhrecData) {
       // Show linked cards even if still linking (to show progress)
       let filteredCards = [...linkedEdhrecCards];
-      
+
       // Apply filters to EDHREC results
       if (activeFilters.types?.length) {
         filteredCards = filteredCards.filter(card => 
@@ -181,14 +181,14 @@ export default function Search() {
       // Return only the cards up to the current display count
       return filteredCards.slice(0, edhrecDisplayCount);
     }
-    
+
     const searchData = data?.pages.flatMap(page => page.data) || [];
-    
+
     // Preload images for search results
     if (searchData.length > 0) {
       preloadSearchResults(searchData);
     }
-    
+
     return searchData;
   }, [data, shouldShowResults, preloadSearchResults, showEdhrecResults, deck.commander, edhrecData, linkedEdhrecCards, activeFilters, edhrecDisplayCount]);
 
@@ -200,7 +200,7 @@ export default function Search() {
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
     setUseManualFilters(false); // Switch back to query-based filters when searching
-    
+
     // Parse query and update filters
     if (query.trim()) {
       const parsedFilters = ScryfallQueryParser.parseQuery(query);
@@ -216,7 +216,7 @@ export default function Search() {
   const handleFiltersChange = useCallback((filters: SearchFilters) => {
     setManualFilters(filters);
     setUseManualFilters(true);
-    
+
     // Update search query to show filters
     const queryText = ScryfallParser.filtersToQuery(filters);
     setSearchQuery(queryText);
@@ -277,35 +277,35 @@ export default function Search() {
 
   const getDisplayQuery = () => {
     const parts: string[] = [];
-    
+
     // Always show search query if present
     if (searchQuery) {
       parts.push(searchQuery);
     }
-    
+
     // Show the actual query being sent (including commander filter)
     if (activeFilters.query && activeFilters.query !== searchQuery) {
       parts.push(`Filter: ${activeFilters.query}`);
     }
-    
+
     if (useManualFilters) {
       if (activeFilters.colors?.length) {
         parts.push(`Colors: ${activeFilters.colors.join(', ')}`);
       }
-      
+
       if (activeFilters.types?.length) {
         parts.push(`Types: ${activeFilters.types.join(', ')}`);
       }
-      
+
       if (activeFilters.rarities?.length) {
         parts.push(`Rarity: ${activeFilters.rarities.join(', ')}`);
       }
-      
+
       if (activeFilters.oracleText) {
         parts.push(`Text: "${activeFilters.oracleText}"`);
       }
     }
-    
+
     return parts.join(' • ') || 'All cards';
   };
 
@@ -316,7 +316,7 @@ export default function Search() {
         onToggleSidebar={toggleSidebar}
         searchQuery={searchQuery}
       />
-      
+
       <div className="flex h-screen pt-16">
         {isSidebarOpen && (
           <FilterSidebar
@@ -326,7 +326,7 @@ export default function Search() {
             onClose={() => setIsSidebarOpen(false)}
           />
         )}
-        
+
         <main className="flex-1 overflow-y-auto">
           {/* Deck Panel Toggle */}
           <div className="bg-slate-800 border-b border-slate-700 px-6 py-4">
@@ -351,7 +351,7 @@ export default function Search() {
                     <ChevronUp className="w-4 h-4" />
                   </Button>
                 </div>
-                
+
                 {/* Commander Display */}
                 {deck.commander && (
                   <div className="flex items-center space-x-2 px-3 py-2 bg-yellow-900/30 border border-yellow-600/50 rounded-lg">
@@ -377,7 +377,7 @@ export default function Search() {
                   </div>
                 )}
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-slate-400">Format:</span>
                 <Select 
@@ -400,7 +400,7 @@ export default function Search() {
                 </Select>
               </div>
             </div>
-            
+
             {/* Results Header */}
             <div className="flex items-center justify-between">
               <div>
@@ -568,7 +568,7 @@ export default function Search() {
                   )}
                 </CardContent>
               </UICard>
-              
+
 
 
             </div>
@@ -602,7 +602,7 @@ export default function Search() {
                 )}
               </div>
             )}
-            
+
             <CardGrid
               cards={allCards}
               isLoading={showEdhrecResults ? isEdhrecLoading : (isLoading || isFetchingNextPage)}
@@ -619,6 +619,17 @@ export default function Search() {
             {isLoading && !allCards.length && (
               <div className="flex justify-center py-8">
                 <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+              </div>
+            )}
+             {!shouldShowResults && (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="text-slate-400 mb-4">
+                  <span className="text-6xl">🔍</span>
+                </div>
+                <h3 className="text-lg font-semibold text-slate-300 mb-2">No cards found</h3>
+                <p className="text-slate-400 max-w-md">
+                  Enter a search query or use the filters to find cards.
+                </p>
               </div>
             )}
           </div>
