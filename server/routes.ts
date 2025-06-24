@@ -10,8 +10,35 @@ import { z } from "zod";
 import { cardMatchesFilters } from "./utils/card-filters";
 import { registerEdhrecRoutes } from "./routes/edhrec";
 import { cardDatabaseService } from "./services/card-database-service";
+import { intelligentCache, edgeCache, CACHE_CONFIGS, invalidateCache } from "./middleware/edge-cache";
+import { cloudflareWorkers, geoOptimization, cardSearchCache, CloudflareKV } from "./middleware/cloudflare-integration";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize Cloudflare integration if credentials are available
+  const cloudflareConfig = {
+    zoneId: process.env.CLOUDFLARE_ZONE_ID,
+    apiToken: process.env.CLOUDFLARE_API_TOKEN,
+    kvNamespace: process.env.CLOUDFLARE_KV_NAMESPACE,
+    workerUrl: process.env.CLOUDFLARE_WORKER_URL
+  };
+
+  let cardSearchKV: CloudflareKV | null = null;
+  if (cloudflareConfig.kvNamespace && cloudflareConfig.apiToken) {
+    cardSearchKV = new CloudflareKV(
+      cloudflareConfig.kvNamespace,
+      cloudflareConfig.apiToken,
+      process.env.CLOUDFLARE_ACCOUNT_ID || ''
+    );
+  }
+
+  // Apply global middleware for edge optimization
+  app.use(intelligentCache());
+  app.use(cloudflareWorkers(cloudflareConfig));
+  app.use(geoOptimization());
+  
+  if (cardSearchKV) {
+    app.use(cardSearchCache(cardSearchKV));
+  }
   // Auth middleware must come first
   await setupAuth(app);
   
@@ -835,7 +862,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get themes for multiple cards (bulk endpoint for deck categorization)
-  app.post('/api/cards/bulk-themes', isAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/cards/bulk-themes', isAuthenticated, edgeCache(CACHE_CONFIGS.CARD_THEMES), async (req: Request, res: Response) => {
     try {
       const { cardIds } = req.body;
       
@@ -936,7 +963,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Import deck from text
-  app.post('/api/user/deck/import', isAuthenticated, async (req: any, res) => {
+  app.post('/api/user/deck/import', isAuthenticated, invalidateCache(['user-decks']), async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
