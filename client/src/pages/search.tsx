@@ -178,6 +178,12 @@ export default function Search() {
         );
       }
 
+      // Filter out cards already in deck if specified
+      if (activeFilters.excludeFromDeck) {
+        const deckCardIds = new Set(deck.deckEntries.map(entry => entry.card.id));
+        filteredCards = filteredCards.filter(card => !deckCardIds.has(card.id));
+      }
+
       // Return only the cards up to the current display count
       return filteredCards.slice(0, edhrecDisplayCount);
     }
