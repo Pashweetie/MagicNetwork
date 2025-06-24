@@ -259,8 +259,7 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
         eq(cardThemes.theme_name, themeName),
         ne(cardThemes.card_id, sourceCardId)
       ))
-      .orderBy(desc(cardThemes.confidence))
-      .limit(100); // Get more to allow for deduplication
+      .orderBy(desc(cardThemes.confidence));
 
     // Group by oracle_id to avoid duplicates
     const oracleIdToCard = new Map<string, {card: Card, confidence: number}>();
@@ -277,15 +276,18 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
           const card = cardData[0].cardData as Card;
           const cardOracleId = (card as any).oracle_id;
           
-          // Skip if no oracle_id or if it's the same as source card
-          if (!cardOracleId || cardOracleId === sourceOracleId) continue;
+          // Skip if it's the same oracle_id as source card
+          if (cardOracleId && cardOracleId === sourceOracleId) continue;
           
           // Apply filters if provided
           if (!filters || cardMatchesFilters(card, filters)) {
-            // Only keep the highest confidence per oracle_id
-            const existing = oracleIdToCard.get(cardOracleId);
+            // Use oracle_id for deduplication if available, otherwise use card_id
+            const dedupeKey = cardOracleId || themeCard.card_id;
+            
+            // Only keep the highest confidence per deduplication key
+            const existing = oracleIdToCard.get(dedupeKey);
             if (!existing || themeCard.confidence > existing.confidence) {
-              oracleIdToCard.set(cardOracleId, { card, confidence: themeCard.confidence });
+              oracleIdToCard.set(dedupeKey, { card, confidence: themeCard.confidence });
             }
           }
         }
