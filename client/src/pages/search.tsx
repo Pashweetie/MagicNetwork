@@ -188,7 +188,13 @@ export default function Search() {
       return filteredCards.slice(0, edhrecDisplayCount);
     }
 
-    const searchData = data?.pages.flatMap(page => page.data) || [];
+    let searchData = data?.pages.flatMap(page => page.data) || [];
+    
+    // Apply deck filtering to regular search results if needed
+    if (activeFilters.excludeFromDeck && searchData.length > 0) {
+      const deckCardIds = new Set(deck.deckEntries.map(entry => entry.card.id));
+      searchData = searchData.filter(card => !deckCardIds.has(card.id));
+    }
 
     // Preload images for search results
     if (searchData.length > 0) {
