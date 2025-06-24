@@ -39,14 +39,14 @@ export class AIRecommendationService {
       return;
     }
 
-    // Check if themes already exist for this oracle_id
+    // Check if themes already exist for this card_id
     const existingThemes = await db
       .select()
       .from(cardThemes)
-      .where(eq(cardThemes.oracleId, oracleId));
+      .where(eq(cardThemes.card_id, card.id));
 
     if (existingThemes.length > 0) {
-      console.log(`Themes already exist for oracle_id: ${oracleId} (${card.name})`);
+      console.log(`Themes already exist for card: ${card.name}`);
       return;
     }
 
@@ -86,14 +86,14 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
       const response = await AIUtils.generateWithAI(this.textGenerator, this.provider, prompt);
       
       if (response) {
-        await this.parseAndStoreThemes(oracleId, card.name, response);
+        await this.parseAndStoreThemes(card.id, card.name, response);
       }
     } catch (error) {
       console.error('AI theme generation failed:', error);
     }
   }
 
-  private async parseAndStoreThemes(oracleId: string, cardName: string, response: string): Promise<void> {
+  private async parseAndStoreThemes(cardId: string, cardName: string, response: string): Promise<void> {
     const lines = response.split('\n').filter(line => line.includes(':'));
     
     for (const line of lines) {
@@ -105,9 +105,9 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
         if (confidence >= 25 && confidence <= 100) {
           try {
             await db.insert(cardThemes).values({
-              oracleId: oracleId,
-              cardName: cardName,
-              themeName: themeName.trim(),
+              card_id: cardId,
+              card_name: cardName,
+              theme_name: themeName.trim(),
               confidence: confidence,
             }).onConflictDoNothing();
           } catch (error) {
@@ -242,6 +242,15 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
 
   // Get cards for a specific theme (for themes tab)
   async getCardsForTheme(themeName: string, sourceCardId: string, filters?: any): Promise<Array<{card: Card, confidence: number}>> {
+    // Get source card oracle_id to exclude all its printings
+    const sourceCardData = await db
+      .select()
+      .from(cardCache)
+      .where(eq(cardCache.id, sourceCardId))
+      .limit(1);
+
+    const sourceOracleId = sourceCardData.length > 0 ? (sourceCardData[0].cardData as any).oracle_id : null;
+
     // Get all cards with this theme, excluding source card
     const themeCards = await db
       .select()
@@ -251,9 +260,10 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
         ne(cardThemes.card_id, sourceCardId)
       ))
       .orderBy(desc(cardThemes.confidence))
-      .limit(20);
+      .limit(100); // Get more to allow for deduplication
 
-    const cardsWithConfidence: Array<{card: Card, confidence: number}> = [];
+    // Group by oracle_id to avoid duplicates
+    const oracleIdToCard = new Map<string, {card: Card, confidence: number}>();
 
     for (const themeCard of themeCards) {
       try {
@@ -265,23 +275,29 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
 
         if (cardData.length > 0) {
           const card = cardData[0].cardData as Card;
+          const cardOracleId = (card as any).oracle_id;
+          
+          // Skip if no oracle_id or if it's the same as source card
+          if (!cardOracleId || cardOracleId === sourceOracleId) continue;
           
           // Apply filters if provided
           if (!filters || cardMatchesFilters(card, filters)) {
-            cardsWithConfidence.push({
-              card,
-              confidence: themeCard.confidence
-            });
+            // Only keep the highest confidence per oracle_id
+            const existing = oracleIdToCard.get(cardOracleId);
+            if (!existing || themeCard.confidence > existing.confidence) {
+              oracleIdToCard.set(cardOracleId, { card, confidence: themeCard.confidence });
+            }
           }
         }
       } catch (error) {
         console.error(`Error fetching card ${themeCard.card_id}:`, error);
-        // Continue with other cards instead of failing completely
         continue;
       }
     }
 
-    return cardsWithConfidence;
+    return Array.from(oracleIdToCard.values())
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, 50);
   }
 }
 
