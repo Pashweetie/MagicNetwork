@@ -278,15 +278,15 @@ export const searchCache = pgTable('search_cache', {
 // Simplified card themes storage for AI-generated themes
 export const cardThemes = pgTable('card_themes', {
   id: integer('id').primaryKey().generatedByDefaultAsIdentity(),
-  oracleId: text('oracle_id').notNull(), // Use oracle_id instead of card_id
-  cardName: text('card_name').notNull(), // Keep for reference
-  themeName: text('theme_name').notNull(),
+  card_id: text('card_id').notNull(),
+  card_name: text('card_name').notNull(),
+  theme_name: text('theme_name').notNull(),
   confidence: integer('confidence').notNull(), // 1-100 scale
-  createdAt: timestamp('created_at').defaultNow(),
+  created_at: timestamp('created_at').defaultNow(),
 }, (table) => ({
-  oracleThemeIdx: index('card_themes_oracle_idx').on(table.oracleId),
-  themeIdx: index('card_themes_theme_idx').on(table.themeName),
-  uniqueOracleTheme: unique('unique_oracle_theme').on(table.oracleId, table.themeName),
+  cardThemeIdx: index('card_themes_card_idx').on(table.card_id),
+  themeIdx: index('card_themes_theme_idx').on(table.theme_name),
+  uniqueCardTheme: unique('unique_card_theme').on(table.card_id, table.theme_name),
 }));
 
 // Theme voting table for user feedback
