@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@shared/schema";
 import { SharedCardTile } from "./shared-card-tile";
+import { LoadingSpinner } from "./shared/LoadingSpinner";
+import { api } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Users, Plus, ThumbsUp, ThumbsDown } from "lucide-react";
 import { UIUtils, VoteHandler } from "@shared/utils/ui-utils";
@@ -37,9 +39,7 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
     queryKey: ['/api/cards', card.id, 'theme-suggestions', currentFilters],
     queryFn: async () => {
       const filterParams = currentFilters ? `?filters=${encodeURIComponent(JSON.stringify(currentFilters))}` : '';
-      const response = await fetch(`/api/cards/${card.id}/theme-suggestions${filterParams}`);
-      if (!response.ok) throw new Error('Failed to fetch theme suggestions');
-      const result = await response.json();
+      const result = await api.get(`/api/cards/${card.id}/theme-suggestions${filterParams}`);
       
       // Handle both old format (array) and new format (object with themeGroups and userVotes)
       if (Array.isArray(result)) {
@@ -75,64 +75,54 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
 
   const handleCardThemeVote = async (targetCard: Card, themeName: string, vote: 'up' | 'down') => {
     try {
-      const response = await fetch(`/api/cards/${targetCard.id}/theme-vote`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          themeName, 
-          vote
-        })
+      const result = await api.post(`/api/cards/${targetCard.id}/theme-vote`, { 
+        themeName, 
+        vote
       });
       
-      if (response.ok) {
-        const result = await response.json();
-        setCardVotes(prev => ({
-          ...prev,
-          [targetCard.id]: {
-            ...prev[targetCard.id],
-            [themeName]: vote
-          }
-        }));
-        
-        if (result.removed) {
-          UIUtils.showToast(result.message || 'Theme removed', 'warning');
-          // Refresh the theme suggestions data instead of reloading the page
-          queryClient.invalidateQueries({ 
-            queryKey: ['/api/cards', targetCard.id, 'theme-suggestions'] 
-          });
-        } else {
-          // Only update main theme confidence display if voting on the main card
-          if (targetCard.id === card.id) {
-            UIUtils.showToast(`Theme confidence updated to ${Math.round(result.newScore)}%`);
-            UIUtils.updateConfidenceDisplay(themeName, result.newScore);
-            UIUtils.disableVoteButtons(`[data-theme="${themeName}"]`);
-          } else {
-            // For similar cards, show a different message
-            UIUtils.showToast(`Vote recorded for similar card`);
-          }
+      setCardVotes(prev => ({
+        ...prev,
+        [targetCard.id]: {
+          ...prev[targetCard.id],
+          [themeName]: vote
         }
-      } else if (response.status === 400) {
-        const error = await response.json();
-        if (error.sameVote) {
-          UIUtils.showToast(error.error, 'warning');
-        } else {
-          UIUtils.showToast(error.error || 'Failed to record vote', 'error');
-        }
+      }));
+      
+      if (result.removed) {
+        UIUtils.showToast(result.message || 'Theme removed', 'warning');
+        // Refresh the theme suggestions data instead of reloading the page
+        queryClient.invalidateQueries({ 
+          queryKey: ['/api/cards', targetCard.id, 'theme-suggestions'] 
+        });
       } else {
+        // Only update main theme confidence display if voting on the main card
+        if (targetCard.id === card.id) {
+          UIUtils.showToast(`Theme confidence updated to ${Math.round(result.newScore)}%`);
+          UIUtils.updateConfidenceDisplay(themeName, result.newScore);
+          UIUtils.disableVoteButtons(`[data-theme="${themeName}"]`);
+        } else {
+          // For similar cards, show a different message
+          UIUtils.showToast(`Vote recorded for similar card`);
+        }
+      }
+    } catch (error: any) {
+      if (error.status === 400) {
+        UIUtils.showToast(error.message || 'Failed to record vote', error.message?.includes('same vote') ? 'warning' : 'error');
+      } else {
+        console.error('Failed to vote on card theme:', error);
         UIUtils.showToast('Failed to record vote', 'error');
       }
-    } catch (error) {
-      console.error('Failed to vote on card theme:', error);
-      UIUtils.showToast('Failed to record vote', 'error');
     }
   };
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <div className="w-6 h-6 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
-        <span className="ml-2 text-slate-400">Loading theme suggestions...</span>
-      </div>
+      <LoadingSpinner 
+        size="md" 
+        color="slate" 
+        message="Loading theme suggestions..." 
+        className="py-8" 
+      />
     );
   }
 

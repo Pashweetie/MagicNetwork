@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Card } from "@shared/schema";
 import { SharedCardTile } from "./shared-card-tile";
 import { CardDetailModal } from "./card-detail-modal";
+import { EmptyState } from "./shared/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Loader2, RefreshCw } from "lucide-react";
@@ -102,15 +103,12 @@ export function CardGrid({ cards, isLoading, hasMore, onLoadMore, onRetry, error
 
   if (cards.length === 0 && !isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="text-slate-400 mb-4">
-          <span className="text-6xl">🔍</span>
-        </div>
-        <h3 className="text-lg font-semibold text-slate-300 mb-2">No cards found</h3>
-        <p className="text-slate-400 max-w-md">
-          Try adjusting your search query or filters to find more cards.
-        </p>
-      </div>
+      <EmptyState 
+        icon="🔍"
+        title="No cards found"
+        description="Try adjusting your search query or filters to find more cards."
+        className="py-12"
+      />
     );
   }
 

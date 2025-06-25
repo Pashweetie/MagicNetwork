@@ -9,6 +9,7 @@ import { DeckFullscreenModal } from "@/components/deck-fullscreen-modal";
 import { SharedCardTile } from "@/components/shared-card-tile";
 import { StackedDeckDisplay } from "@/components/stacked-deck-display";
 import { EdhrecRecommendations } from "@/components/edhrec-recommendations";
+import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -594,10 +595,7 @@ export default function Search() {
                   <div className="flex items-center space-x-2 text-purple-300">
                     <span className="text-sm font-medium">EDHREC recommendations for {deck.commander.name}</span>
                     {isEdhrecLoading && (
-                      <div className="flex items-center space-x-2 text-purple-400">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400"></div>
-                        <span className="text-xs">Loading...</span>
-                      </div>
+                      <LoadingSpinner size="sm" color="purple" message="Loading..." />
                     )}
                   </div>
                   <div className="text-xs text-purple-400">
@@ -630,7 +628,7 @@ export default function Search() {
             {/* Initial loading indicator */}
             {isLoading && !allCards.length && (
               <div className="flex justify-center py-8">
-                <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                <LoadingSpinner size="lg" color="blue" />
               </div>
             )}
              {!shouldShowResults && (

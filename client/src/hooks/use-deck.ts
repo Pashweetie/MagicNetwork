@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@shared/schema";
+import { api } from "@/lib/api-client";
 
 export interface DeckEntry {
   card: Card;
@@ -80,26 +81,12 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
   // Fetch deck data from backend
   const { data: deckData } = useQuery({
     queryKey: ['/api/user/deck'],
-    queryFn: async () => {
-      const response = await fetch('/api/user/deck');
-      if (!response.ok) throw new Error('Failed to fetch deck');
-      return response.json();
-    }
+    queryFn: () => api.get('/api/user/deck')
   });
 
   // Save deck mutation
   const saveDeckMutation = useMutation({
-    mutationFn: async (deckData: any) => {
-      const response = await fetch('/api/user/deck', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(deckData),
-      });
-      if (!response.ok) throw new Error('Failed to save deck');
-      return response.json();
-    },
+    mutationFn: (deckData: any) => api.put('/api/user/deck', deckData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/user/deck'] });
     },
@@ -248,10 +235,7 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
   const addCardByName = useCallback(async (cardName: string): Promise<boolean> => {
     try {
       // Search for the card by name
-      const response = await fetch(`/api/cards/search?q=${encodeURIComponent(cardName)}&page=1`);
-      if (!response.ok) return false;
-      
-      const searchResult = await response.json();
+      const searchResult = await api.get(`/api/cards/search?q=${encodeURIComponent(cardName)}&page=1`);
       const exactMatch = searchResult.data.find((card: Card) => 
         card.name.toLowerCase() === cardName.toLowerCase()
       );

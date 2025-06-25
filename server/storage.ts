@@ -460,29 +460,43 @@ export class DatabaseStorage implements IStorage {
       }
       
       if (hasLocalCards) {
-        // Use local database for faster lookups
-        for (const edhrecCard of edhrecCards) {
+        // Use single batch query for all cards (much faster than N+1 queries)
+        const cardNames = edhrecCards.map(card => card.name.toLowerCase());
+        
+        if (cardNames.length > 0) {
           try {
+            const placeholders = cardNames.map(() => '?').join(',');
             const result = await db.execute(sql`
               SELECT id, name, mana_cost, cmc, type_line, oracle_text, colors, 
                      color_identity, power, toughness, rarity, set_code, set_name,
                      image_uris, card_faces, prices, legalities
               FROM cards 
-              WHERE LOWER(name) = ${edhrecCard.name.toLowerCase()}
-              LIMIT 1
-            `);
+              WHERE LOWER(name) IN (${sql.raw(placeholders)})
+            `, cardNames);
             
             if (result.rows && result.rows.length > 0) {
-              const dbCard = this.convertRawDbCardToCard(result.rows[0]);
-              linkedCards.push({
-                ...dbCard,
-                edhrec_rank: edhrecCard.num_decks,
-                edhrec_synergy: edhrecCard.synergy,
-                edhrec_url: edhrecCard.url
-              });
+              // Create lookup map for O(1) matching
+              const dbCardMap = new Map<string, any>();
+              for (const row of result.rows) {
+                dbCardMap.set(row.name.toLowerCase(), row);
+              }
+              
+              // Match EDHREC cards with database cards
+              for (const edhrecCard of edhrecCards) {
+                const dbRow = dbCardMap.get(edhrecCard.name.toLowerCase());
+                if (dbRow) {
+                  const dbCard = this.convertRawDbCardToCard(dbRow);
+                  linkedCards.push({
+                    ...dbCard,
+                    edhrec_rank: edhrecCard.num_decks,
+                    edhrec_synergy: edhrecCard.synergy,
+                    edhrec_url: edhrecCard.url
+                  });
+                }
+              }
             }
           } catch (error) {
-            console.error(`Error linking card "${edhrecCard.name}":`, error);
+            console.error('Error in batch card lookup:', error);
           }
         }
       } else {

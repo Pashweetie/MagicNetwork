@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card as UICard, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { CachedImage } from '@/components/cached-image';
+import { CardImage } from './shared/CardImage';
+import { EmptyState } from './shared/EmptyState';
 import { Loader2, TrendingUp, Users, DollarSign, ExternalLink, Plus } from 'lucide-react';
 
 interface EdhrecCard {
@@ -268,9 +269,9 @@ export function EdhrecRecommendations({ commander, onAddCard }: EdhrecRecommenda
                     )}
                     
                     {category.cards.length === 0 && (
-                      <div className="text-center py-8 text-slate-400">
-                        No {category.label.toLowerCase()} recommendations available
-                      </div>
+                      <EmptyState 
+                        title={`No ${category.label.toLowerCase()} recommendations available`}
+                      />
                     )}
                   </div>
                 </div>

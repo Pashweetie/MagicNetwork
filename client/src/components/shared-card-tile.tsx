@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Minus, Crown } from "lucide-react";
 import { CardUtils, COLOR_MAPPING } from "@shared/utils/card-utils";
-import { SimpleCardImage } from "@/components/simple-card-image";
+import { CardImage } from "./shared/CardImage";
 import { DualFacedCard } from "@/components/dual-faced-card";
 
 interface BaseCardTileProps {
@@ -64,7 +64,8 @@ function SearchVariant({
     >
       <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700 hover:border-slate-500">
         <div className="aspect-[3/4] relative">
-          <SimpleCardImage
+          <CardImage
+            cached={false}
             src={cardImage}
             alt={card.name}
             className="w-full h-full object-cover"

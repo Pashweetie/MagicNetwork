@@ -1,5 +1,6 @@
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { SearchFilters, SearchResponse, Card } from "@shared/schema";
+import { api } from "@/lib/api-client";
 
 export function useCardSearch(filters: SearchFilters, enabled: boolean = true) {
   return useInfiniteQuery({
@@ -31,15 +32,7 @@ export function useCardSearch(filters: SearchFilters, enabled: boolean = true) {
       if (filters.keywords?.length) searchParams.set('keywords', filters.keywords.join(','));
       if (filters.produces?.length) searchParams.set('produces', filters.produces.join(','));
 
-      const response = await fetch(`/api/cards/search?${searchParams}`, {
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error(`Search failed: ${response.status} ${response.statusText}`);
-      }
-
-      return await response.json() as SearchResponse;
+      return await api.get(`/api/cards/search?${searchParams}`) as SearchResponse;
     },
     getNextPageParam: (lastPage, pages) => {
       return lastPage.has_more ? pages.length + 1 : undefined;
@@ -53,16 +46,12 @@ export function useCard(id: string) {
   return useQuery({
     queryKey: ['/api/cards', id],
     queryFn: async () => {
-      const response = await fetch(`/api/cards/${id}`, {
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        if (response.status === 404) return null;
-        throw new Error(`Failed to fetch card: ${response.status} ${response.statusText}`);
+      try {
+        return await api.get(`/api/cards/${id}`) as Card;
+      } catch (error: any) {
+        if (error.status === 404) return null;
+        throw error;
       }
-
-      return await response.json() as Card;
     },
     enabled: !!id,
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -73,15 +62,7 @@ export function useRandomCard() {
   return useQuery({
     queryKey: ['/api/cards/random'],
     queryFn: async () => {
-      const response = await fetch('/api/cards/random', {
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch random card: ${response.status} ${response.statusText}`);
-      }
-
-      return await response.json() as Card;
+      return await api.get('/api/cards/random') as Card;
     },
     staleTime: 0, // Always fresh for random cards
   });

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Minus, Crown } from "lucide-react";
-import { CachedImage } from "@/components/cached-image";
+import { CardImage } from "./shared/CardImage";
 import { apiRequest } from "@/lib/queryClient";
 
 type SortOption = 'name' | 'name_desc' | 'mana_value' | 'price' | 'type';
@@ -239,7 +239,7 @@ function StackedCard({
           }`}
           onClick={() => onClick(card)}
         >
-          <CachedImage
+          <CardImage
             src={card.image_uris?.normal}
             alt={card.name}
             className="w-full h-full object-cover"

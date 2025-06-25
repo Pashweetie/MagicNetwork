@@ -5,6 +5,8 @@ import { Loader2, GitMerge, ThumbsUp, ThumbsDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SharedCardTile } from "./shared-card-tile";
+import { LoadingSpinner } from "./shared/LoadingSpinner";
+import { api } from "@/lib/api-client";
 import { queryClient } from "@/lib/queryClient";
 import { UIUtils, VoteHandler } from "@shared/utils/ui-utils";
 
@@ -38,11 +40,7 @@ export function ThemeBasedSynergies({ cardId, onCardClick, onAddCard, currentFil
         params.append('filters', JSON.stringify(currentFilters));
       }
       
-      const response = await fetch(`/api/cards/${cardId}/theme-synergies?${params}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch theme synergies');
-      }
-      return response.json();
+      return api.get(`/api/cards/${cardId}/theme-synergies?${params}`);
     },
   });
 
@@ -70,10 +68,12 @@ export function ThemeBasedSynergies({ cardId, onCardClick, onAddCard, currentFil
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <div className="w-6 h-6 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
-        <span className="ml-2 text-slate-400">Finding theme synergies...</span>
-      </div>
+      <LoadingSpinner 
+        size="md" 
+        color="slate" 
+        message="Finding theme synergies..." 
+        className="py-8" 
+      />
     );
   }
 

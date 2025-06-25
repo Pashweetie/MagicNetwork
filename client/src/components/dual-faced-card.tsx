@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Card } from '@shared/schema';
-import { CachedImage } from '@/components/cached-image';
+import { CardImage } from './shared/CardImage';
 import { Button } from '@/components/ui/button';
 import { RotateCcw } from 'lucide-react';
 
@@ -20,7 +20,7 @@ export function DualFacedCard({ card, className = "", showFlipButton = true }: D
     // Regular single-faced card
     const imageUrl = card.image_uris?.normal || card.image_uris?.small;
     return imageUrl ? (
-      <CachedImage
+      <CardImage
         src={imageUrl}
         alt={card.name}
         className={className}
@@ -40,7 +40,7 @@ export function DualFacedCard({ card, className = "", showFlipButton = true }: D
   return (
     <div className="relative group">
       {imageUrl && (
-        <CachedImage
+        <CardImage
           src={imageUrl}
           alt={activeFace?.name || card.name}
           className={`${className} transition-transform duration-300`}
@@ -77,7 +77,7 @@ export function DualFacedCardModal({ card }: { card: Card }) {
     const imageUrl = card.image_uris?.large || card.image_uris?.normal;
     return imageUrl ? (
       <div className="flex justify-center">
-        <CachedImage
+        <CardImage
           src={imageUrl}
           alt={card.name}
           className="max-w-full max-h-96 object-contain"
@@ -97,7 +97,7 @@ export function DualFacedCardModal({ card }: { card: Card }) {
           return imageUrl ? (
             <div key={index} className="space-y-2">
               <h4 className="font-medium text-center">{face.name}</h4>
-              <CachedImage
+              <CardImage
                 src={imageUrl}
                 alt={face.name}
                 className="w-full max-h-64 object-contain"

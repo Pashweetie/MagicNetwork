@@ -28,12 +28,6 @@ export interface EdhrecRecommendations {
     planeswalkers: Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>;
     lands: Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>;
   };
-  themes: Array<{
-    name: string;
-    url: string;
-    num_decks: number;
-    cards: Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>;
-  }>;
 }
 
 export class EdhrecService {
@@ -220,31 +214,6 @@ export class EdhrecService {
       }));
     };
 
-    const extractThemes = async (data: any): Promise<Array<{name: string, url: string, num_decks: number, cards: Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>}>> => {
-      const themes: Array<{name: string, url: string, num_decks: number, cards: Array<Card & {edhrec_rank: number, edhrec_synergy: number, edhrec_url: string}>}> = [];
-      
-      // Look for theme sections in the data
-      const cardlists = data.container?.json_dict?.cardlists || data.cardlists || [];
-      
-      for (const section of cardlists) {
-        const sectionName = section.tag || section.header || '';
-        if (sectionName && !['creatures', 'instants', 'sorceries', 'artifacts', 'enchantments', 'planeswalkers', 'lands'].includes(sectionName.toLowerCase())) {
-          // This might be a theme section
-          const themeCards = formatCards(section.cardviews || section.cards || []).slice(0, 20);
-          const linkedThemeCards = await storage.linkEdhrecCards(themeCards);
-          // Note: Theme cards will be filtered by commander color identity in the main function
-          
-          themes.push({
-            name: sectionName,
-            url: `https://edhrec.com/themes/${encodeURIComponent(sectionName.toLowerCase().replace(/\s+/g, '-'))}`,
-            num_decks: section.num_decks || 0,
-            cards: linkedThemeCards
-          });
-        }
-      }
-      
-      return themes;
-    };
 
     // Extract card recommendations from EDHREC JSON structure
     const cardSections = data.container?.json_dict?.cardlists || data.cardlists || [];
@@ -333,22 +302,12 @@ export class EdhrecService {
       }
     });
 
-    // Extract themes from the data and filter by commander color identity
-    const rawThemes = await extractThemes(data);
-    const themes = rawThemes.map(theme => ({
-      ...theme,
-      cards: CommanderUtils.filterLegalCards(
-        theme.cards.map(card => ({ card })), 
-        commander
-      ).map(item => item.card)
-    }));
     
     return {
       commander: commander.name,
       total_decks: data.container?.json_dict?.num_decks || data.num_decks || 0,
       updated_at: new Date().toISOString(),
-      cards: linkedCardsByType,
-      themes: themes
+      cards: linkedCardsByType
     };
   }
 

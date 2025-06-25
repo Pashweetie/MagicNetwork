@@ -6,7 +6,9 @@ import { Lightbulb, GitMerge, Copy, AlertCircle, Plus, ThumbsUp, ThumbsDown } fr
 import { ThemeSuggestions } from "./theme-suggestions";
 import { ThemeBasedSynergies } from "./theme-based-synergies";
 import { SharedCardTile } from "./shared-card-tile";
-import { CachedImage } from "@/components/cached-image";
+import { LoadingSpinner } from "./shared/LoadingSpinner";
+import { EmptyState } from "./shared/EmptyState";
+import { CardImage } from "./shared/CardImage";
 import { DualFacedCardModal } from "@/components/dual-faced-card";
 import { Card } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
@@ -108,10 +110,12 @@ function SynergyRecommendations({ cardId, onCardClick, onAddCard, currentFilters
         <span className="text-sm text-slate-400 ml-2">({availableCards.length} available)</span>
       </h3>
       {isLoading ? (
-        <div className="text-center py-8 text-slate-400">
-          <div className="animate-spin w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full mx-auto mb-2"></div>
-          Finding synergistic cards...
-        </div>
+        <LoadingSpinner 
+          size="lg" 
+          color="yellow" 
+          message="Finding synergistic cards..." 
+          className="py-8 text-slate-400" 
+        />
       ) : error ? (
         <div className="text-center py-8 text-red-400">
           <AlertCircle className="w-8 h-8 mx-auto mb-2" />
@@ -176,10 +180,10 @@ function SynergyRecommendations({ cardId, onCardClick, onAddCard, currentFilters
           ))}
         </div>
       ) : (
-        <div className="text-center py-8 text-slate-400">
-          <GitMerge className="w-8 h-8 mx-auto mb-2 opacity-50" />
-          No synergy cards found
-        </div>
+        <EmptyState 
+          icon={GitMerge}
+          title="No synergy cards found"
+        />
       )}
     </div>
   );
@@ -254,10 +258,12 @@ function SimilarRecommendations({ cardId, onCardClick, onAddCard, currentFilters
         <span className="text-sm text-slate-400 ml-2">({availableCards.length} available)</span>
       </h3>
       {isLoading ? (
-        <div className="text-center py-8 text-slate-400">
-          <div className="animate-spin w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full mx-auto mb-2"></div>
-          Finding similar cards...
-        </div>
+        <LoadingSpinner 
+          size="lg" 
+          color="blue" 
+          message="Finding similar cards..." 
+          className="py-8 text-slate-400" 
+        />
       ) : error ? (
         <div className="text-center py-8 text-red-400">
           <AlertCircle className="w-8 h-8 mx-auto mb-2" />
@@ -319,10 +325,10 @@ function SimilarRecommendations({ cardId, onCardClick, onAddCard, currentFilters
           ))}
         </div>
       ) : (
-        <div className="text-center py-8 text-slate-400">
-          <Copy className="w-8 h-8 mx-auto mb-2 opacity-50" />
-          No similar cards found
-        </div>
+        <EmptyState 
+          icon={Copy}
+          title="No similar cards found"
+        />
       )}
     </div>
   );
@@ -368,7 +374,7 @@ export function CardDetailModal({ card, isOpen, onClose, onCardClick, onAddCard,
         <div className={modalStyles.grid}>
           {/* Card Image */}
           <div className={modalStyles.imageContainer}>
-            <CachedImage
+            <CardImage
               src={cardImage}
               alt={card.name}
               className={modalStyles.image}
