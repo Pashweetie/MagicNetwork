@@ -381,25 +381,30 @@ export class CardDatabaseService {
   }
 
   private convertDbCardToCard(dbCard: any): Card {
-    return {
-      id: dbCard.id,
-      name: dbCard.name,
-      mana_cost: dbCard.manaCost,
-      cmc: dbCard.cmc,
-      type_line: dbCard.typeLine,
-      oracle_text: dbCard.oracleText,
-      colors: dbCard.colors,
-      color_identity: dbCard.colorIdentity,
-      power: dbCard.power,
-      toughness: dbCard.toughness,
-      rarity: dbCard.rarity,
-      set: dbCard.setCode,
-      set_name: dbCard.setName,
-      image_uris: dbCard.imageUris,
-      card_faces: dbCard.cardFaces,
-      prices: dbCard.prices,
-      legalities: dbCard.legalities,
-    };
+    try {
+      return {
+        id: dbCard.id,
+        name: dbCard.name,
+        mana_cost: dbCard.mana_cost,
+        cmc: dbCard.cmc,
+        type_line: dbCard.type_line,
+        oracle_text: dbCard.oracle_text,
+        colors: dbCard.colors,
+        color_identity: dbCard.color_identity,
+        power: dbCard.power,
+        toughness: dbCard.toughness,
+        rarity: dbCard.rarity,
+        set: dbCard.set_code,
+        set_name: dbCard.set_name,
+        image_uris: dbCard.image_uris,
+        card_faces: dbCard.card_faces,
+        prices: dbCard.prices,
+        legalities: dbCard.legalities,
+      };
+    } catch (error) {
+      console.error('Error converting DB card to Card format:', error, 'dbCard:', dbCard);
+      throw error;
+    }
   }
 
   getDownloadProgress() {

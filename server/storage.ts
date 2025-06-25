@@ -76,7 +76,7 @@ export class DatabaseStorage implements IStorage {
           console.log(`Local database has only ${cardCount} cards, using Scryfall for search`);
         }
       } catch (dbError) {
-        console.log('Local database not ready, using Scryfall');
+        console.log('Local database error, using Scryfall:', dbError);
       }
 
       // Fallback to Scryfall service for live search
@@ -114,7 +114,7 @@ export class DatabaseStorage implements IStorage {
           return card;
         }
       } catch (dbError) {
-        console.log('Local database not ready for card lookup, using Scryfall');
+        console.log('Local database error for card lookup, using Scryfall:', dbError);
       }
       
       // Fallback to Scryfall
