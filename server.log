@@ -1,0 +1,61 @@
+📁 Loading environment variables from .env file
+✅ Using DATABASE_URL from environment
+Starting card database setup...
+Google Gemini AI ready for generation
+8:41:57 PM [express] serving on port 5000
+8:41:57 PM [express] 🚀 Server running on port 5000
+8:41:57 PM [express] 📱 Local: http://localhost:5000
+Cards tables already exist
+Initializing card database...
+Database already contains 95924 cards
+Last database update was 3.6 days ago
+Database is up to date (3.6 days old)
+Database already contains 72650 rulings
+Weekly update schedule started - checking daily for updates older than 7 days
+🆔 Generated new anonymous user: anon_1750826178577_l2shtf6yj2_abzthi
+🔑 Created new user in database: anon_1750826178577_l2shtf6yj2_abzthi
+9:36:22 PM [express] GET /api/cards/search 200 in 3589ms :: {"data":[{"id":"35c7c392-6782-40c8-bb24-…
+📱 Using localStorage user: test_user_1750826901083
+🔑 Created new user in database: test_user_1750826901083
+9:48:24 PM [express] GET /api/decks 200 in 3046ms :: []
+📱 Using localStorage user: test_user_1750826901083
+9:48:25 PM [express] GET /api/cards/search 200 in 766ms :: {"data":[{"id":"5aa90ab6-2686-4462-8725-5…
+📱 Using localStorage user: test_user_1750826901083
+Themes already exist for card: _____
+9:48:30 PM [express] GET /api/cards/5aa90ab6-2686-4462-8725-5d4370c05437/theme-suggestions 200 in 45…
+🆔 Generated new anonymous user: anon_1750827051848_js9jepfmhoc_xk8mg5
+🔑 Created new user in database: anon_1750827051848_js9jepfmhoc_xk8mg5
+🆔 Generated new anonymous user: anon_1750827198004_3e6twj722dq_ikg6dp
+🔑 Created new user in database: anon_1750827198004_3e6twj722dq_ikg6dp
+Local database error, using Scryfall: error: column "oracle_id" does not exist
+    at file:///home/pashweetie/MagicNetwork/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async NeonPreparedQuery.execute (/home/pashweetie/MagicNetwork/node_modules/src/neon-serverless/session.ts:102:18)
+    at async CardDatabaseService.searchCards (/home/pashweetie/MagicNetwork/server/services/card-database-service.ts:342:21)
+    at async DatabaseStorage.searchCards (/home/pashweetie/MagicNetwork/server/storage.ts:72:26)
+    at async <anonymous> (/home/pashweetie/MagicNetwork/server/routes.ts:132:22) {
+  length: 109,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '14',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3722',
+  routine: 'errorMissingColumn'
+}
+9:53:34 PM [express] GET /api/cards/search 200 in 16640ms :: {"data":[{"object":"card","id":"35c7c39…
+Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+🆔 Generated new anonymous user: anon_1750828122410_lp2yy9ufjrk_1n7qb0
+🔑 Created new user in database: anon_1750828122410_lp2yy9ufjrk_1n7qb0
+10:08:43 PM [express] GET /api/cards/search 200 in 1488ms :: {"data":[{"id":"35c7c392-6782-40c8-bb24-…

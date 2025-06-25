@@ -4,6 +4,7 @@ import { createInsertSchema } from "drizzle-zod";
 
 export const cardSchema = z.object({
   id: z.string(),
+  oracle_id: z.string(),
   name: z.string(),
   mana_cost: z.string().optional(),
   cmc: z.number(),

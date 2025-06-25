@@ -384,6 +384,7 @@ export class CardDatabaseService {
     try {
       return {
         id: dbCard.id,
+        oracle_id: dbCard.oracleId,
         name: dbCard.name,
         mana_cost: dbCard.mana_cost,
         cmc: dbCard.cmc,
@@ -578,7 +579,7 @@ export class CardDatabaseService {
     try {
       const rulings = await db.select()
         .from(cardRulings)
-        .where(sql`oracle_id = ${oracleId}`)
+        .where(eq(cardRulings.oracleId, oracleId))
         .orderBy(sql`published_at DESC`);
       
       return rulings;

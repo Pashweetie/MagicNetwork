@@ -103,6 +103,9 @@ node debug-test.js # Test auth endpoints
 npm run check      # Run TypeScript checks (npm run lint/typecheck don't exist)
 ```
 
+## Commit Guidelines
+**IMPORTANT**: Do not add Claude attribution to commit messages. User prefers clean commit messages without AI credits.
+
 ---
 
 # 🔍 COMPREHENSIVE CODEBASE ANALYSIS (June 24, 2025)

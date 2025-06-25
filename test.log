@@ -1,0 +1,48 @@
+📁 Loading environment variables from .env file
+✅ Using DATABASE_URL from environment
+Starting card database setup...
+Google Gemini AI ready for generation
+9:36:09 PM [express] serving on port 5000
+9:36:09 PM [express] 🚀 Server running on port 5000
+9:36:09 PM [express] 📱 Local: http://localhost:5000
+Cards tables already exist
+Initializing card database...
+Database already contains 95924 cards
+Last database update was 3.6 days ago
+Database is up to date (3.6 days old)
+Database already contains 72650 rulings
+Weekly update schedule started - checking daily for updates older than 7 days
+🆔 Generated new anonymous user: anon_1750827003546_7o53f5mimp9_fuyf1o
+🔑 Created new user in database: anon_1750827003546_7o53f5mimp9_fuyf1o
+Local database error, using Scryfall: error: column "oracle_id" does not exist
+    at file:///home/pashweetie/MagicNetwork/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async NeonPreparedQuery.execute (/home/pashweetie/MagicNetwork/node_modules/src/neon-serverless/session.ts:102:18)
+    at async CardDatabaseService.searchCards (/home/pashweetie/MagicNetwork/server/services/card-database-service.ts:342:21)
+    at async DatabaseStorage.searchCards (/home/pashweetie/MagicNetwork/server/storage.ts:72:26)
+    at async <anonymous> (/home/pashweetie/MagicNetwork/server/routes.ts:132:22) {
+  length: 109,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '14',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3722',
+  routine: 'errorMissingColumn'
+}
+9:50:10 PM [express] GET /api/cards/search 200 in 6921ms :: {"data":[{"object":"card","id":"77c6fa74…
+Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+🆔 Generated new anonymous user: anon_1750827969320_qzylgt0ntyd_d1v6ms
+🔑 Created new user in database: anon_1750827969320_qzylgt0ntyd_d1v6ms
+10:06:15 PM [express] GET /api/cards/search 200 in 5941ms :: {"data":[{"id":"35c7c392-6782-40c8-bb24-…

@@ -465,19 +465,14 @@ export class DatabaseStorage implements IStorage {
         
         if (cardNames.length > 0) {
           try {
-            const placeholders = cardNames.map(() => '?').join(',');
-            const result = await db.execute(sql`
-              SELECT id, name, mana_cost, cmc, type_line, oracle_text, colors, 
-                     color_identity, power, toughness, rarity, set_code, set_name,
-                     image_uris, card_faces, prices, legalities
-              FROM cards 
-              WHERE LOWER(name) IN (${sql.raw(placeholders)})
-            `, cardNames);
+            const result = await db.select()
+              .from(cards)
+              .where(sql`LOWER(${cards.name}) IN ${sql.raw(`(${cardNames.map(name => `'${name.replace(/'/g, "''")}'`).join(',')})`)}`);
             
-            if (result.rows && result.rows.length > 0) {
+            if (result && result.length > 0) {
               // Create lookup map for O(1) matching
               const dbCardMap = new Map<string, any>();
-              for (const row of result.rows) {
+              for (const row of result) {
                 dbCardMap.set(row.name.toLowerCase(), row);
               }
               

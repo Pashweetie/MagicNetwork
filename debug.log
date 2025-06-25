@@ -1,0 +1,21 @@
+📁 Loading environment variables from .env file
+✅ Using DATABASE_URL from environment
+Starting card database setup...
+8:44:49 PM [express] serving on port 5000
+8:44:49 PM [express] 🚀 Server running on port 5000
+8:44:49 PM [express] 📱 Local: http://localhost:5000
+Google Gemini AI ready for generation
+Cards tables already exist
+Initializing card database...
+Database already contains 95924 cards
+Last database update was 3.6 days ago
+Database is up to date (3.6 days old)
+Database already contains 72650 rulings
+Weekly update schedule started - checking daily for updates older than 7 days
+Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+🆔 Generated new anonymous user: anon_1750827027370_mudouuif9xg_mhah5a
+🔑 Created new user in database: anon_1750827027370_mudouuif9xg_mhah5a
+9:50:28 PM [express] GET /api/decks 200 in 1087ms :: []
+9:50:39 PM [express] POST /api/decks/cards 200 in 11ms
