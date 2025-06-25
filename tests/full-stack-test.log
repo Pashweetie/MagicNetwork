@@ -1,0 +1,14 @@
+[0;32m[07:40:57] SUCCESS:[0m 🧪 Starting Full-Stack Test Suite
+[0;32m[07:40:57] SUCCESS:[0m ⏰ Timeout: 60s
+[0;32m[07:40:57] SUCCESS:[0m 📝 Logs: ./tests/full-stack-test.log
+[0;34m[07:40:57][0m 🔍 Checking prerequisites...
+[0;34m[07:40:57][0m ✅ .env file found
+[0;34m[07:40:57][0m 📁 Loading environment variables from .env file
+[0;34m[07:40:57][0m ✅ DATABASE_URL is properly configured
+[0;32m[07:40:57] SUCCESS:[0m ✅ Prerequisites check passed
+[0;34m[07:40:57][0m 🚀 Starting backend server...
+[0;34m[07:40:57][0m Backend started with PID: 4808
+[0;34m[07:40:57][0m ⏳ Waiting for Backend to be ready...
+[0;32m[07:41:01] SUCCESS:[0m ✅ Backend is ready! (HTTP 200)
+[0;34m[07:41:01][0m 🎨 Starting frontend dev server...
+[0;31m[07:41:57] ERROR:[0m ⏰ Test suite timed out after 60s
