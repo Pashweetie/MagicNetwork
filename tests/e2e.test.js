@@ -109,8 +109,8 @@ async function runTests() {
         const result = await makeRequest(`/api/cards/${cardId}/theme-vote`, {
           method: 'POST',
           body: {
-            themeName: 'Artifact Ramp',
-            vote: 'upvote'
+            themeName: 'Copying',
+            vote: 'up'
           }
         });
         return result.status === 200;

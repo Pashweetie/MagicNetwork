@@ -169,7 +169,7 @@ run_api_tests() {
     
     # Run the existing API tests but against our running server
     log "Running: node tests/e2e.test.js"
-    if timeout 30 node tests/e2e.test.js 2>&1 | tee ./tests/api-results.log; then
+    if timeout 30 node ./tests/e2e.test.js 2>&1 | tee ./tests/api-results.log; then
         success "✅ API tests passed"
         return 0
     else
@@ -286,8 +286,19 @@ EOF
 main() {
     TEST_START_TIME=$(date +%s)
     
+    # Ensure we're in the right directory
+    log "Working directory: $(pwd)"
+    if [ ! -f "tests/e2e.test.js" ]; then
+        error "❌ Cannot find tests/e2e.test.js in current directory: $(pwd)"
+        return 1
+    fi
+    
     # Create tests directory if it doesn't exist
     mkdir -p tests
+    if [ ! -d "tests" ]; then
+        error "❌ Failed to create tests directory"
+        return 1
+    fi
     
     # Initialize log files
     touch "$LOG_FILE"

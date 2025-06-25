@@ -1,0 +1,12 @@
+{
+  "name": "magicnetwork-docker-tests",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "node tests/comprehensive-api.test.js && node tests/database-validation.test.js",
+    "test:api": "node tests/comprehensive-api.test.js",
+    "test:db": "node tests/database-validation.test.js",
+    "test:e2e": "node tests/e2e.test.js",
+    "test:full": "./test-full-stack.sh"
+  }
+}

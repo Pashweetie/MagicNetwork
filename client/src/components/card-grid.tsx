@@ -3,9 +3,10 @@ import { Card } from "@shared/schema";
 import { SharedCardTile } from "./shared-card-tile";
 import { CardDetailModal } from "./card-detail-modal";
 import { EmptyState } from "./shared/EmptyState";
+import { LoadingSpinner } from "./shared/LoadingSpinner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 interface CardGridProps {
   cards: Card[];
@@ -157,10 +158,7 @@ export function CardGrid({ cards, isLoading, hasMore, onLoadMore, onRetry, error
           className="flex justify-center py-8 min-h-[60px]"
         >
           {isLoading ? (
-            <div className="flex items-center space-x-2 text-slate-400">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              <span>Loading more cards...</span>
-            </div>
+            <LoadingSpinner size="md" color="slate" message="Loading more cards..." />
           ) : (
             <div className="text-slate-500 text-sm opacity-50">↓ Scroll for more cards ↓</div>
           )}

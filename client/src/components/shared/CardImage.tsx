@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { useCachedImage, useImageCacheStats } from '@/hooks/use-cached-image';
 import { cn } from '@/lib/utils';
+import { LoadingSpinner } from './LoadingSpinner';
 
 interface CardImageProps {
   src: string | null | undefined;
@@ -142,8 +143,8 @@ export function CardImage({
         className
       )} style={style}>
         <div className="text-center p-4">
-          <div className="w-6 h-6 mx-auto mb-2 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"></div>
-          <div className="text-xs opacity-75">Loading...</div>
+          <LoadingSpinner size="md" color="slate" />
+          <div className="text-xs opacity-75 mt-2">Loading...</div>
         </div>
       </div>
     );
