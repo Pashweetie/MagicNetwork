@@ -30,8 +30,8 @@ app.use((req, res, next) => {
 // Apply security middleware
 app.use(securityHeaders);
 app.use(cloudflareOptimized); // Optimize responses for Cloudflare caching
-app.use('/api', rateLimiter(100, 60000)); // 100 requests per minute per IP
-app.use('/api/cards/search', rateLimiter(50, 60000)); // Stricter limit for search
+app.use('/api', rateLimiter(1000, 60000)); // 1000 requests per minute per IP (development)
+app.use('/api/cards/search', rateLimiter(500, 60000)); // 500 requests per minute for search (development)
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));

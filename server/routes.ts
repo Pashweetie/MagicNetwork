@@ -59,6 +59,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/cards/search", isAuthenticated, edgeCache(CACHE_CONFIGS.CARD_SEARCH), async (req, res) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
+      console.log(`🔍 Search request: page=${page}, query params:`, Object.keys(req.query).length > 3 ? '[multiple filters]' : JSON.stringify(req.query));
       
       // Parse query parameters into filters
       let filters: any = {

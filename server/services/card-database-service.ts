@@ -249,104 +249,101 @@ export class CardDatabaseService {
   }
 
   async searchCards(filters: SearchFilters, page: number = 1): Promise<SearchResponse> {
-    const limit = 20;
+    const limit = 50;
     const offset = (page - 1) * limit;
     
     console.log(`🔍 Database search: page=${page}, limit=${limit}, offset=${offset}, filters=`, JSON.stringify(filters));
 
-    let query = db.select().from(cards);
-    const conditions: any[] = [];
-
+    // Build WHERE conditions
+    const whereParts: string[] = [];
+    
     // Text search
     if (filters.query) {
-      conditions.push(
-        or(
-          ilike(cards.name, `%${filters.query}%`),
-          ilike(cards.oracleText, `%${filters.query}%`),
-          ilike(cards.typeLine, `%${filters.query}%`)
-        )
-      );
+      whereParts.push(`(name ILIKE '%${filters.query.replace(/'/g, "''")}%' OR oracle_text ILIKE '%${filters.query.replace(/'/g, "''")}%' OR type_line ILIKE '%${filters.query.replace(/'/g, "''")}%')`);
     }
-
-    // Color filters
-    if (filters.colors && filters.colors.length > 0) {
-      if (filters.includeMulticolored) {
-        conditions.push(
-          sql`${cards.colors} && ${filters.colors}`
-        );
-      } else {
-        conditions.push(
-          sql`${cards.colors} = ${filters.colors}`
-        );
-      }
-    }
-
-    // Color identity filters
-    if (filters.colorIdentity && filters.colorIdentity.length > 0) {
-      conditions.push(
-        sql`${cards.colorIdentity} <@ ${filters.colorIdentity}`
-      );
-    }
-
+    
     // Type filters
     if (filters.types && filters.types.length > 0) {
-      const typeConditions = filters.types.map(type => 
-        ilike(cards.typeLine, `%${type}%`)
-      );
-      conditions.push(or(...typeConditions));
+      const typeFilters = filters.types.map(type => `type_line ILIKE '%${type.replace(/'/g, "''")}%'`).join(' OR ');
+      whereParts.push(`(${typeFilters})`);
     }
-
+    
     // Rarity filters
     if (filters.rarities && filters.rarities.length > 0) {
-      conditions.push(inArray(cards.rarity, filters.rarities));
+      const rarityList = filters.rarities.map(r => `'${r.replace(/'/g, "''")}'`).join(',');
+      whereParts.push(`rarity IN (${rarityList})`);
     }
-
+    
     // Mana value filters
     if (filters.minMv !== undefined) {
-      conditions.push(sql`${cards.cmc} >= ${filters.minMv}`);
+      whereParts.push(`cmc >= ${filters.minMv}`);
     }
     if (filters.maxMv !== undefined) {
-      conditions.push(sql`${cards.cmc} <= ${filters.maxMv}`);
+      whereParts.push(`cmc <= ${filters.maxMv}`);
     }
-
+    
     // Set filter
     if (filters.set) {
-      conditions.push(eq(cards.setCode, filters.set));
+      whereParts.push(`set_code = '${filters.set.replace(/'/g, "''")}'`);
     }
-
+    
     // Power/Toughness filters
     if (filters.power) {
-      conditions.push(eq(cards.power, filters.power));
+      whereParts.push(`power = '${filters.power.replace(/'/g, "''")}'`);
     }
     if (filters.toughness) {
-      conditions.push(eq(cards.toughness, filters.toughness));
+      whereParts.push(`toughness = '${filters.toughness.replace(/'/g, "''")}'`);
     }
-
+    
     // Oracle text filter
     if (filters.oracleText) {
-      conditions.push(ilike(cards.oracleText, `%${filters.oracleText}%`));
+      whereParts.push(`oracle_text ILIKE '%${filters.oracleText.replace(/'/g, "''")}%'`);
     }
-
-    // Apply all conditions
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
-
-    // Get total count
-    const countQuery = db.select({ count: sql<number>`count(*)` }).from(cards);
-    if (conditions.length > 0) {
-      countQuery.where(and(...conditions));
-    }
-    const totalResult = await countQuery;
-    const totalCards = totalResult[0]?.count || 0;
-
-    // Apply pagination and ordering
-    const results = await query
-      .orderBy(asc(cards.name))
-      .limit(limit)
-      .offset(offset);
     
-    console.log(`📊 Query results: found ${results.length} cards, totalCards=${totalCards}`);
+    const whereClause = whereParts.length > 0 ? 'WHERE ' + whereParts.join(' AND ') : '';
+
+    // Query to get cheapest printing of each unique card
+    const cheapestCardsQuery = `
+      WITH ranked_cards AS (
+        SELECT *,
+          ROW_NUMBER() OVER (
+            PARTITION BY COALESCE(oracle_id, name) 
+            ORDER BY 
+              CASE 
+                WHEN prices->>'usd' IS NOT NULL AND prices->>'usd' ~ '^[0-9]+(\\.[0-9]+)?$' 
+                THEN CAST(prices->>'usd' AS DECIMAL)
+                ELSE 999999 
+              END ASC,
+              released_at DESC
+          ) as price_rank
+        FROM cards
+        ${whereClause}
+      )
+      SELECT * FROM ranked_cards 
+      WHERE price_rank = 1
+      ORDER BY name
+      LIMIT ${limit} OFFSET ${offset}
+    `;
+
+    // Count query for total unique cards
+    const countQuery = `
+      SELECT COUNT(DISTINCT COALESCE(oracle_id, name)) as count
+      FROM cards
+      ${whereClause}
+    `;
+
+    console.log(`🔍 Executing cheapest printing query with WHERE: ${whereClause}`);
+
+    // Execute both queries
+    const [resultsResponse, countResponse] = await Promise.all([
+      db.execute(sql.raw(cheapestCardsQuery)),
+      db.execute(sql.raw(countQuery))
+    ]);
+
+    const results = resultsResponse.rows;
+    const totalCards = parseInt(countResponse.rows[0]?.count as string) || 0;
+    
+    console.log(`📊 Cheapest printing results: found ${results.length} unique cards, totalCards=${totalCards}`);
 
     // Convert to Card format
     const cardData = results.map(this.convertDbCardToCard);
@@ -388,21 +385,21 @@ export class CardDatabaseService {
     try {
       return {
         id: dbCard.id,
-        oracle_id: dbCard.oracleId,
+        oracle_id: dbCard.oracle_id,
         name: dbCard.name,
-        mana_cost: dbCard.manaCost,
+        mana_cost: dbCard.mana_cost,
         cmc: dbCard.cmc,
-        type_line: dbCard.typeLine,
-        oracle_text: dbCard.oracleText,
+        type_line: dbCard.type_line,
+        oracle_text: dbCard.oracle_text,
         colors: dbCard.colors,
-        color_identity: dbCard.colorIdentity,
+        color_identity: dbCard.color_identity,
         power: dbCard.power,
         toughness: dbCard.toughness,
         rarity: dbCard.rarity,
-        set: dbCard.setCode,
-        set_name: dbCard.setName,
-        image_uris: dbCard.imageUris,
-        card_faces: dbCard.cardFaces,
+        set: dbCard.set_code,
+        set_name: dbCard.set_name,
+        image_uris: dbCard.image_uris,
+        card_faces: dbCard.card_faces,
         prices: dbCard.prices,
         legalities: dbCard.legalities,
       };

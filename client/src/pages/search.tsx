@@ -278,7 +278,7 @@ export default function Search() {
         shouldShowResults: !shouldShowResults ? 'should not show results' : 'should show'
       });
     }
-  }, [hasNextPage, isFetching, fetchNextPage, shouldShowResults, showEdhrecResults, viewMode, data, allCards.length, edhrecDisplayCount, linkedEdhrecCards.length, EDHREC_PAGE_SIZE]);
+  }, [hasNextPage, isFetching, shouldShowResults, showEdhrecResults, viewMode, data, allCards.length, edhrecDisplayCount, linkedEdhrecCards.length, EDHREC_PAGE_SIZE]);
 
   const handleRetry = () => {
     refetch();

@@ -48,10 +48,11 @@ export function CardGrid({ cards, isLoading, hasMore, onLoadMore, onRetry, error
       cardsCount: cards.length 
     });
     
-    if (!observerRef.current || !hasMore) {
+    if (!observerRef.current || !hasMore || cards.length === 0) {
       console.log('❌ CardGrid observer not created:', { 
         noRef: !observerRef.current, 
-        noMore: !hasMore 
+        noMore: !hasMore,
+        noCards: cards.length === 0
       });
       return;
     }
@@ -65,7 +66,12 @@ export function CardGrid({ cards, isLoading, hasMore, onLoadMore, onRetry, error
         });
         if (entries[0].isIntersecting && hasMore && !isLoading) {
           console.log('🚀 CardGrid calling onLoadMore...');
-          onLoadMore();
+          // Add small delay to prevent rapid firing during initial render
+          setTimeout(() => {
+            if (hasMore && !isLoading) {
+              onLoadMore();
+            }
+          }, 500);
         }
       },
       {
