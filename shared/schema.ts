@@ -120,7 +120,7 @@ export const users = pgTable('users', {
 // Full card database tables
 export const cards = pgTable('cards', {
   id: text('id').primaryKey(), // Scryfall card ID
-  oracleId: text('oracle_id').notNull(), // Oracle ID for rulings - groups functionally identical cards
+  oracleId: text('oracle_id'), // Oracle ID for rulings - groups functionally identical cards
   name: text('name').notNull(),
   printedName: text('printed_name'), // Name as printed on card
   manaCost: text('mana_cost'),

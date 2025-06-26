@@ -58,11 +58,11 @@ export class DatabaseStorage implements IStorage {
 
   async searchCards(filters: SearchFilters, page: number = 1): Promise<SearchResponse> {
     try {
-      // TEMPORARILY SKIP CACHE to force database usage after removing Scryfall fallback
-      // const cachedResult = await this.getCachedSearchResults(filters, page);
-      // if (cachedResult) {
-      //   return cachedResult;
-      // }
+      // Check cache first
+      const cachedResult = await this.getCachedSearchResults(filters, page);
+      if (cachedResult) {
+        return cachedResult;
+      }
 
       // Use local database only - no Scryfall fallback
       const { cardDatabaseService } = await import("./services/card-database-service");

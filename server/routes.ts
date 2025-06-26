@@ -49,7 +49,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize card database migration and download in background
   console.log("Starting card database setup...");
   import("./services/card-migration-service").then(({ cardMigrationService }) => {
-    cardMigrationService.createCardsTablesIfNeeded().then(() => {
+    cardMigrationService.runMigrations().then(() => {
       return cardDatabaseService.initializeDatabase();
     }).catch(error => {
       console.error("Failed to initialize card database:", error);

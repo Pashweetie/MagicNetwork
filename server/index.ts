@@ -36,6 +36,20 @@ app.use('/api/cards/search', rateLimiter(50, 60000)); // Stricter limit for sear
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// CORS middleware to allow frontend requests
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
+
 // Allow all access - no tunnel restrictions
 
 // Enhanced caching headers for Cloudflare optimization

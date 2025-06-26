@@ -141,6 +141,90 @@ export class CardMigrationService {
       return 0;
     }
   }
+
+  async checkColumnExists(tableName: string, columnName: string): Promise<boolean> {
+    try {
+      const result = await db.execute(sql`
+        SELECT EXISTS (
+          SELECT FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+          AND table_name = ${tableName}
+          AND column_name = ${columnName}
+        );
+      `);
+      return result.rows[0]?.exists === true;
+    } catch (error) {
+      console.error(`Error checking column ${columnName}:`, error);
+      return false;
+    }
+  }
+
+  async addMissingColumns(): Promise<void> {
+    console.log("Checking for missing columns in cards table...");
+    
+    const columnsToAdd = [
+      { name: 'oracle_id', type: 'text' },
+      { name: 'printed_name', type: 'text' },
+      { name: 'printed_type_line', type: 'text' },
+      { name: 'printed_text', type: 'text' },
+      { name: 'flavor_text', type: 'text' },
+      { name: 'color_indicator', type: 'text[]' },
+      { name: 'defense', type: 'text' },
+      { name: 'hand_modifier', type: 'text' },
+      { name: 'life_modifier', type: 'text' },
+      { name: 'set_id', type: 'text' },
+      { name: 'artist_ids', type: 'text[]' },
+      { name: 'illustration_id', type: 'text' },
+      { name: 'frame', type: 'text DEFAULT \'2015\'' },
+      { name: 'frame_effects', type: 'text[]' },
+      { name: 'security_stamp', type: 'text' },
+      { name: 'watermark', type: 'text' },
+      { name: 'highres_image', type: 'boolean DEFAULT false' },
+      { name: 'game_format', type: 'text DEFAULT \'paper\'' },
+      { name: 'lang', type: 'text DEFAULT \'en\'' },
+      { name: 'mtgo_id', type: 'integer' },
+      { name: 'mtgo_foil_id', type: 'integer' },
+      { name: 'arena_id', type: 'integer' },
+      { name: 'tcgplayer_id', type: 'integer' },
+      { name: 'cardmarket_id', type: 'integer' },
+      { name: 'all_parts', type: 'jsonb' },
+      { name: 'preview', type: 'jsonb' },
+      { name: 'reprint', type: 'boolean DEFAULT false' },
+      { name: 'digital', type: 'boolean DEFAULT false' },
+      { name: 'booster', type: 'boolean DEFAULT true' },
+      { name: 'story_spotlight', type: 'boolean DEFAULT false' },
+      { name: 'promo', type: 'boolean DEFAULT false' },
+      { name: 'promo_types', type: 'text[]' },
+      { name: 'variation', type: 'boolean DEFAULT false' },
+      { name: 'variation_of', type: 'text' }
+    ];
+
+    for (const column of columnsToAdd) {
+      const exists = await this.checkColumnExists('cards', column.name);
+      if (!exists) {
+        try {
+          console.log(`Adding missing column: ${column.name}`);
+          await db.execute(sql.raw(`ALTER TABLE cards ADD COLUMN ${column.name} ${column.type};`));
+        } catch (error) {
+          console.error(`Error adding column ${column.name}:`, error);
+        }
+      }
+    }
+    
+    console.log("Finished checking/adding missing columns");
+  }
+
+  async runMigrations(): Promise<void> {
+    console.log("Running database migrations...");
+    
+    // First ensure basic tables exist
+    await this.createCardsTablesIfNeeded();
+    
+    // Then add any missing columns
+    await this.addMissingColumns();
+    
+    console.log("Migrations completed");
+  }
 }
 
 export const cardMigrationService = new CardMigrationService();
