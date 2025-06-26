@@ -31,7 +31,7 @@ USER magicuser
 EXPOSE 5000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -q --spider http://127.0.0.1:5000/api/cards/search?query=test&limit=1 || exit 1
 
 # Start command

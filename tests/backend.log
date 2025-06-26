@@ -1,126 +1,23 @@
 📁 Loading environment variables from .env file
 ✅ Using DATABASE_URL from environment
 Starting card database setup...
-Google Gemini AI ready for generation
-10:13:36 AM [express] serving on port 5000
-10:13:36 AM [express] 🚀 Server running on port 5000
-10:13:36 AM [express] 📱 Local: http://localhost:5000
-🆔 Generated new anonymous user: anon_1750871617367_l8610oqikl_avtiy0
-Cards tables already exist
-Initializing card database...
-🔑 Created new user in database: anon_1750871617367_l8610oqikl_avtiy0
-Database already contains 95924 cards
-Last database update was 4.2 days ago
-Database is up to date (4.2 days old)
-Database already contains 72650 rulings
-Weekly update schedule started - checking daily for updates older than 7 days
-10:13:39 AM [express] GET /api/cards/search 200 in 2230ms :: {"data":[{"id":"5aa90ab6-2686-4462-8725-…
-📱 Using localStorage user: test_user_1750871631946
-🔑 Created new user in database: test_user_1750871631946
-10:13:53 AM [express] GET /api/cards/search 200 in 1209ms :: {"data":[{"id":"5aa90ab6-2686-4462-8725-…
-📱 Using localStorage user: test_user_1750871631946
-Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
-  npx update-browserslist-db@latest
-  Why you should do it regularly: https://github.com/browserslist/update-db#readme
-10:13:55 AM [express] GET /api/cards/search 200 in 2159ms :: {"data":[{"id":"5aa90ab6-2686-4462-8725-…
-📱 Using localStorage user: test_user_1750871631946
-Authentication error: Error: Connection terminated unexpectedly
-    at file:///home/justin/MagicNetwork/node_modules/@neondatabase/serverless/index.mjs:1345:74
-    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
-    at async NeonPreparedQuery.execute (file:///home/justin/MagicNetwork/node_modules/drizzle-orm/neon-serverless/session.js:76:20)
-    at async DatabaseStorage.getUser (file:///home/justin/MagicNetwork/server/storage.ts:1:2800)
-    at async isAuthenticated (file:///home/justin/MagicNetwork/server/replitAuth.ts:1:1353)
-10:13:55 AM [express] GET /api/cards/search 500 in 136ms :: {"message":"Internal server error"}
-📱 Using localStorage user: test_user_1750871631946
-10:13:56 AM [express] GET /api/decks 200 in 388ms :: []
-📱 Using localStorage user: test_user_1750871631946
-10:13:56 AM [express] GET /api/cards/search 200 in 856ms :: {"data":[{"id":"5aa90ab6-2686-4462-8725-5…
-📱 Using localStorage user: test_user_1750871631946
-Themes already exist for card: _____
-10:14:03 AM [express] GET /api/cards/5aa90ab6-2686-4462-8725-5d4370c05437/theme-suggestions 200 in 63…
-📱 Using localStorage user: test_user_1750871631946
-10:14:03 AM [express] GET /api/cards/search 200 in 597ms :: {"data":[{"id":"5aa90ab6-2686-4462-8725-5…
-📱 Using localStorage user: test_user_1750871631946
-10:14:04 AM [express] POST /api/cards/5aa90ab6-2686-4462-8725-5d4370c05437/theme-vote 200 in 385ms ::…
-📱 Using localStorage user: test_user_1750871631946
-10:14:04 AM [express] GET /api/decks 200 in 130ms :: []
-Failed to prune sessions: error: Control plane request failed
-    at /home/justin/MagicNetwork/node_modules/pg-pool/index.js:45:11
-    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
-    at async PGStore._asyncQuery (/home/justin/MagicNetwork/node_modules/connect-pg-simple/index.js:322:21) {
-  length: 49,
-  severity: 'ERROR',
-  code: 'XX000',
-  detail: undefined,
-  hint: undefined,
-  position: undefined,
-  internalPosition: undefined,
-  internalQuery: undefined,
-  where: undefined,
-  schema: undefined,
-  table: undefined,
-  column: undefined,
-  dataType: undefined,
-  constraint: undefined,
-  file: undefined,
-  line: undefined,
-  routine: undefined
+node:events:485
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use 0.0.0.0:5000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at node:net:2206:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 5000
 }
-📱 Using localStorage user: test_comprehensive_1750873123484
-🔑 Created new user in database: test_comprehensive_1750873123484
-10:38:44 AM [express] GET /api/cards/search 200 in 1141ms :: {"data":[{"id":"5aa90ab6-2686-4462-8725-…
-📱 Using localStorage user: test_comprehensive_1750873123484
-10:38:45 AM [express] GET /api/cards/search 200 in 565ms :: {"data":[{"id":"5aa90ab6-2686-4462-8725-5…
-📱 Using localStorage user: test_comprehensive_1750873123484
-Local database error, using Scryfall: error: malformed array literal: "R"
-    at file:///home/justin/MagicNetwork/node_modules/@neondatabase/serverless/index.mjs:1345:74
-    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
-    at async NeonPreparedQuery.execute (file:///home/justin/MagicNetwork/node_modules/drizzle-orm/neon-serverless/session.js:76:20)
-    at async CardDatabaseService.searchCards (file:///home/justin/MagicNetwork/server/services/card-database-service.ts:1:7680)
-    at async DatabaseStorage.searchCards (file:///home/justin/MagicNetwork/server/storage.ts:1:1088)
-    at async file:///home/justin/MagicNetwork/server/routes.ts:1:4830 {
-  length: 181,
-  severity: 'ERROR',
-  code: '22P02',
-  detail: 'Array value must start with "{" or dimension information.',
-  hint: undefined,
-  position: undefined,
-  internalPosition: undefined,
-  internalQuery: undefined,
-  where: "unnamed portal parameter $1 = '...'",
-  schema: undefined,
-  table: undefined,
-  column: undefined,
-  dataType: undefined,
-  constraint: undefined,
-  file: 'arrayfuncs.c',
-  line: '319',
-  routine: 'array_in'
-}
-10:39:03 AM [express] GET /api/cards/search 200 in 17933ms :: {"data":[{"object":"card","id":"18c0b3b…
-📱 Using localStorage user: test_comprehensive_1750873123484
-Local database error, using Scryfall: error: column "oracle_id" does not exist
-    at file:///home/justin/MagicNetwork/node_modules/@neondatabase/serverless/index.mjs:1345:74
-    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
-    at async NeonPreparedQuery.execute (file:///home/justin/MagicNetwork/node_modules/drizzle-orm/neon-serverless/session.js:76:20)
-    at async CardDatabaseService.searchCards (file:///home/justin/MagicNetwork/server/services/card-database-service.ts:1:7753)
-    at async DatabaseStorage.searchCards (file:///home/justin/MagicNetwork/server/storage.ts:1:1088)
-    at async file:///home/justin/MagicNetwork/server/routes.ts:1:4830 {
-  length: 109,
-  severity: 'ERROR',
-  code: '42703',
-  detail: undefined,
-  hint: undefined,
-  position: '14',
-  internalPosition: undefined,
-  internalQuery: undefined,
-  where: undefined,
-  schema: undefined,
-  table: undefined,
-  column: undefined,
-  dataType: undefined,
-  constraint: undefined,
-  file: 'parse_relation.c',
-  line: '3722',
-  routine: 'errorMissingColumn'
-}
+
+Node.js v24.2.0

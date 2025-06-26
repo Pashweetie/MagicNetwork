@@ -31,7 +31,7 @@ class ApiError extends Error {
  * - Consistent error messages
  */
 export class ApiClient {
-  private static baseUrl = '';
+  private static baseUrl = import.meta.env.VITE_API_URL || '';
 
   /**
    * Make an API request with unified error handling

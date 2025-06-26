@@ -35,7 +35,7 @@ export function useCardSearch(filters: SearchFilters, enabled: boolean = true) {
       return await api.get(`/api/cards/search?${searchParams}`) as SearchResponse;
     },
     getNextPageParam: (lastPage, pages) => {
-      return lastPage.has_more ? pages.length + 1 : undefined;
+      return lastPage?.has_more ? pages.length + 1 : undefined;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,

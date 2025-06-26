@@ -123,8 +123,8 @@ export default function Search() {
     setLinkedEdhrecCards(allLinkedCards);
   }, [showEdhrecResults, edhrecData, deck.commander]);
 
-  // Only show cards when user has actively searched or enabled EDHREC results
-  const shouldShowResults = searchQuery.trim() !== "" || showEdhrecResults;
+  // Only show cards when user has actively searched, enabled EDHREC results, or applied manual filters
+  const shouldShowResults = searchQuery.trim() !== "" || showEdhrecResults || (useManualFilters && Object.keys(manualFilters).length > 0);
 
 
 
@@ -174,7 +174,7 @@ export default function Search() {
       if (activeFilters.oracleText) {
         const searchText = activeFilters.oracleText.toLowerCase();
         filteredCards = filteredCards.filter(card => 
-          card.oracle_text.toLowerCase().includes(searchText) ||
+          (card.oracle_text && card.oracle_text.toLowerCase().includes(searchText)) ||
           card.name.toLowerCase().includes(searchText)
         );
       }
@@ -189,7 +189,7 @@ export default function Search() {
       return filteredCards.slice(0, edhrecDisplayCount);
     }
 
-    let searchData = data?.pages.flatMap(page => page.data) || [];
+    let searchData = data?.pages.flatMap(page => page?.data || []) || [];
     
     // Apply deck filtering to regular search results if needed
     if (activeFilters.excludeFromDeck && searchData.length > 0) {

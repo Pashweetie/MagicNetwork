@@ -58,38 +58,23 @@ export class DatabaseStorage implements IStorage {
 
   async searchCards(filters: SearchFilters, page: number = 1): Promise<SearchResponse> {
     try {
-      // Check cache first
-      const cachedResult = await this.getCachedSearchResults(filters, page);
-      if (cachedResult) {
-        return cachedResult;
-      }
+      // TEMPORARILY SKIP CACHE to force database usage after removing Scryfall fallback
+      // const cachedResult = await this.getCachedSearchResults(filters, page);
+      // if (cachedResult) {
+      //   return cachedResult;
+      // }
 
-      // Try local database first if available
-      try {
-        const { cardDatabaseService } = await import("./services/card-database-service");
-        const cardCount = await cardDatabaseService.getCardCount();
-        if (cardCount > 1000) { // Only use local DB if we have substantial data
-          const result = await cardDatabaseService.searchCards(filters, page);
-          await this.cacheSearchResults(filters, page, result);
-          return result;
-        } else {
-          console.log(`Local database has only ${cardCount} cards, using Scryfall for search`);
-        }
-      } catch (dbError) {
-        console.log('Local database error, using Scryfall:', dbError);
-      }
-
-      // Fallback to Scryfall service for live search
-      const result = await scryfallService.searchCards(filters, page);
+      // Use local database only - no Scryfall fallback
+      const { cardDatabaseService } = await import("./services/card-database-service");
+      const cardCount = await cardDatabaseService.getCardCount();
+      console.log(`📊 Database has ${cardCount} cards, using local database for search`);
       
-      // Cache cards individually
-      for (const card of result.data) {
-        await this.cacheCard(card);
+      if (cardCount === 0) {
+        throw new Error("Local database is empty. Please ensure cards are downloaded first.");
       }
       
-      // Cache search results
+      const result = await cardDatabaseService.searchCards(filters, page);
       await this.cacheSearchResults(filters, page, result);
-      
       return result;
     } catch (error) {
       console.error('Search error:', error);
@@ -105,20 +90,9 @@ export class DatabaseStorage implements IStorage {
         return cached;
       }
       
-      // Try local database first if available
-      try {
-        const { cardDatabaseService } = await import("./services/card-database-service");
-        const card = await cardDatabaseService.getCard(id);
-        if (card) {
-          await this.cacheCard(card);
-          return card;
-        }
-      } catch (dbError) {
-        console.log('Local database error for card lookup, using Scryfall:', dbError);
-      }
-      
-      // Fallback to Scryfall
-      const card = await scryfallService.getCard(id);
+      // Use local database only - no Scryfall fallback
+      const { cardDatabaseService } = await import("./services/card-database-service");
+      const card = await cardDatabaseService.getCard(id);
       if (card) {
         await this.cacheCard(card);
       }
@@ -132,18 +106,9 @@ export class DatabaseStorage implements IStorage {
 
   async getRandomCard(): Promise<Card> {
     try {
-      // Try local database first if available
-      try {
-        const { cardDatabaseService } = await import("./services/card-database-service");
-        const card = await cardDatabaseService.getRandomCard();
-        await this.cacheCard(card);
-        return card;
-      } catch (dbError) {
-        console.log('Local database not ready for random card, using Scryfall');
-      }
-      
-      // Fallback to Scryfall
-      const card = await scryfallService.getRandomCard();
+      // Use local database only - no Scryfall fallback
+      const { cardDatabaseService } = await import("./services/card-database-service");
+      const card = await cardDatabaseService.getRandomCard();
       await this.cacheCard(card);
       return card;
     } catch (error) {

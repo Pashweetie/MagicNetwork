@@ -19,13 +19,8 @@ RUN npm config set registry https://registry.npmjs.org/ && \
 # Copy application code
 COPY . .
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S viteuser -u 1001
-
-# Change ownership
-RUN chown -R viteuser:nodejs /app
-USER viteuser
+# Note: Running as root for development with volume mounts
+# In production, proper user permissions should be configured
 
 # Expose Vite dev server port
 EXPOSE 5173

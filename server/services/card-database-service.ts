@@ -251,6 +251,8 @@ export class CardDatabaseService {
   async searchCards(filters: SearchFilters, page: number = 1): Promise<SearchResponse> {
     const limit = 20;
     const offset = (page - 1) * limit;
+    
+    console.log(`🔍 Database search: page=${page}, limit=${limit}, offset=${offset}, filters=`, JSON.stringify(filters));
 
     let query = db.select().from(cards);
     const conditions: any[] = [];
@@ -343,6 +345,8 @@ export class CardDatabaseService {
       .orderBy(asc(cards.name))
       .limit(limit)
       .offset(offset);
+    
+    console.log(`📊 Query results: found ${results.length} cards, totalCards=${totalCards}`);
 
     // Convert to Card format
     const cardData = results.map(this.convertDbCardToCard);
@@ -386,19 +390,19 @@ export class CardDatabaseService {
         id: dbCard.id,
         oracle_id: dbCard.oracleId,
         name: dbCard.name,
-        mana_cost: dbCard.mana_cost,
+        mana_cost: dbCard.manaCost,
         cmc: dbCard.cmc,
-        type_line: dbCard.type_line,
-        oracle_text: dbCard.oracle_text,
+        type_line: dbCard.typeLine,
+        oracle_text: dbCard.oracleText,
         colors: dbCard.colors,
-        color_identity: dbCard.color_identity,
+        color_identity: dbCard.colorIdentity,
         power: dbCard.power,
         toughness: dbCard.toughness,
         rarity: dbCard.rarity,
-        set: dbCard.set_code,
-        set_name: dbCard.set_name,
-        image_uris: dbCard.image_uris,
-        card_faces: dbCard.card_faces,
+        set: dbCard.setCode,
+        set_name: dbCard.setName,
+        image_uris: dbCard.imageUris,
+        card_faces: dbCard.cardFaces,
         prices: dbCard.prices,
         legalities: dbCard.legalities,
       };
