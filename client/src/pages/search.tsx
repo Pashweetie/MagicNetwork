@@ -33,8 +33,7 @@ export default function Search() {
   const [deckViewMode, setDeckViewMode] = useState<"grid" | "stacked">("stacked");
   const [sortBy, setSortBy] = useState("relevance");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [manualFilters, setManualFilters] = useState<SearchFilters>({});
-  const [useManualFilters, setUseManualFilters] = useState(false);
+  const [filters, setFilters] = useState<SearchFilters>({});
   const [isDeckFullscreenOpen, setIsDeckFullscreenOpen] = useState(false);
   const [showEdhrecResults, setShowEdhrecResults] = useState(false);
   const [linkedEdhrecCards, setLinkedEdhrecCards] = useState<Card[]>([]);
@@ -43,17 +42,9 @@ export default function Search() {
   const deck = useDeck();
   const { preloadSearchResults } = useCardImagePreloader();
 
-  // Use either parsed query filters OR manual filters, with commander and format restrictions
+  // Apply commander and format restrictions to unified filters
   const activeFilters = useMemo(() => {
-    let baseFilters;
-    if (useManualFilters && Object.keys(manualFilters).length > 0) {
-      baseFilters = manualFilters;
-    } else {
-      baseFilters = ScryfallQueryParser.parseQuery(searchQuery);
-    }
-
-    // Apply format filtering directly to filters object instead of query string
-    const finalFilters = { ...baseFilters };
+    const finalFilters = { ...filters };
 
     // Add format-specific filters (only for non-casual formats)
     if (deck.format.name !== 'Casual') {
@@ -72,7 +63,13 @@ export default function Search() {
     }
 
     return finalFilters;
-  }, [searchQuery, manualFilters, useManualFilters, deck.format.name, deck.commander]);
+  }, [filters, deck.format.name, deck.commander]);
+
+  // Only show cards when user has actively searched, enabled EDHREC results, or applied filters
+  const shouldShowResults = Object.keys(filters).some(key => {
+    const value = filters[key as keyof SearchFilters];
+    return Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null && value !== '';
+  }) || showEdhrecResults;
 
   const {
     data,
@@ -83,7 +80,7 @@ export default function Search() {
     isLoading,
     error,
     refetch,
-  } = useCardSearch(showEdhrecResults ? {} : activeFilters);
+  } = useCardSearch(showEdhrecResults ? {} : activeFilters, shouldShowResults);
 
   // Fetch EDHREC recommendations when enabled
   const { data: edhrecData, isLoading: isEdhrecLoading, error: edhrecError } = useQuery({
@@ -123,8 +120,6 @@ export default function Search() {
     setLinkedEdhrecCards(allLinkedCards);
   }, [showEdhrecResults, edhrecData, deck.commander]);
 
-  // Only show cards when user has actively searched, enabled EDHREC results, or applied manual filters
-  const shouldShowResults = searchQuery.trim() !== "" || showEdhrecResults || (useManualFilters && Object.keys(manualFilters).length > 0);
 
 
 
@@ -210,30 +205,68 @@ export default function Search() {
   const totalCards = showEdhrecResults ? linkedEdhrecCards.length : 
     (shouldShowResults ? (data?.pages[0]?.total_cards || 0) : 0);
 
+  // Smart merge function that combines search query with existing filters
+  const mergeSearchQuery = useCallback((query: string) => {
+    const parsedFilters = ScryfallQueryParser.parseQuery(query);
+    
+    // Smart merge: search query wins for text-based filters, preserves structured filters
+    const mergedFilters = { ...filters };
+    
+    // Text-based filters from search query override existing
+    if (parsedFilters.query) mergedFilters.query = parsedFilters.query;
+    if (parsedFilters.oracleText) mergedFilters.oracleText = parsedFilters.oracleText;
+    
+    // Structured filters merge intelligently
+    if (parsedFilters.colors?.length) {
+      // Merge colors: combine unique values
+      const existingColors = mergedFilters.colors || [];
+      const newColors = [...new Set([...existingColors, ...parsedFilters.colors])];
+      mergedFilters.colors = newColors;
+    }
+    
+    if (parsedFilters.types?.length) {
+      // Merge types: combine unique values
+      const existingTypes = mergedFilters.types || [];
+      const newTypes = [...new Set([...existingTypes, ...parsedFilters.types])];
+      mergedFilters.types = newTypes;
+    }
+    
+    if (parsedFilters.rarities?.length) {
+      mergedFilters.rarities = parsedFilters.rarities; // Replace rarities
+    }
+    
+    // Numeric filters from query override
+    if (parsedFilters.minMv !== undefined) mergedFilters.minMv = parsedFilters.minMv;
+    if (parsedFilters.maxMv !== undefined) mergedFilters.maxMv = parsedFilters.maxMv;
+    
+    return mergedFilters;
+  }, [filters]);
+
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
-    setUseManualFilters(false); // Switch back to query-based filters when searching
-
-    // Parse query and update filters
+    
     if (query.trim()) {
-      const parsedFilters = ScryfallQueryParser.parseQuery(query);
-      setManualFilters(parsedFilters);
-      setUseManualFilters(Object.keys(parsedFilters).length > 0);
+      const mergedFilters = mergeSearchQuery(query);
+      setFilters(mergedFilters);
     } else {
-      // Clear all filters when search is empty
-      setUseManualFilters(false);
-      setManualFilters({});
+      // Keep existing sidebar filters when clearing search
+      const clearedFilters = { ...filters };
+      delete clearedFilters.query;
+      delete clearedFilters.oracleText;
+      setFilters(clearedFilters);
     }
-  }, []);
+  }, [mergeSearchQuery, filters]);
 
-  const handleFiltersChange = useCallback((filters: SearchFilters) => {
-    setManualFilters(filters);
-    setUseManualFilters(true);
-
-    // Update search query to show filters
-    const queryText = ScryfallParser.filtersToQuery(filters);
+  const handleFiltersChange = useCallback((sidebarFilters: SearchFilters) => {
+    // Merge sidebar filters with existing filters, sidebar wins for structured data
+    const mergedFilters = { ...filters, ...sidebarFilters };
+    
+    setFilters(mergedFilters);
+    
+    // Update search query to reflect combined filters
+    const queryText = ScryfallParser.filtersToQuery(mergedFilters);
     setSearchQuery(queryText);
-  }, []);
+  }, [filters]);
 
   const handleCardClick = (card: Card) => {
     setSelectedCard(card);
@@ -301,22 +334,21 @@ export default function Search() {
       parts.push(`Filter: ${activeFilters.query}`);
     }
 
-    if (useManualFilters) {
-      if (activeFilters.colors?.length) {
-        parts.push(`Colors: ${activeFilters.colors.join(', ')}`);
-      }
+    // Show active filters
+    if (activeFilters.colors?.length) {
+      parts.push(`Colors: ${activeFilters.colors.join(', ')}`);
+    }
 
-      if (activeFilters.types?.length) {
-        parts.push(`Types: ${activeFilters.types.join(', ')}`);
-      }
+    if (activeFilters.types?.length) {
+      parts.push(`Types: ${activeFilters.types.join(', ')}`);
+    }
 
-      if (activeFilters.rarities?.length) {
-        parts.push(`Rarity: ${activeFilters.rarities.join(', ')}`);
-      }
+    if (activeFilters.rarities?.length) {
+      parts.push(`Rarity: ${activeFilters.rarities.join(', ')}`);
+    }
 
-      if (activeFilters.oracleText) {
-        parts.push(`Text: "${activeFilters.oracleText}"`);
-      }
+    if (activeFilters.oracleText) {
+      parts.push(`Text: "${activeFilters.oracleText}"`);
     }
 
     return parts.join(' • ') || 'All cards';
@@ -334,7 +366,7 @@ export default function Search() {
         {isSidebarOpen && (
           <FilterSidebar
             isOpen={isSidebarOpen}
-            filters={manualFilters}
+            filters={filters}
             onFiltersChange={handleFiltersChange}
             onClose={() => setIsSidebarOpen(false)}
           />

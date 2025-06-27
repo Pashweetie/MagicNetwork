@@ -1,8 +1,6 @@
 📁 Loading environment variables from .env file
 ✅ Using DATABASE_URL from environment
 Starting card database setup...
-Google Gemini AI ready for generation
-Running database migrations...
 node:events:485
       throw er; // Unhandled 'error' event
       ^

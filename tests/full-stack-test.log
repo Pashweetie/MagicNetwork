@@ -1,14 +1,14 @@
-[0;32m[21:08:57] SUCCESS:[0m 🧪 Starting Full-Stack Test Suite
-[0;32m[21:08:57] SUCCESS:[0m ⏰ Timeout: 300s
-[0;32m[21:08:57] SUCCESS:[0m 📝 Logs: ./tests/full-stack-test.log
-[0;34m[21:08:57][0m 🔍 Checking prerequisites...
-[0;34m[21:08:57][0m ✅ .env file found
-[0;34m[21:08:57][0m 📁 Loading environment variables from .env file
-[0;34m[21:08:57][0m ✅ DATABASE_URL is properly configured
-[0;32m[21:08:57] SUCCESS:[0m ✅ Prerequisites check passed
-[0;34m[21:08:57][0m 🚀 Starting backend server...
-[0;34m[21:08:57][0m Backend started with PID: 57257
-[0;34m[21:08:57][0m ⏳ Waiting for Backend to be ready...
-[0;32m[21:08:58] SUCCESS:[0m ✅ Backend is ready! (HTTP 200)
-[0;34m[21:08:58][0m 🎨 Starting frontend dev server...
-[0;31m[21:13:57] ERROR:[0m ⏰ Test suite timed out after 300s
+[0;32m[18:06:23] SUCCESS:[0m 🧪 Starting Full-Stack Test Suite
+[0;32m[18:06:23] SUCCESS:[0m ⏰ Timeout: 300s
+[0;32m[18:06:23] SUCCESS:[0m 📝 Logs: ./tests/full-stack-test.log
+[0;34m[18:06:23][0m 🔍 Checking prerequisites...
+[0;34m[18:06:23][0m ✅ .env file found
+[0;34m[18:06:23][0m 📁 Loading environment variables from .env file
+[0;34m[18:06:23][0m ✅ DATABASE_URL is properly configured
+[0;32m[18:06:23] SUCCESS:[0m ✅ Prerequisites check passed
+[0;34m[18:06:23][0m 🚀 Starting backend server...
+[0;34m[18:06:23][0m Backend started with PID: 8148
+[0;34m[18:06:23][0m ⏳ Waiting for Backend to be ready...
+[0;32m[18:06:24] SUCCESS:[0m ✅ Backend is ready! (HTTP 200)
+[0;34m[18:06:24][0m 🎨 Starting frontend dev server...
+[0;31m[18:11:23] ERROR:[0m ⏰ Test suite timed out after 300s
