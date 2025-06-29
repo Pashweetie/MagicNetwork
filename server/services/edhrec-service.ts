@@ -60,13 +60,18 @@ export class EdhrecService {
   private normalizeCommanderName(name: string): string {
     // EDHREC expects commander names in lowercase with no symbols and dashes instead of spaces
     // Handle double-faced cards by taking the first part
-    const mainName = name.split(' // ')[0];
+    const mainName = name.split(' // ')[0].trim();
     
-    return mainName.toLowerCase()
+    console.log(`🔄 Normalizing commander name: "${name}" -> "${mainName}"`);
+    
+    const normalized = mainName.toLowerCase()
       .replace(/[^\w\s]/g, '') // Remove all symbols
       .replace(/\s+/g, '-') // Replace spaces with dashes
       .replace(/-+/g, '-') // Replace multiple dashes with single
       .replace(/^-|-$/g, ''); // Remove leading/trailing dashes
+      
+    console.log(`📝 Final normalized name: "${normalized}"`);
+    return normalized;
   }
 
   private async fetchEdhrecData(commanderName: string): Promise<any> {
@@ -134,7 +139,7 @@ export class EdhrecService {
     } catch (error) {
       console.error('Error getting EDHREC recommendations:', error);
       this.requestQueue.delete(cacheKey);
-      return null;
+      throw error; // Fail fast instead of hiding errors
     }
   }
 
@@ -159,7 +164,16 @@ export class EdhrecService {
         });
 
         if (response.ok) {
-          edhrecData = await response.json();
+          const responseText = await response.text();
+          console.log(`EDHREC response for ${normalizedName}:`, responseText.substring(0, 200) + '...');
+          
+          try {
+            edhrecData = JSON.parse(responseText);
+          } catch (parseError) {
+            console.error('Failed to parse EDHREC response as JSON:', parseError);
+            console.log('Response content type:', response.headers.get('content-type'));
+            throw new Error(`Invalid JSON response from EDHREC: ${parseError}`);
+          }
         } else {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -181,7 +195,15 @@ export class EdhrecService {
             throw new Error('Empty response from EDHREC');
           }
 
-          edhrecData = JSON.parse(stdout);
+          console.log(`EDHREC curl response for ${normalizedName}:`, stdout.substring(0, 200) + '...');
+          
+          try {
+            edhrecData = JSON.parse(stdout);
+          } catch (parseError) {
+            console.error('Failed to parse curl response as JSON:', parseError);
+            console.log('Curl response:', stdout.substring(0, 500));
+            throw new Error(`Invalid JSON response from EDHREC curl: ${parseError}`);
+          }
         } catch (curlError) {
           console.error('Both fetch and curl failed:', curlError);
           return null;
@@ -196,7 +218,7 @@ export class EdhrecService {
       return await this.formatEdhrecData(edhrecData, commander);
     } catch (error) {
       console.error('Error fetching EDHREC data:', error);
-      return null;
+      throw error; // Fail fast instead of hiding errors
     }
   }
 
@@ -357,7 +379,7 @@ export class EdhrecService {
       return null;
     } catch (error) {
       console.error('Error searching EDHREC card:', error);
-      return null;
+      throw error; // Fail fast instead of hiding errors
     }
   }
 

@@ -13,6 +13,7 @@ interface FilterSidebarProps {
   isOpen: boolean;
   filters: SearchFilters;
   onFiltersChange: (filters: SearchFilters) => void;
+  onClearAll?: () => void;
   onClose: () => void;
 }
 
@@ -29,7 +30,7 @@ const RARITIES = ['common', 'uncommon', 'rare', 'mythic'];
 const FORMATS = ['standard', 'modern', 'legacy', 'vintage', 'commander', 'pioneer', 'pauper', 'historic', 'alchemy'];
 const POPULAR_KEYWORDS = ['Flying', 'Trample', 'Lifelink', 'Deathtouch', 'First Strike', 'Double Strike', 'Vigilance', 'Haste', 'Reach', 'Hexproof', 'Ward', 'Flash', 'Menace'];
 
-export function FilterSidebar({ isOpen, filters, onFiltersChange, onClose }: FilterSidebarProps) {
+export function FilterSidebar({ isOpen, filters, onFiltersChange, onClearAll, onClose }: FilterSidebarProps) {
   const [expandedSections, setExpandedSections] = useState({
     advanced: false,
     powerToughness: false,
@@ -54,7 +55,11 @@ export function FilterSidebar({ isOpen, filters, onFiltersChange, onClose }: Fil
   };
 
   const clearAllFilters = () => {
-    onFiltersChange({});
+    if (onClearAll) {
+      onClearAll(); // Use parent's clear function which clears both filters and search query
+    } else {
+      onFiltersChange({}); // Fallback to just clearing filters
+    }
   };
 
   const toggleColor = (colorCode: string) => {

@@ -47,6 +47,7 @@ export function ThemeSuggestions({ card, onCardClick, onAddCard, currentFilters 
       }
       return result;
     },
+    enabled: !!card?.id, // Ensure card ID exists
   });
 
   const themeGroups = data?.themeGroups || [];

@@ -35,15 +35,21 @@ export class AIRecommendationService {
     // Get oracle_id from the card data
     const oracleId = (card as any).oracle_id || (card as any).oracleId;
     if (!oracleId) {
-      console.log(`No oracle_id found for card: ${card.name}`);
+      console.log(`⚠️ No oracle_id found for card: ${card.name}, card data:`, {
+        id: card.id,
+        name: card.name,
+        has_oracle_id: !!(card as any).oracle_id,
+        has_oracleId: !!(card as any).oracleId,
+        available_keys: Object.keys(card)
+      });
       return;
     }
 
-    // Check if themes already exist for this card_id
+    // Check if themes already exist for this oracle_id
     const existingThemes = await db
       .select()
       .from(cardThemes)
-      .where(eq(cardThemes.card_id, card.id));
+      .where(eq(cardThemes.oracle_id, card.oracle_id));
 
     if (existingThemes.length > 0) {
       console.log(`Themes already exist for card: ${card.name}`);
@@ -86,14 +92,14 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
       const response = await AIUtils.generateWithAI(this.textGenerator, this.provider, prompt);
       
       if (response) {
-        await this.parseAndStoreThemes(card.id, card.name, response);
+        await this.parseAndStoreThemes(card, response);
       }
     } catch (error) {
       console.error('AI theme generation failed:', error);
     }
   }
 
-  private async parseAndStoreThemes(cardId: string, cardName: string, response: string): Promise<void> {
+  private async parseAndStoreThemes(card: Card, response: string): Promise<void> {
     const lines = response.split('\n').filter(line => line.includes(':'));
     
     for (const line of lines) {
@@ -105,8 +111,8 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
         if (confidence >= 25 && confidence <= 100) {
           try {
             await db.insert(cardThemes).values({
-              card_id: cardId,
-              card_name: cardName,
+              oracle_id: card.oracle_id,
+              card_name: card.name,
               theme_name: themeName.trim(),
               confidence: confidence,
             }).onConflictDoNothing();
@@ -168,11 +174,11 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
       return [];
     }
 
-    // Get source card themes using card_id (until we migrate)
+    // Get source card themes using oracle_id
     const sourceThemes = await db
       .select()
       .from(cardThemes)
-      .where(eq(cardThemes.card_id, cardId));
+      .where(eq(cardThemes.oracle_id, sourceOracleId));
 
     if (sourceThemes.length === 0) {
       return [];
@@ -251,13 +257,13 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
 
     const sourceOracleId = sourceCardData.length > 0 ? (sourceCardData[0].cardData as any).oracle_id : null;
 
-    // Get all cards with this theme, excluding source card
+    // Get all cards with this theme, excluding source card oracle_id
     const themeCards = await db
       .select()
       .from(cardThemes)
       .where(and(
         eq(cardThemes.theme_name, themeName),
-        ne(cardThemes.card_id, sourceCardId)
+        ne(cardThemes.oracle_id, sourceOracleId)
       ))
       .orderBy(desc(cardThemes.confidence));
 
@@ -266,23 +272,20 @@ Only use themes from the provided list. Each theme must be spelled exactly as sh
 
     for (const themeCard of themeCards) {
       try {
+        // Find any card in cache that has this oracle_id
         const cardData = await db
           .select()
           .from(cardCache)
-          .where(eq(cardCache.id, themeCard.card_id))
+          .where(sql`json_extract(card_data, '$.oracle_id') = ${themeCard.oracle_id}`)
           .limit(1);
 
         if (cardData.length > 0) {
           const card = cardData[0].cardData as Card;
-          const cardOracleId = (card as any).oracle_id;
-          
-          // Skip if it's the same oracle_id as source card
-          if (cardOracleId && cardOracleId === sourceOracleId) continue;
           
           // Apply filters if provided
           if (!filters || cardMatchesFilters(card, filters)) {
-            // Use oracle_id for deduplication if available, otherwise use card_id
-            const dedupeKey = cardOracleId || themeCard.card_id;
+            // Use oracle_id for deduplication
+            const dedupeKey = themeCard.oracle_id;
             
             // Only keep the highest confidence per deduplication key
             const existing = oracleIdToCard.get(dedupeKey);

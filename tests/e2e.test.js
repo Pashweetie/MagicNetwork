@@ -169,7 +169,7 @@ function waitForServer(retries = 30) {
             setTimeout(checkServer, 1000);
             retries--;
           } else {
-            reject(new Error('Server did not start in time'));
+            reject(new Error('Server did not start in time. Make sure Docker containers are running.'));
           }
         });
     };
@@ -180,12 +180,14 @@ function waitForServer(retries = 30) {
 // Main execution
 async function main() {
   try {
-    console.log('⏳ Waiting for server to be ready...');
+    console.log('⏳ Waiting for Docker server to be ready...');
+    console.log('📋 Make sure to run "docker-compose up" first');
     await waitForServer();
     console.log('✅ Server is ready!\n');
     await runTests();
   } catch (error) {
     console.error('💥 Test suite failed:', error.message);
+    console.error('💡 Hint: Make sure Docker containers are running with "docker-compose up"');
     process.exit(1);
   }
 }

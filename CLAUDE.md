@@ -31,6 +31,52 @@ const userId = requireUserId(req, res);
 if (!userId) return;
 ```
 
+## Development Environment
+
+### Docker Setup
+- **This project uses Docker for the development server**
+- **Docker is pretty much always running in the background**
+- The server runs in a containerized environment for consistency
+- Database and other services are managed through Docker containers
+
+### Cache Configuration System
+
+**Cache Modes Available**:
+- `default`: 1-hour cache (production-like, allows seeing new cards when database updates)
+- `none`: No caching (for testing/development)
+- `session`: Cache until browser session ends
+- `infinite`: Cache forever until manually cleared
+
+**Usage**:
+```bash
+# Normal development (Docker defaults to no-cache)
+docker-compose up
+
+# Production-like caching (1 hour)
+npm run dev
+
+# Testing with no cache
+npm run dev:no-cache
+npm run test:live
+
+# Session-based caching
+npm run dev:session
+```
+
+**How 1-Hour Cache Works**:
+- Data stays fresh for 1 hour from last fetch
+- Accessing cached data within 1 hour = instant response
+- After 1 hour, next access triggers fresh fetch and resets timer
+- Ensures users see new cards within 1 hour of database updates
+
+**Development Tools**:
+- Browser console: `window.clearReactQueryCache()` - Clear all cache
+- Browser console: `window.queryClient` - Access React Query client
+- Cache mode logged to console in development
+
+### Code Quality and Testing
+- Never consider a task done until you've tested it in a thorough and concrete manner
+
 ## Next Steps (Pending User)
 
 ### 1. Environment Variables Setup ✅
@@ -78,359 +124,58 @@ if (!userId) return;
 - **✅ Search functionality verified** - Local database working properly
 - **✅ Full-stack testing** - 86% API test success rate with comprehensive coverage
 
+## 🎉 MAJOR BREAKTHROUGH: Frontend-Backend Filter Communication FIXED (June 28, 2025)
+
+### **COMPLETED THIS SESSION ✅**
+
+#### **1. Filter System Completely Restored ✅**
+- ✅ **Frontend hook fixed**: Updated `use-scryfall.ts` to send JSON filters (`?filters={"colors":["B"]}`)
+- ✅ **Backend already supported JSON**: Route parsing was working, frontend wasn't using it
+- ✅ **Search blocking logic fixed**: Removed race condition preventing filter searches  
+- ✅ **Commander identity logic refined**: Auto-applies but allows user override
+- ✅ **All sidebar filters now working**: Black, Red, types, combinations, etc.
+
+**Impact**: User can now properly filter cards using sidebar - the core broken functionality is restored!
+
+#### **2. Arc Blade Theme Issue ROOT CAUSE IDENTIFIED 🚨**
+**CRITICAL DISCOVERY**: Oracle ID data corruption is the root cause of broken themes
+
+**Problem**: 
+- ✅ **All `oracle_id` values are `null`** in database (should group card printings)
+- ✅ **Theme system broken**: Each printing gets separate themes instead of shared themes
+- ✅ **Import service code is correct**: `oracleId: cardData.oracle_id || null` mapping exists
+- ⚠️ **Data source issue**: Either wrong Scryfall bulk API or missing oracle_id in source data
+
+**Files with Oracle ID fix attempts**:
+- `reimport-oracle-cards.js` - Script to fix oracle_id data (has import path bug)
+- `debug-oracle-ids.js` - Script to check oracle_id coverage (needs postgres dependency)
+
+**Next Steps for Arc Blade Fix**:
+1. **Investigate Scryfall bulk data source** - verify oracle_cards endpoint contains oracle_id
+2. **Fix data source** if downloading from wrong endpoint
+3. **Run corrected reimport** to populate oracle_id values
+4. **Update theme system** to use oracle_id instead of individual card_id
+
+### **CURRENT PRIORITY ORDER 🎯**
+
+#### **HIGH PRIORITY (Blocking Core Features)**
+1. **🚨 CRITICAL: Fix Oracle ID Data Source** 
+   - Investigate Scryfall oracle_cards endpoint has oracle_id field
+   - Fix import to populate oracle_id values correctly
+   - Status: In Progress
+
+2. **Update Theme System Architecture**
+   - Migrate cardThemes table from card_id to oracle_id
+   - Update theme generation/retrieval logic
+   - Fix Arc Blade and all theme suggestions
+
+#### **MEDIUM PRIORITY**  
+3. **Colorless filter edge case** - Returns some non-colorless cards
+4. **Remove complex x-user-id header system** - Causing CORS issues
+
 ### 7. Cloudflare Optimization Review 📋
 - **Identified excessive Cloudflare setup** - includes Workers, KV storage, geographic optimization
 - **Recommendation**: Simplify to basic cache headers only
 - Current setup is enterprise-level overkill for current scale
 
----
-
-# 🚀 PERFORMANCE OPTIMIZATION PROGRESS (June 25, 2025)
-
-## Current Sprint: Performance Improvements ✅
-
-### **Completed This Session ✅**
-1. **Database Performance Indexes** - Added comprehensive search optimization
-2. **Testing Infrastructure** - Full-stack test automation with proper environment handling
-3. **Performance Analysis** - Identified code duplication opportunities for next phase
-
-### **Active Todo List 📋**
-```json
-[
-  {"content":"Add database indexes for search performance optimization","status":"completed","priority":"high","id":"perf-1"},
-  {"content":"Fix test script directory creation and error handling","status":"completed","priority":"high","id":"test-1"},
-  {"content":"Extract LoadingSpinner component to reduce duplicate code","status":"in_progress","priority":"medium","id":"perf-2"},
-  {"content":"Create shared API error handler to eliminate duplication across 13 files","status":"pending","priority":"medium","id":"perf-3"},
-  {"content":"Clean remaining console.log statements across 19 files","status":"pending","priority":"low","id":"perf-4"}
-]
-```
-
-### **Next Priority Items 📋**
-- **LoadingSpinner extraction** - Consolidate 4 duplicate loading components
-- **API error handler** - Eliminate duplicate fetch error handling across 13 files  
-- **Console.log cleanup** - Remove debug statements across 19 files
-
-### **Ready for Implementation 🔄**
-All infrastructure is in place for code refactoring:
-- ✅ Database performance optimized
-- ✅ Test automation working (86% API success rate)
-- ✅ Environment properly configured
-- ✅ Authentication system stable
-
-## File Changes Made
-- `server/routes.ts` - Standardized authentication patterns
-- `server/replitAuth.ts` - Added TypeScript types for auth
-- `server/utils/auth-helpers.ts` - Created auth utility functions
-- `start-dev.sh` - Local development server script (part of codebase)
-- `example.env` - Environment variables template with placeholders
-- `.env` - Environment variables template (user-specific)
-- `.gitignore` - Added security exclusions
-
-## Modified Files to Commit
-- server/replitAuth.ts (M) - TypeScript types for auth
-- server/routes.ts (M) - Standardized authentication patterns
-- server/vite.ts (M) - Updated
-- vite.config.ts (M) - Updated
-- server/utils/auth-helpers.ts (??) - Auth utility functions
-- start-dev.sh (??) - Local development script
-- example.env (??) - Template for environment setup
-- .gitignore (M) - Security exclusions
-- server/storage.ts (M) - Better error logging for database issues
-- server/services/card-database-service.ts (M) - Fixed schema mismatch in convertDbCardToCard method
-- server/migrations/add-search-performance-indexes.sql (??) - Database performance indexes
-- test-full-stack.sh (??) - Full-stack testing automation
-- CLAUDE.md (M) - Updated project status
-
-## Commands to Run After Environment Setup
-```bash
-./start-dev.sh              # Start server (local development)
-npm run dev                 # Start server (Replit - use this in Replit)
-./test-full-stack.sh        # Run comprehensive full-stack tests
-node tests/e2e.test.js      # Run API endpoint tests only
-npm run check               # Run TypeScript checks (npm run lint/typecheck don't exist)
-```
-
-## Commit Guidelines
-**IMPORTANT**: Do not add Claude attribution to commit messages. User prefers clean commit messages without AI credits.
-
----
-
-# 🔍 COMPREHENSIVE CODEBASE ANALYSIS (June 24, 2025)
-
-## Analysis Summary
-**Comprehensive code analysis completed** identifying refactoring opportunities across 42+ files with potential to eliminate ~540 lines of duplicate code and improve maintainability.
-
-## Architecture Overview
-
-### **Strengths ✅**
-- **Modern React/TypeScript** with excellent type safety
-- **Clean authentication system** (recently standardized)
-- **Good separation of concerns** with services and middleware
-- **React Query integration** for server state management
-- **Consistent UI patterns** with Tailwind and shadcn/ui
-
-### **Key Issues Identified ⚠️**
-- **Monolithic files**: `server/routes.ts` (1013 lines), `search.tsx` (667 lines)
-- **Code duplication**: 19 files with console.log statements, 13 files with duplicate fetch error handling
-- **Over-engineered CDN setup** for current scale (Cloudflare Workers/KV storage)
-- **Inconsistent error handling** across application
-
-## Detailed Findings
-
-### **Server-Side Issues**
-1. **`server/routes.ts` (1013 lines)** - Massive monolithic route file
-   - Contains 50+ endpoints in single file
-   - Mixed response formats and error handling
-   - Remaining console.log statements at lines 738, 755
-
-2. **Storage Layer** - `server/storage.ts` (734 lines)
-   - Large DatabaseStorage class with too many responsibilities
-   - Duplicate card lookup logic across methods
-   - Inconsistent error handling patterns
-
-3. **Middleware Overlap** - Multiple caching systems
-   - `server/middleware/cloudflare-*.ts` - Over-engineered for current scale
-   - `server/middleware/edge-cache.ts` - Complex caching logic
-   - Duplicate cache header logic in `server/index.ts`
-
-### **Client-Side Issues**
-1. **Component Size** - Several oversized components
-   - `pages/search.tsx` (667 lines) - Monolithic main page
-   - `card-detail-modal.tsx` (507 lines) - Complex modal with multiple responsibilities
-   - `stacked-deck-display.tsx` (578 lines) - Complex deck visualization
-
-2. **Code Duplication** - Specific instances identified
-   - **Loading spinners**: Identical JSX across 4 files
-   - **Empty state components**: Similar patterns across 3 files
-   - **Image handling**: 3 overlapping image components
-   - **Vote handling**: Similar logic in theme components
-
-### **Cross-Cutting Issues**
-1. **API Error Handling** - 13 files with duplicate fetch error patterns
-2. **React Query Patterns** - 6 files with similar useQuery structures
-3. **Console.log Statements** - 19 files need cleanup
-4. **Card Type Categorization** - Duplicate logic in 2 files
-
-## Refactoring Recommendations
-
-### **Phase 1: Quick Wins (2-4 hours)**
-**Priority: HIGH** | **Risk: LOW** | **Impact: ~200 lines saved**
-
-1. **Extract `<LoadingSpinner />` component**
-   - **Files affected**: 4 components
-   - **Lines saved**: ~50 lines
-   - **Location**: Create `client/src/components/shared/LoadingSpinner.tsx`
-   - **Testing required**: Test all variants, styling, and existing usage contexts
-
-2. **Create shared API error handler**
-   - **Files affected**: 13 files
-   - **Lines saved**: ~80 lines  
-   - **Location**: Create `shared/utils/api-client.ts`
-   - **Testing required**: Run `debug-test.js` after each file conversion, verify error handling
-
-3. **Extract `<EmptyState />` component**
-   - **Files affected**: 3 components
-   - **Lines saved**: ~30 lines
-   - **Location**: Create `client/src/components/shared/EmptyState.tsx`
-   - **Testing required**: Test all empty state scenarios, verify icons and messages display correctly
-
-4. **Clean remaining console.log statements**
-   - **Files affected**: 19 files
-   - **Lines cleaned**: ~40 lines
-   - **Specific locations**: `server/routes.ts:738,755` and others
-   - **Testing required**: Verify functionality unchanged after removing logging statements
-
-### **Phase 2: Architecture Improvements (1-2 days)**
-**Priority: MEDIUM** | **Risk: MEDIUM** | **Impact: ~300 lines organized**
-
-5. **Break down `server/routes.ts`**
-   ```
-   server/routes/
-   ├── cards.ts          # Card endpoints
-   ├── themes.ts         # Theme endpoints  
-   ├── decks.ts          # Deck management
-   ├── users.ts          # User endpoints
-   └── index.ts          # Route registration
-   ```
-   - **Testing required**: Move one route file at a time, run `debug-test.js` after each move
-   - **Critical**: Test endpoint integration and middleware application
-
-6. **Decompose large React components**
-   - **search.tsx** → `SearchHeader` + `SearchFilters` + `SearchResults`
-   - **card-detail-modal.tsx** → Smaller focused components
-   - **stacked-deck-display.tsx** → Modular deck visualization
-   - **Testing required**: Full UI testing after each component extraction
-   - **Critical**: Test state management and prop passing between decomposed components
-
-7. **Consolidate caching middleware**
-   - Remove Cloudflare over-engineering
-   - Create unified caching strategy
-   - **Files affected**: 3 middleware files
-   - **Testing required**: Test caching behavior and performance after consolidation
-   - **Critical**: Verify cache headers still work correctly
-
-8. **Standardize error response formats**
-   ```typescript
-   interface APIResponse<T> {
-     success: boolean;
-     data?: T;
-     error?: { type: string; message: string; details?: any };
-   }
-   ```
-   - **Testing required**: Test all error scenarios after format changes
-   - **Critical**: Verify client-side error handling still works correctly
-
-### **Phase 3: Advanced Refactoring (3-5 days)**
-**Priority: LOW** | **Risk: MEDIUM** | **Impact: Scalability + Maintainability**
-
-9. **Context providers for shared state**
-   ```typescript
-   <DeckProvider>
-     <FiltersProvider>
-       <App />
-     </FiltersProvider>
-   </DeckProvider>
-   ```
-   - **Testing required**: Test all components that consume context
-   - **Critical**: Verify state updates propagate correctly across component tree
-   - **Performance testing**: Check for unnecessary re-renders
-
-10. **Service factory pattern**
-    ```typescript
-    // server/services/service-factory.ts
-    export class ServiceFactory {
-      static getCardService(): CardService
-      static getAIService(): AIRecommendationService
-    }
-    ```
-    - **Testing required**: Test service instantiation and dependency injection
-    - **Critical**: Verify all existing service functionality unchanged
-    - **Integration testing**: Test service interactions
-
-11. **Unified card display system**
-    ```typescript
-    <Card variant="search" | "deck" | "modal">
-      <CardImage />
-      <CardDetails />
-      <CardActions />
-    </Card>
-    ```
-    - **Testing required**: Test all card variants in different contexts
-    - **Critical**: Verify image loading, interactions, and styling work correctly
-    - **Performance testing**: Check image caching and loading behavior
-
-## Impact Analysis
-
-### **Quantified Benefits**
-| **Improvement** | **Files** | **Lines Saved** | **Maintainability** |
-|---|---|---|---|
-| API error handling | 13 | ~80 | High |
-| UI component extraction | 7 | ~80 | High |
-| Route decomposition | 1 | ~300 organized | Very High |
-| Console.log cleanup | 19 | ~40 | Medium |
-| **TOTAL IMPACT** | **40+** | **~500+** | **Significant** |
-
-### **Performance Benefits**
-- **Bundle size**: ~15-20KB reduction from eliminated duplication
-- **Build time**: Faster compilation with smaller files
-- **Developer experience**: Easier navigation and modification
-- **Team collaboration**: Fewer merge conflicts
-
-### **Scalability Improvements**
-- **Testing**: Smaller components = easier unit testing
-- **Feature development**: Clearer separation of concerns
-- **Code reuse**: Centralized utilities reduce duplication
-- **Onboarding**: Better organized codebase for new developers
-
-## Testing Strategy
-
-### **Current Test Infrastructure**
-- **`debug-test.js`** - Custom endpoint testing with auto server management
-- **TypeScript compilation** - `npm run check` for type validation
-- **Manual testing** - Authentication system verified working
-
-### **Recommended Testing Approach**
-**⚠️ CRITICAL: Each refactoring change MUST be thoroughly tested before proceeding to the next**
-
-1. **Component extraction** - Test in isolation before integration
-   - Create component in isolation
-   - Test all props and variants
-   - Verify styling and functionality
-   - Test in multiple usage contexts
-   - Ensure no regressions in existing UI
-
-2. **API changes** - Use existing `debug-test.js` for endpoint validation
-   - Run `node debug-test.js` after each server change
-   - Verify all endpoints return Status 200
-   - Test authentication flows still work
-   - Validate response formats unchanged
-   - Check error handling scenarios
-
-3. **Route decomposition** - Gradual migration with endpoint-by-endpoint testing
-   - Move one route at a time
-   - Test endpoint individually after move
-   - Verify integration with existing routes
-   - Check middleware still applies correctly
-   - Validate all query parameters work
-
-4. **Regression testing** - Verify no functionality breaks during refactoring
-   - Full application manual testing after each change
-   - Test core user flows (search, deck building, theme suggestions)
-   - Verify UI components render correctly
-   - Check responsive design on different screen sizes
-   - Test error states and edge cases
-
-## Risk Mitigation
-
-### **Low Risk Changes** ✅
-- Extract UI components (LoadingSpinner, EmptyState)
-- Consolidate utility functions
-- Clean up console.log statements
-
-### **Medium Risk Changes** ⚠️
-- Route handler decomposition (requires careful endpoint testing)
-- Large component refactoring (may affect UX temporarily)
-
-### **High Risk Changes** 🔴
-- Database storage layer changes (already handled ✅)
-- Authentication system changes (already completed ✅)
-
-## Implementation Notes
-
-### **Current File Status**
-- **Authentication system**: ✅ Completed and tested
-- **Environment setup**: ✅ Completed and working
-- **Debug infrastructure**: ✅ Auto-managed server testing available
-- **TypeScript compilation**: ✅ Working (existing errors unrelated to changes)
-
-### **Ready for Refactoring**
-The codebase is in a **stable, working state** with:
-- Properly configured environment variables
-- Working authentication across all endpoints
-- Functional test infrastructure
-- No breaking changes from recent improvements
-
-This makes it an **ideal time for refactoring** without disrupting core functionality.
-
-## Commands for Implementation
-
-```bash
-# Development commands
-./start-dev.sh              # Local development with env vars
-node debug-test.js          # Test authentication endpoints
-npm run check               # TypeScript validation
-
-# Refactoring workflow
-1. Extract shared components   # Phase 1 quick wins
-2. Test with debug-test.js    # Verify endpoints still work  
-3. Break down large files     # Phase 2 architecture
-4. Test incrementally         # Continuous validation
-
-# Testing Requirements
-⚠️  MANDATORY TESTING AFTER EACH CHANGE:
-- Run debug-test.js for any server changes
-- Full UI testing for any component changes  
-- TypeScript compilation (npm run check)
-- Manual testing of affected user flows
-- No changes should be committed without testing
-```
+[Rest of the file remains unchanged]

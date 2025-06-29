@@ -5,10 +5,21 @@
   "license": "MIT",
   "scripts": {
     "dev": "NODE_ENV=development tsx server/index.ts",
+    "dev:no-cache": "VITE_CACHE_MODE=none NODE_ENV=development tsx server/index.ts",
+    "dev:session": "VITE_CACHE_MODE=session NODE_ENV=development tsx server/index.ts",
+    "test:live": "VITE_CACHE_MODE=none NODE_ENV=development tsx server/index.ts",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "test": "cd tests && node run-all-tests.js",
+    "test:backend": "cd tests && node run-all-tests.js backend-api backend-database",
+    "test:frontend": "vitest --run",
+    "test:frontend:watch": "vitest",
+    "test:frontend:ui": "vitest --ui",
+    "test:integration": "cd tests && node run-all-tests.js integration",
+    "test:e2e": "cd tests && node run-all-tests.js full-stack",
+    "test:validation": "cd tests && node run-all-tests.js validation"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
@@ -85,6 +96,9 @@
     "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "^4.1.3",
+    "@testing-library/jest-dom": "^6.1.4",
+    "@testing-library/react": "^14.1.2",
+    "@testing-library/user-event": "^14.5.1",
     "@types/connect-pg-simple": "^7.0.3",
     "@types/express": "4.17.21",
     "@types/express-session": "^1.18.0",
@@ -98,11 +112,14 @@
     "autoprefixer": "^10.4.20",
     "drizzle-kit": "^0.30.4",
     "esbuild": "^0.25.0",
+    "jsdom": "^23.0.1",
+    "msw": "^2.0.11",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.1",
     "typescript": "5.6.3",
-    "vite": "^5.4.19"
+    "vite": "^5.4.19",
+    "vitest": "^1.0.4"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"

@@ -48,13 +48,38 @@ export const getQueryFn: <T>(options: {
     return await res.json();
   };
 
+// Cache mode configuration for development and testing
+const getCacheSettings = () => {
+  const cacheMode = import.meta.env.VITE_CACHE_MODE || 'default';
+  
+  switch (cacheMode) {
+    case 'none':
+      return { staleTime: 0, cacheTime: 0 };
+    case 'session':
+      return { staleTime: Infinity, cacheTime: 0 };
+    case 'infinite':
+      return { staleTime: Infinity, cacheTime: Infinity };
+    case 'default':
+    default:
+      return { staleTime: 60 * 60 * 1000, cacheTime: 24 * 60 * 60 * 1000 }; // 1 hour stale, 24 hour cache
+  }
+};
+
+const cacheSettings = getCacheSettings();
+const cacheMode = import.meta.env.VITE_CACHE_MODE || 'default';
+
+// Log cache mode in development
+if (import.meta.env.DEV) {
+  console.log(`🧠 React Query Cache Mode: ${cacheMode.toUpperCase()}`, cacheSettings);
+}
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      ...cacheSettings,
       retry: false,
     },
     mutations: {
@@ -62,3 +87,13 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+// Add dev tools in development
+if (import.meta.env.DEV) {
+  (window as any).clearReactQueryCache = () => {
+    queryClient.clear();
+    console.log('🗑️ React Query cache cleared');
+  };
+  
+  (window as any).queryClient = queryClient;
+}

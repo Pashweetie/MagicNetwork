@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { aiRecommendationService } from "./services/ai-recommendation-service";
-import { searchFiltersSchema, cardCache, cardThemes, themeVotes, userDecks, decks, insertUserDeckSchema, insertDeckSchema, DeckEntry, DeckExport, DeckImport } from "@shared/schema";
+import { searchFiltersSchema, cardCache, cardThemes, themeVotes, userDecks, decks, cards, insertUserDeckSchema, insertDeckSchema, DeckEntry, DeckExport, DeckImport } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, count } from "drizzle-orm";
 import { z } from "zod";
@@ -62,7 +62,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`🔍 Search request: page=${page}, query params:`, Object.keys(req.query).length > 3 ? '[multiple filters]' : JSON.stringify(req.query));
       
       // Parse query parameters into filters
-      let filters: any = {
+      let filters: any = {};
+      
+      // First, try to parse JSON filters parameter (from frontend)
+      if (req.query.filters && typeof req.query.filters === 'string') {
+        try {
+          filters = JSON.parse(req.query.filters);
+          console.log('🔧 Parsed JSON filters:', filters);
+        } catch (e) {
+          console.warn('Invalid filters JSON:', req.query.filters);
+        }
+      }
+      
+      // Then, merge with individual query parameters (for backwards compatibility)
+      const individualFilters = {
         colors: req.query.colors ? (req.query.colors as string).split(',') : undefined,
         types: req.query.types ? (req.query.types as string).split(',') : undefined,
         subtypes: req.query.subtypes ? (req.query.subtypes as string).split(',') : undefined,
@@ -110,6 +123,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         keywords: req.query.keywords ? (req.query.keywords as string).split(',') : undefined,
         produces: req.query.produces ? (req.query.produces as string).split(',') : undefined,
       };
+      
+      // Merge individual filters with JSON filters (JSON takes precedence)
+      filters = { ...individualFilters, ...filters };
+      console.log('🔧 Final merged filters:', filters);
 
       // If there's a query parameter 'q', parse it as Scryfall syntax
       if (req.query.q) {
@@ -272,6 +289,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
   // Theme suggestions endpoint - get themes for a card with example cards
   app.get("/api/cards/:id/theme-suggestions", isAuthenticated, async (req, res) => {
     try {
@@ -295,14 +313,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Card not found" });
       }
 
+      // Check if card has oracle_id
+      if (!card.oracle_id) {
+        console.log(`⚠️ Card ${card.name} (${id}) has no oracle_id - returning empty themes`);
+        return res.json({ themeGroups: [], userVotes: [] });
+      }
+
       // Generate themes if they don't exist (skips basic lands automatically)
-      await aiRecommendationService.generateCardThemes(card);
+      try {
+        await aiRecommendationService.generateCardThemes(card);
+      } catch (error) {
+        console.error(`❌ Failed to generate themes for ${card.name}:`, error);
+        throw error; // Fail fast instead of hiding errors
+      }
       
-      // Get card's themes
+      // Get card's themes using oracle_id
       const themes = await db
         .select()
         .from(cardThemes)
-        .where(eq(cardThemes.card_id, id));
+        .where(eq(cardThemes.oracle_id, card.oracle_id));
 
       // Get user's existing votes for all cards and themes
       const userVotes = await db
@@ -329,13 +358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         } catch (error) {
           console.error(`Error getting cards for theme ${theme.theme_name}:`, error);
-          // Add theme group with empty cards instead of failing
-          themeGroups.push({
-            theme: theme.theme_name,
-            description: `${theme.theme_name} strategy`,
-            confidence: theme.confidence,
-            cards: []
-          });
+          throw error; // Fail fast instead of hiding errors
         }
       }
       
@@ -354,12 +377,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = requireUserId(req, res);
       if (!userId) return;
 
+      // Get the card to access oracle_id
+      const card = await storage.getCard(cardId);
+      if (!card) {
+        return res.status(404).json({ error: 'Card not found' });
+      }
+
       // Check if user already voted on this theme
       const existingVote = await db
         .select()
         .from(themeVotes)
         .where(and(
-          eq(themeVotes.card_id, cardId),
+          eq(themeVotes.oracle_id, card.oracle_id),
           eq(themeVotes.theme_name, themeName),
           eq(themeVotes.user_id, userId)
         ))
@@ -382,7 +411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         // Create new vote
         await db.insert(themeVotes).values({
-          card_id: cardId,
+          oracle_id: card.oracle_id,
           theme_name: themeName,
           user_id: userId,
           vote: vote
@@ -394,7 +423,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select()
         .from(themeVotes)
         .where(and(
-          eq(themeVotes.card_id, cardId),
+          eq(themeVotes.oracle_id, card.oracle_id),
           eq(themeVotes.theme_name, themeName)
         ));
 
@@ -407,7 +436,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select()
         .from(cardThemes)
         .where(and(
-          eq(cardThemes.card_id, cardId),
+          eq(cardThemes.oracle_id, card.oracle_id),
           eq(cardThemes.theme_name, themeName)
         ))
         .limit(1);
@@ -431,7 +460,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await db
           .delete(cardThemes)
           .where(and(
-            eq(cardThemes.card_id, cardId),
+            eq(cardThemes.oracle_id, card.oracle_id),
             eq(cardThemes.theme_name, themeName)
           ));
         
@@ -439,7 +468,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await db
           .delete(themeVotes)
           .where(and(
-            eq(themeVotes.card_id, cardId),
+            eq(themeVotes.oracle_id, card.oracle_id),
             eq(themeVotes.theme_name, themeName)
           ));
 
@@ -449,7 +478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .update(cardThemes)
           .set({ confidence: newConfidence })
           .where(and(
-            eq(cardThemes.card_id, cardId),
+            eq(cardThemes.oracle_id, card.oracle_id),
             eq(cardThemes.theme_name, themeName)
           ));
 
@@ -555,13 +584,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         VALUES (${userId}, 'theme_upvote', 0, 'up')
       `);
 
-      // Update theme confidence based on upvote
+      // Get the card to access oracle_id
+      const card = await storage.getCard(cardId);
+      if (!card) {
+        return res.status(404).json({ error: 'Card not found' });
+      }
+
+      // Update theme confidence based on upvote using new schema
       await db.execute(sql`
-        INSERT INTO card_themes (card_id, theme_name, theme_category, confidence, description, upvotes, downvotes, user_votes_count)
-        VALUES (${cardId}, ${theme}, ${categoryName}, 75, 'User-upvoted theme', 1, 0, 1)
-        ON CONFLICT (card_id, theme_name) DO UPDATE SET
-          upvotes = COALESCE(upvotes, 0) + 1,
-          user_votes_count = COALESCE(user_votes_count, 0) + 1,
+        INSERT INTO card_themes (oracle_id, card_name, theme_name, confidence)
+        VALUES (${card.oracle_id}, ${card.name}, ${theme}, 75)
+        ON CONFLICT (oracle_id, theme_name) DO UPDATE SET
           confidence = LEAST(100, COALESCE(confidence, 50) + 10)
       `);
 
@@ -736,14 +769,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { sourceId } = req.params;
       const { recommendedCardId, helpful, recommendationType } = req.body;
       
-      console.log(`📝 Recording recommendation feedback:`, {
-        userId: 1,
-        sourceCard: sourceId,
-        recommendedCard: recommendedCardId,
-        type: recommendationType,
-        helpful: helpful ? 'helpful' : 'not_helpful',
-        timestamp: new Date().toISOString()
-      });
       
       await storage.recordRecommendationFeedback({
         userId: 1,
@@ -753,7 +778,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         feedback: helpful ? 'helpful' : 'not_helpful'
       });
       
-      console.log(`✅ Feedback recorded successfully - this will improve future ${recommendationType} recommendations`);
       
       res.json({ 
         success: true, 
@@ -842,10 +866,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User deck management routes
   app.get('/api/user/deck', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
-        return res.status(401).json({ message: 'User not authenticated' });
-      }
+      const userId = requireUserId(req, res);
+      if (!userId) return;
+      
       const deckData = await storage.getUserDeck(userId);
       res.json(deckData);
     } catch (error) {
@@ -974,10 +997,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/user/deck', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
-        return res.status(401).json({ message: 'User not authenticated' });
-      }
+      const userId = requireUserId(req, res);
+      if (!userId) return;
+      
       const deckData = req.body;
       const savedDeck = await storage.saveUserDeck(userId, deckData);
       res.json(savedDeck);
@@ -990,10 +1012,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Import deck from text
   app.post('/api/user/deck/import', isAuthenticated, invalidateCache(['user-decks']), async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
-        return res.status(401).json({ message: 'User not authenticated' });
-      }
+      const userId = requireUserId(req, res);
+      if (!userId) return;
+      
       const { deckText, format } = req.body;
       
       if (!deckText || typeof deckText !== 'string') {

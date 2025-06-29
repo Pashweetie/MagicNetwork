@@ -3,7 +3,6 @@ import { cardCache, searchCache, users, cardThemes, themeVotes, decks, userDecks
 import { Card, SearchFilters, SearchResponse, User, InsertUser, Deck, InsertDeck, UserDeck, InsertUserDeck, DeckEntry, CardTheme, InsertCardTheme, ThemeVote, InsertThemeVote } from "@shared/schema";
 import { eq, sql, and, desc, asc, inArray, or, ilike } from "drizzle-orm";
 import crypto from "crypto";
-import { scryfallService } from "./services/scryfall";
 import { cardMatchesFilters } from "./utils/card-filters";
 
 export interface IStorage {
@@ -100,7 +99,7 @@ export class DatabaseStorage implements IStorage {
       return card;
     } catch (error) {
       console.error('Get card error:', error);
-      return null;
+      throw error; // Fail fast instead of hiding errors
     }
   }
 
@@ -168,7 +167,7 @@ export class DatabaseStorage implements IStorage {
       return null;
     } catch (error) {
       console.error('Get cached card error:', error);
-      return null;
+      throw error; // Fail fast instead of hiding errors
     }
   }
 
@@ -217,7 +216,7 @@ export class DatabaseStorage implements IStorage {
       return null;
     } catch (error) {
       console.error('Get cached search results error:', error);
-      return null;
+      throw error; // Fail fast instead of hiding errors
     }
   }
 
@@ -274,10 +273,10 @@ export class DatabaseStorage implements IStorage {
     return [];
   }
 
-  async getCardThemes(cardId: string): Promise<CardTheme[]> {
+  async getCardThemes(oracleId: string): Promise<CardTheme[]> {
     return db.select()
       .from(cardThemes)
-      .where(eq(cardThemes.card_id, cardId))
+      .where(eq(cardThemes.oracle_id, oracleId))
       .orderBy(desc(cardThemes.confidence));
   }
 
@@ -293,12 +292,12 @@ export class DatabaseStorage implements IStorage {
     if (themes.length === 0) return [];
     
     const cardIds = await db.select({ 
-      cardId: cardThemes.card_id,
+      cardId: cardThemes.oracle_id,
       avgScore: sql<number>`AVG(${cardThemes.confidence})`.as('avg_score')
     })
       .from(cardThemes)
       .where(inArray(cardThemes.theme_name, themes))
-      .groupBy(cardThemes.card_id)
+      .groupBy(cardThemes.oracle_id)
       .orderBy(desc(sql`AVG(${cardThemes.confidence})`));
     
     if (cardIds.length === 0) return [];
@@ -383,7 +382,7 @@ export class DatabaseStorage implements IStorage {
       return { deck, entries, commander: commander || undefined };
     } catch (error) {
       console.error('getUserDeck error:', error);
-      return { deck: null, entries: [], commander: undefined };
+      throw error; // Fail fast instead of hiding errors
     }
   }
 
@@ -460,50 +459,15 @@ export class DatabaseStorage implements IStorage {
           }
         }
       } else {
-        // Fall back to Scryfall API if local database isn't populated
-        for (const edhrecCard of edhrecCards) {
-          try {
-            const response = await fetch(`https://api.scryfall.com/cards/named?exact=${encodeURIComponent(edhrecCard.name)}`);
-            if (response.ok) {
-              const scryfallCard = await response.json();
-              const card: Card = {
-                id: scryfallCard.id,
-                name: scryfallCard.name,
-                mana_cost: scryfallCard.mana_cost || null,
-                cmc: scryfallCard.cmc || 0,
-                type_line: scryfallCard.type_line || '',
-                oracle_text: scryfallCard.oracle_text || null,
-                colors: scryfallCard.colors || [],
-                color_identity: scryfallCard.color_identity || [],
-                power: scryfallCard.power || null,
-                toughness: scryfallCard.toughness || null,
-                rarity: scryfallCard.rarity || 'common',
-                set: scryfallCard.set || '',
-                set_name: scryfallCard.set_name || '',
-                image_uris: scryfallCard.image_uris || null,
-                card_faces: scryfallCard.card_faces || null,
-                prices: scryfallCard.prices || null,
-                legalities: scryfallCard.legalities || null,
-              };
-              
-              linkedCards.push({
-                ...card,
-                edhrec_rank: edhrecCard.num_decks,
-                edhrec_synergy: edhrecCard.synergy,
-                edhrec_url: edhrecCard.url
-              });
-            }
-          } catch (error) {
-            // Skip cards that can't be found
-          }
-        }
+        // If local database isn't populated, return empty results instead of Scryfall fallback
+        console.log('Local database not ready, skipping EDHREC card linking');
       }
       
       console.log(`✅ Linked ${linkedCards.length} out of ${edhrecCards.length} EDHREC cards via database join`);
       return linkedCards;
     } catch (error) {
       console.error('Error linking EDHREC cards:', error);
-      return [];
+      throw error; // Fail fast instead of hiding errors
     }
   }
 
@@ -653,7 +617,7 @@ export class DatabaseStorage implements IStorage {
       return foundCards;
     } catch (error) {
       console.error('Bulk card search error:', error);
-      return [];
+      throw error; // Fail fast instead of hiding errors
     }
   }
 

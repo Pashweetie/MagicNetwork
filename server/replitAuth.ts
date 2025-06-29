@@ -71,12 +71,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
         const extraEntropy = Math.random().toString(36).substring(2, 8);
         userId = `anon_${timestamp}_${randomPart}_${extraEntropy}`;
         (req.session as any).autoUserId = userId;
-        console.log(`🆔 Generated new anonymous user: ${userId}`);
-      } else {
-        console.log(`🔄 Using session user: ${userId}`);
       }
-    } else {
-      console.log(`📱 Using localStorage user: ${userId}`);
     }
     
     // Ensure user exists in database
@@ -87,14 +82,14 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
         username: userId,
         email: `${userId}@anonymous.local`
       });
-      console.log(`🔑 Created new user in database: ${userId}`);
     }
 
     // Attach user to request
     (req as any).user = { claims: { sub: userId } };
     return next();
   } catch (error) {
-    console.error("Authentication error:", error);
+    console.error("❌ Authentication error:", error);
+    console.error("❌ Stack trace:", error.stack);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

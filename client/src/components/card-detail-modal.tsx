@@ -24,14 +24,14 @@ interface CardDetailModalProps {
 }
 
 // Theme Recommendations Component
-function ThemeRecommendations({ cardId, onCardClick, onAddCard, currentFilters }: { cardId: string; onCardClick: (card: Card) => void; onAddCard?: (card: Card) => void; currentFilters?: any }) {
+function ThemeRecommendations({ card, onCardClick, onAddCard, currentFilters }: { card: Card; onCardClick: (card: Card) => void; onAddCard?: (card: Card) => void; currentFilters?: any }) {
   return (
     <div>
       <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
         <Lightbulb className="w-5 h-5 mr-2 text-purple-400" />
         Themes
       </h3>
-      <ThemeSuggestions card={{ id: cardId } as Card} onCardClick={onCardClick} onAddCard={onAddCard} currentFilters={currentFilters} />
+      <ThemeSuggestions card={card} onCardClick={onCardClick} onAddCard={onAddCard} currentFilters={currentFilters} />
     </div>
   );
 }
@@ -413,7 +413,7 @@ export function CardDetailModal({ card, isOpen, onClose, onCardClick, onAddCard,
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Set:</span>
-                <span className="text-white">{card.set_name} ({card.set.toUpperCase()})</span>
+                <span className="text-white">{card.set_name} ({card.set?.toUpperCase() || 'UNKNOWN'})</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Colors:</span>
@@ -482,7 +482,7 @@ export function CardDetailModal({ card, isOpen, onClose, onCardClick, onAddCard,
             </TabsList>
             
             <TabsContent value="themes" className="mt-6">
-              <ThemeRecommendations cardId={card.id} onCardClick={onCardClick || (() => onClose())} onAddCard={onAddCard} currentFilters={currentFilters} />
+              <ThemeRecommendations card={card} onCardClick={onCardClick || (() => onClose())} onAddCard={onAddCard} currentFilters={currentFilters} />
             </TabsContent>
             
             <TabsContent value="synergy" className="mt-6">

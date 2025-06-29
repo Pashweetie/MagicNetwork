@@ -64,11 +64,10 @@ function SearchVariant({
     >
       <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg border border-slate-700 hover:border-slate-500">
         <div className="aspect-[3/4] relative">
-          <CardImage
-            cached={false}
-            src={cardImage}
-            alt={card.name}
+          <DualFacedCard
+            card={card}
             className="w-full h-full object-cover"
+            showFlipButton={false}
           />
           {/* Price overlay in bottom left corner */}
           {price && (
@@ -107,7 +106,7 @@ function DeckVariant({
         <DualFacedCard
           card={card}
           className="w-full h-full object-cover"
-          showFlipButton={false}
+          showFlipButton={true}
         />
       </div>
 

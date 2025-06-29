@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card as UICard, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Grid, List, Package, Settings, X, Crown, ChevronUp, ChevronDown, Upload, Trash2 } from "lucide-react";
-import { useCardSearch } from "@/hooks/use-scryfall";
+import { useCardSearch } from "@/hooks/use-card-search";
 import { useDeck, FORMATS } from "@/hooks/use-deck";
 import { useCardImagePreloader } from "@/hooks/use-image-preloader";
 import { useQuery } from "@tanstack/react-query";
@@ -51,10 +51,10 @@ export default function Search() {
       finalFilters.format = deck.format.name.toLowerCase();
     }
 
-    // Apply commander color identity filtering only if commander is selected
-    if (deck.format.name === 'Commander' && deck.commander) {
+    // Apply commander color identity filtering only if commander is selected AND user hasn't set explicit colorIdentity
+    if (deck.format.name === 'Commander' && deck.commander && !filters.colorIdentity) {
       const commanderColors = deck.commander.color_identity || [];
-
+      
       if (commanderColors.length > 0) {
         finalFilters.colorIdentity = commanderColors;
       } else {
@@ -63,14 +63,37 @@ export default function Search() {
     }
 
     return finalFilters;
-  }, [filters, deck.format.name, deck.commander]);
+  }, [filters, deck.format.name, deck.commander?.id]);
 
-  // Only show cards when user has actively searched, enabled EDHREC results, or applied filters
-  const shouldShowResults = Object.keys(filters).some(key => {
-    const value = filters[key as keyof SearchFilters];
-    return Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null && value !== '';
-  }) || showEdhrecResults;
+  // Simple and predictable search behavior
+  const shouldShowResults = useMemo(() => {
+    // Always show EDHREC results when enabled
+    if (showEdhrecResults) return true;
+    
+    // Show results if user has entered a search query
+    if (searchQuery.trim()) return true;
+    
+    // Show results if user has applied any manual filters
+    const hasManualFilters = Object.keys(filters).some(key => {
+      const value = filters[key as keyof SearchFilters];
+      return Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null && value !== '';
+    });
+    
+    return hasManualFilters;
+  }, [searchQuery, filters, showEdhrecResults]);
 
+  // Allow searches immediately - no need to wait for deck loading for basic filters
+  const searchEnabled = shouldShowResults;
+  
+  // Only log when search is blocked to reduce noise
+  if (shouldShowResults && !searchEnabled) {
+    console.log('🔍 Search blocked:', {
+      isDeckLoading: deck.isDeckLoading,
+      formatName: deck.format.name,
+      hasCommanderSpecificFilters
+    });
+  }
+  
   const {
     data,
     fetchNextPage,
@@ -80,7 +103,7 @@ export default function Search() {
     isLoading,
     error,
     refetch,
-  } = useCardSearch(showEdhrecResults ? {} : activeFilters, shouldShowResults);
+  } = useCardSearch(activeFilters, searchEnabled);
 
   // Fetch EDHREC recommendations when enabled
   const { data: edhrecData, isLoading: isEdhrecLoading, error: edhrecError } = useQuery({
@@ -138,7 +161,7 @@ export default function Search() {
       // Apply filters to EDHREC results
       if (activeFilters.types?.length) {
         filteredCards = filteredCards.filter(card => 
-          activeFilters.types!.some(type => 
+          activeFilters.types!.every(type => 
             card.type_line.toLowerCase().includes(type.toLowerCase())
           )
         );
@@ -146,7 +169,7 @@ export default function Search() {
 
       if (activeFilters.colors?.length) {
         filteredCards = filteredCards.filter(card => 
-          activeFilters.colors!.some(color => 
+          activeFilters.colors!.every(color => 
             card.color_identity.includes(color)
           )
         );
@@ -249,24 +272,42 @@ export default function Search() {
       const mergedFilters = mergeSearchQuery(query);
       setFilters(mergedFilters);
     } else {
-      // Keep existing sidebar filters when clearing search
-      const clearedFilters = { ...filters };
-      delete clearedFilters.query;
-      delete clearedFilters.oracleText;
-      setFilters(clearedFilters);
+      // Clear ALL filters when search is cleared, not just text filters
+      setFilters({});
     }
-  }, [mergeSearchQuery, filters]);
+  }, [mergeSearchQuery]);
 
   const handleFiltersChange = useCallback((sidebarFilters: SearchFilters) => {
+    console.log('🔧 Sidebar filters changed:', sidebarFilters);
+    
     // Merge sidebar filters with existing filters, sidebar wins for structured data
     const mergedFilters = { ...filters, ...sidebarFilters };
     
+    console.log('🔧 Merged filters:', mergedFilters);
     setFilters(mergedFilters);
     
-    // Update search query to reflect combined filters
-    const queryText = ScryfallParser.filtersToQuery(mergedFilters);
-    setSearchQuery(queryText);
-  }, [filters]);
+    // Keep search query in sync with filters.query to prevent locking
+    if (mergedFilters.query && mergedFilters.query !== searchQuery) {
+      setSearchQuery(mergedFilters.query);
+    } else if (!mergedFilters.query && searchQuery) {
+      // Clear search box if no query in filters
+      setSearchQuery("");
+    }
+    
+    // Clear search query if sidebar filters are being used (except for query/oracleText)
+    const hasNonTextFilters = Object.keys(sidebarFilters).some(key => 
+      key !== 'query' && key !== 'oracleText' && sidebarFilters[key as keyof SearchFilters] !== undefined
+    );
+    
+    if (hasNonTextFilters && !sidebarFilters.query) {
+      setSearchQuery("");
+    }
+  }, [filters, searchQuery]);
+
+  const clearAllFilters = useCallback(() => {
+    setFilters({});
+    setSearchQuery("");
+  }, []);
 
   const handleCardClick = (card: Card) => {
     setSelectedCard(card);
@@ -368,6 +409,7 @@ export default function Search() {
             isOpen={isSidebarOpen}
             filters={filters}
             onFiltersChange={handleFiltersChange}
+            onClearAll={clearAllFilters}
             onClose={() => setIsSidebarOpen(false)}
           />
         )}

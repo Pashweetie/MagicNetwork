@@ -1,4 +1,5 @@
 // Unified API client to eliminate duplicate fetch patterns
+
 export interface ApiResponse<T = any> {
   data?: T;
   error?: string;
@@ -53,6 +54,14 @@ export class ApiClient {
       'Content-Type': 'application/json',
       ...headers
     };
+
+    // Add user ID header for authentication
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+      const userId = localStorage.getItem('deck-builder-user-id');
+      if (userId) {
+        requestHeaders['x-user-id'] = userId;
+      }
+    }
 
     const requestOptions: RequestInit = {
       method,

@@ -42,6 +42,7 @@ services:
       - "${FRONTEND_PORT:-5173}:5173"
     environment:
       - VITE_API_URL=http://localhost:${BACKEND_PORT:-5000}
+      - VITE_CACHE_MODE=${VITE_CACHE_MODE:-none}
     volumes:
       - .:/app
       - /app/node_modules

@@ -15,6 +15,16 @@ interface BulkDataItem {
   compressed_size?: number;
 }
 
+// Configuration for card filtering - can be adjusted without code changes
+const CARD_FILTER_CONFIG = {
+  excludedLayouts: ['token', 'art_series', 'emblem'],
+  excludedSetTypes: ['memorabilia', 'token'],
+  excludedBorderColors: ['gold'],
+  excludeDigital: true,
+  excludeOversized: true,
+  // Add new exclusions here as needed
+};
+
 export class CardDatabaseService {
   private isDownloading = false;
   private downloadProgress = { current: 0, total: 0, status: 'idle' };
@@ -72,15 +82,18 @@ export class CardDatabaseService {
       const bulkResponse = await fetch(SCRYFALL_BULK_API);
       const bulkData = await bulkResponse.json();
       
-      // Find the oracle cards bulk data (better than default_cards for completeness)
+      // Use oracle_cards for best deduplication and latest card text
+      // This avoids duplicate printings and ensures we get canonical card data
       let cardsData = bulkData.data.find((item: BulkDataItem) => item.type === 'oracle_cards');
       if (!cardsData) {
-        // Fallback to default_cards if oracle_cards not available
+        console.warn("Oracle cards not available, falling back to default_cards (may include duplicates)");
         cardsData = bulkData.data.find((item: BulkDataItem) => item.type === 'default_cards');
       }
       if (!cardsData) {
         throw new Error("Could not find suitable cards bulk data");
       }
+      
+      console.log(`Using ${cardsData.type} bulk data for better card consistency`);
 
       console.log(`Downloading ${Math.round((cardsData.compressed_size || 0) / 1024 / 1024)}MB of card data...`);
       
@@ -135,8 +148,15 @@ export class CardDatabaseService {
         continue;
       }
 
-      // Skip digital-only cards, tokens, etc. if desired
-      if (cardData.digital || cardData.layout === 'token') {
+      // Skip digital-only cards, tokens, art cards, and other non-playable variants
+      if (cardData.digital || 
+          cardData.layout === 'token' || 
+          cardData.layout === 'art_series' ||
+          cardData.layout === 'emblem' ||
+          cardData.set_type === 'memorabilia' ||
+          cardData.set_type === 'token' ||
+          cardData.border_color === 'gold' ||
+          cardData.oversized === true) {
         continue;
       }
 
@@ -262,9 +282,9 @@ export class CardDatabaseService {
       whereParts.push(`(name ILIKE '%${filters.query.replace(/'/g, "''")}%' OR oracle_text ILIKE '%${filters.query.replace(/'/g, "''")}%' OR type_line ILIKE '%${filters.query.replace(/'/g, "''")}%')`);
     }
     
-    // Type filters
+    // Type filters - use AND logic for multiple types (e.g., "Instant Creature")
     if (filters.types && filters.types.length > 0) {
-      const typeFilters = filters.types.map(type => `type_line ILIKE '%${type.replace(/'/g, "''")}%'`).join(' OR ');
+      const typeFilters = filters.types.map(type => `type_line ILIKE '%${type.replace(/'/g, "''")}%'`).join(' AND ');
       whereParts.push(`(${typeFilters})`);
     }
     
@@ -300,50 +320,53 @@ export class CardDatabaseService {
       whereParts.push(`oracle_text ILIKE '%${filters.oracleText.replace(/'/g, "''")}%'`);
     }
     
+    // Color filter (for sidebar color selection)
+    if (filters.colors && filters.colors.length > 0) {
+      // Check that the card contains ALL selected colors (AND logic)
+      const colorList = filters.colors.map(c => `'${c.replace(/'/g, "''")}'`).join(',');
+      const colorClause = `(color_identity @> ARRAY[${colorList}]::text[])`;
+      console.log(`🎨 Color filter: selected colors=[${filters.colors.join(',')}], SQL clause: ${colorClause}`);
+      whereParts.push(colorClause);
+    }
+    
+    // Color identity filter (for Commander format)
+    if (filters.colorIdentity && filters.colorIdentity.length > 0) {
+      // Check that card's color identity is a subset of commander's color identity
+      const colorList = filters.colorIdentity.map(c => `'${c.replace(/'/g, "''")}'`).join(',');
+      const colorClause = `(color_identity <@ ARRAY[${colorList}]::text[])`;
+      console.log(`🎨 Color identity filter: commander colors=[${filters.colorIdentity.join(',')}], SQL clause: ${colorClause}`);
+      whereParts.push(colorClause);
+    }
+    
     const whereClause = whereParts.length > 0 ? 'WHERE ' + whereParts.join(' AND ') : '';
 
-    // Query to get cheapest printing of each unique card
-    const cheapestCardsQuery = `
-      WITH ranked_cards AS (
-        SELECT *,
-          ROW_NUMBER() OVER (
-            PARTITION BY COALESCE(oracle_id, name) 
-            ORDER BY 
-              CASE 
-                WHEN prices->>'usd' IS NOT NULL AND prices->>'usd' ~ '^[0-9]+(\\.[0-9]+)?$' 
-                THEN CAST(prices->>'usd' AS DECIMAL)
-                ELSE 999999 
-              END ASC,
-              released_at DESC
-          ) as price_rank
-        FROM cards
-        ${whereClause}
-      )
-      SELECT * FROM ranked_cards 
-      WHERE price_rank = 1
+    // Simple query - show all cards matching filters (like Scryfall does)
+    const searchQuery = `
+      SELECT * FROM cards
+      ${whereClause}
       ORDER BY name
       LIMIT ${limit} OFFSET ${offset}
     `;
 
-    // Count query for total unique cards
+    // Count query for total cards
     const countQuery = `
-      SELECT COUNT(DISTINCT COALESCE(oracle_id, name)) as count
+      SELECT COUNT(*) as count
       FROM cards
       ${whereClause}
     `;
 
-    console.log(`🔍 Executing cheapest printing query with WHERE: ${whereClause}`);
+    console.log(`🔍 Executing search query with WHERE: ${whereClause}`);
 
     // Execute both queries
     const [resultsResponse, countResponse] = await Promise.all([
-      db.execute(sql.raw(cheapestCardsQuery)),
+      db.execute(sql.raw(searchQuery)),
       db.execute(sql.raw(countQuery))
     ]);
 
     const results = resultsResponse.rows;
     const totalCards = parseInt(countResponse.rows[0]?.count as string) || 0;
     
-    console.log(`📊 Cheapest printing results: found ${results.length} unique cards, totalCards=${totalCards}`);
+    console.log(`📊 Search results: found ${results.length} cards, totalCards=${totalCards}`);
 
     // Convert to Card format
     const cardData = results.map(this.convertDbCardToCard);
@@ -383,23 +406,34 @@ export class CardDatabaseService {
 
   private convertDbCardToCard(dbCard: any): Card {
     try {
+      // Defensive checks for required fields
+      if (!dbCard.id) {
+        throw new Error('Card missing required id field');
+      }
+      if (!dbCard.name) {
+        throw new Error(`Card ${dbCard.id} missing required name field`);
+      }
+      if (!dbCard.setCode) {
+        console.warn(`Card ${dbCard.id} (${dbCard.name}) missing set_code, using 'unknown'`);
+      }
+      
       return {
         id: dbCard.id,
-        oracle_id: dbCard.oracle_id,
+        oracle_id: dbCard.oracleId || dbCard.oracle_id,
         name: dbCard.name,
-        mana_cost: dbCard.mana_cost,
-        cmc: dbCard.cmc,
-        type_line: dbCard.type_line,
-        oracle_text: dbCard.oracle_text,
-        colors: dbCard.colors,
-        color_identity: dbCard.color_identity,
+        mana_cost: dbCard.manaCost || dbCard.mana_cost,
+        cmc: dbCard.cmc || 0,
+        type_line: dbCard.typeLine || dbCard.type_line,
+        oracle_text: dbCard.oracleText || dbCard.oracle_text,
+        colors: dbCard.colors || [],
+        color_identity: dbCard.colorIdentity || dbCard.color_identity || [],
         power: dbCard.power,
         toughness: dbCard.toughness,
-        rarity: dbCard.rarity,
-        set: dbCard.set_code,
-        set_name: dbCard.set_name,
-        image_uris: dbCard.image_uris,
-        card_faces: dbCard.card_faces,
+        rarity: dbCard.rarity || 'common',
+        set: dbCard.setCode || dbCard.set_code || 'unknown',
+        set_name: dbCard.setName || dbCard.set_name || 'Unknown Set',
+        image_uris: dbCard.imageUris || dbCard.image_uris,
+        card_faces: dbCard.cardFaces || dbCard.card_faces,
         prices: dbCard.prices,
         legalities: dbCard.legalities,
       };
@@ -590,8 +624,41 @@ export class CardDatabaseService {
     }
   }
 
+  async cleanupNonPlayableCards(): Promise<void> {
+    console.log("Cleaning up non-playable cards from database...");
+    
+    try {
+      // Remove art cards, tokens, and other non-playable variants
+      const deleteResult = await db.delete(cards)
+        .where(
+          or(
+            eq(cards.digital, true),
+            eq(cards.layout, 'token'),
+            eq(cards.layout, 'art_series'),
+            eq(cards.layout, 'emblem'),
+            sql`set_type = 'memorabilia'`,
+            sql`set_type = 'token'`,
+            eq(cards.borderColor, 'gold'),
+            eq(cards.oversized, true)
+          )
+        );
+      
+      console.log(`Removed ${deleteResult.rowCount || 0} non-playable cards from database`);
+      
+      // Get updated card count
+      const newCount = await this.getCardCount();
+      console.log(`Database now contains ${newCount} playable cards`);
+      
+    } catch (error) {
+      console.error("Error cleaning up database:", error);
+    }
+  }
+
   async downloadMissingData(): Promise<void> {
     console.log("Starting comprehensive data download...");
+    
+    // Clean up existing problematic cards first
+    await this.cleanupNonPlayableCards();
     
     // Check what bulk data types are available
     const bulkResponse = await fetch(SCRYFALL_BULK_API);
@@ -605,16 +672,7 @@ export class CardDatabaseService {
     // Download rulings if not already downloaded
     await this.checkAndDownloadRulings();
     
-    // Suggest downloading oracle_cards instead of default_cards for better data
-    const oracleCards = bulkData.data.find((item: BulkDataItem) => item.type === 'oracle_cards');
-    if (oracleCards) {
-      console.log(`\nRecommendation: Consider downloading oracle_cards instead of default_cards for:
-- Better data deduplication
-- More consistent Oracle IDs for rulings
-- Latest card text versions
-      
-To switch, modify the bulk data type in downloadAllCards() method.`);
-    }
+    console.log("Database cleanup and optimization complete!");
   }
 }
 

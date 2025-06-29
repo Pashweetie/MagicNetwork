@@ -79,7 +79,7 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
   const queryClient = useQueryClient();
 
   // Fetch deck data from backend
-  const { data: deckData } = useQuery({
+  const { data: deckData, isLoading: isDeckLoading } = useQuery({
     queryKey: ['/api/user/deck'],
     queryFn: () => api.get('/api/user/deck')
   });
@@ -341,6 +341,7 @@ export function useDeck(initialFormat: DeckFormat = FORMATS[0]) {
     averageCMC,
     exportToText,
     name,
-    addCardByName
+    addCardByName,
+    isDeckLoading
   };
 }

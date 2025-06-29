@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Minus, Crown } from "lucide-react";
 import { CardImage } from "./shared/CardImage";
+import { DualFacedCard } from "./dual-faced-card";
 import { apiRequest } from "@/lib/queryClient";
 
 type SortOption = 'name' | 'name_desc' | 'mana_value' | 'price' | 'type';
@@ -239,11 +240,10 @@ function StackedCard({
           }`}
           onClick={() => onClick(card)}
         >
-          <CardImage
-            src={card.image_uris?.normal}
-            alt={card.name}
+          <DualFacedCard
+            card={card}
             className="w-full h-full object-cover"
-            priority={isHovered}
+            showFlipButton={false}
           />
         </div>
 
